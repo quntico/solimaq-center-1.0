@@ -1,0 +1,277 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 221.2 83.2% 53.3%;
+    /* Royal Blue #2563eb */
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 221.2 83.2% 53.3%;
+
+    /* Custom color for LED blue effect */
+    --color-led-blue: 221.2 83.2% 53.3%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "liga" 0;
+  }
+}
+
+/* Custom styles for Header Logo */
+.header-logo-container {
+  width: var(--logo-width, 200px);
+  /* Default width if not set */
+  height: auto;
+  padding-top: 5px;
+  /* Adjust padding as needed */
+  padding-bottom: 5px;
+  /* Adjust padding as needed */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.2s ease-in-out;
+  /* Smooth transition for resizing */
+}
+
+.header-logo {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  /* filter: brightness(0) invert(1); */
+  /* Logo filter removed to show original colors */
+}
+
+.animate-marquee-once {
+  animation: marquee 15s linear infinite;
+  /* Adjust duration for speed */
+}
+
+.animate-marquee-reverse-once {
+  animation: marquee-reverse 15s linear infinite;
+  /* Adjust duration for speed */
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes marquee-reverse {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+/* Custom styles for Sidebar */
+.sidebar-collapsed {
+  width: 60px;
+  /* Adjust collapsed width as needed */
+}
+
+.sidebar-expanded {
+  width: 250px;
+  /* Adjust expanded width as needed */
+}
+
+/* Custom scrollbar for dark themes */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+  /* Dark track color */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2563eb;
+  /* Royal Blue */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8;
+  /* Darker Blue on hover */
+}
+
+/* Override for specific components if needed, e.g., Shadcn/ui inputs in dark theme */
+.dark .bg-background {
+  background-color: hsl(222.2 84% 4.9%) !important;
+  /* Ensure background is consistent */
+}
+
+.dark .bg-gray-950 {
+  background-color: hsl(222.2 84% 4.9%) !important;
+  /* Ensure bg-gray-950 is dark enough */
+}
+
+.dark .border-gray-800 {
+  border-color: hsl(217.2 32.6% 17.5%) !important;
+  /* Consistent border color */
+}
+
+/* Electric Blue LED Effect (Solid Blue Style) */
+.led-blue-text {
+  color: #ffffff !important;
+  text-shadow: none;
+}
+
+.led-blue-box {
+  background-color: #2563eb !important;
+  /* Solid Blue */
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.5), 0 2px 4px -1px rgba(37, 99, 235, 0.3);
+}
+
+.led-blue-hover:hover {
+  color: #ffffff !important;
+}
+
+.led-blue-box-hover:hover {
+  background-color: rgba(37, 99, 235, 0.8) !important;
+  border-color: rgba(37, 99, 235, 0.8) !important;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  /* Hide UI elements */
+  .no-print,
+  aside,
+  /* Sidebar */
+  header,
+  /* Header */
+  .bottom-nav,
+  /* Bottom Navigation */
+  button,
+  /* Hide all buttons */
+  .toaster,
+  /* Hide toasts */
+  .admin-modal,
+  .password-prompt {
+    display: none !important;
+  }
+
+  /* Reset layout for printing */
+  body,
+  #root,
+  .flex,
+  .h-screen {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure main content is visible and expanded */
+  #main-content-scroll-area {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure text is readable */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Specific overrides for dark mode elements to look good on paper */
+  .bg-black,
+  .bg-gray-900,
+  .bg-gray-950 {
+    background-color: white !important;
+    color: black !important;
+    border: none !important;
+  }
+
+  .text-white,
+  .text-gray-400 {
+    color: black !important;
+  }
+}
