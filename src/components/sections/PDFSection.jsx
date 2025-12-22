@@ -174,14 +174,14 @@ const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme }) => {
             onChange={handleFileChange}
             disabled={isUploading}
           />
-          <Button variant="outline" className="w-full bg-gray-900 text-white border-gray-700 hover:bg-gray-800 hover:border-blue-500 hover:text-blue-400" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+          <Button variant="outline" className="w-full bg-gray-900 text-white border-gray-700 hover:bg-gray-800 hover:border-primary hover:text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
             <Upload className="w-4 h-4 mr-2" />
             {file ? `Archivo: ${file.name}` : 'Seleccionar PDF'}
           </Button>
         </div>
         <DialogFooter>
-          <Button variant="ghost" className="hover:text-blue-600" onClick={() => { resetState(); onClose(); }} disabled={isUploading}>Cancelar</Button>
-          <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={!name.trim() || !file || isUploading}>
+          <Button variant="ghost" className="hover:text-primary" onClick={() => { resetState(); onClose(); }} disabled={isUploading}>Cancelar</Button>
+          <Button onClick={handleSubmit} className="bg-primary hover:bg-primary/80 text-white" disabled={!name.trim() || !file || isUploading}>
             {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
             Añadir Cotización
           </Button>
@@ -397,7 +397,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                 </Button>
               </a>
             )}
-            <Button onClick={handleAdminToggle} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 w-full sm:w-auto shrink-0 shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+            <Button onClick={handleAdminToggle} className="bg-primary hover:bg-primary/80 text-white flex items-center justify-center gap-2 w-full sm:w-auto shrink-0 shadow-[0_0_15px_hsl(var(--primary)/0.3)]">
               {isEditorMode ? <Unlock className="w-4 h-4 text-white" /> : <Lock className="w-4 h-4 text-white" />}
               Modo Editor {isEditorMode ? 'ON' : 'OFF'}
             </Button>
@@ -413,7 +413,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-white">Documentos</h2>
               {isEditorMode && (
-                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-primary hover:bg-primary/80 text-white text-sm shadow-[0_0_15px_hsl(var(--primary)/0.3)]">
                   <FilePlus className="w-4 h-4 mr-2" /> Añadir
                 </Button>
               )}
@@ -421,7 +421,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
             <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-4 space-y-2 flex-grow overflow-y-auto">
               {isLoading ? (
                 <div className="flex justify-center items-center h-full">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : quotations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
@@ -431,7 +431,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                 </div>
               ) : (
                 quotations.map((q, index) => (
-                  <div key={q.id} className={`p-3 rounded-lg transition-all cursor-pointer group ${selectedQuotation?.id === q.id ? 'bg-blue-600/20 ring-2 ring-blue-600' : 'hover:bg-white/5'}`}>
+                  <div key={q.id} className={`p-3 rounded-lg transition-all cursor-pointer group ${selectedQuotation?.id === q.id ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-white/5'}`}>
                     <div className="flex justify-between items-center" onClick={() => !editingQuotation && setSelectedQuotation(q)}>
                       {editingQuotation === q.id ? (
                         <Input
@@ -451,7 +451,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                           {editingQuotation === q.id ? (
                             <Button size="icon" variant="ghost" onClick={() => setEditingQuotation(null)}><X className="w-4 h-4 text-gray-500" /></Button>
                           ) : (
-                            <Button size="icon" variant="ghost" onClick={() => setEditingQuotation(q.id)}><Edit className="w-4 h-4 text-blue-400 hover:text-blue-300" /></Button>
+                            <Button size="icon" variant="ghost" onClick={() => setEditingQuotation(q.id)}><Edit className="w-4 h-4 text-primary hover:text-green-300" /></Button>
                           )}
                           <Button size="icon" variant="ghost" onClick={() => handleDeleteQuotation(q.id, q.file_path)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                         </div>
@@ -469,7 +469,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg overflow-hidden h-full flex flex-col">
                 <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-gray-900/50 shrink-0">
                   <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                    <FileText className="w-5 h-5 text-primary" />
                     <span className="text-white font-semibold truncate">{selectedQuotation.name}</span>
                   </div>
                   <div className="flex items-center gap-2">

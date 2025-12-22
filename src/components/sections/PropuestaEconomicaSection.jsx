@@ -154,7 +154,7 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="flex items-center justify-between border-b border-gray-800 pb-4 mb-6">
         <div className="flex items-center gap-2">
-          <Box className="w-6 h-6 text-blue-500" />
+          <Box className="w-6 h-6 text-primary" />
           <h2 className="text-xl font-bold text-white">Editar Item</h2>
         </div>
         <Button
@@ -175,8 +175,8 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
               onChange={(val) => onUpdate(group.id, item.id, 'icon', val)}
               isEditorMode={true}
             >
-              <div className="w-full aspect-square rounded-lg border border-gray-800 bg-gray-950 flex items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-gray-900 transition-all">
-                {React.createElement(iconMap[item.icon] || iconMap.Box, { size: 32, className: "text-blue-500" })}
+              <div className="w-full aspect-square rounded-lg border border-gray-800 bg-gray-950 flex items-center justify-center cursor-pointer hover:border-primary hover:bg-gray-900 transition-all">
+                {React.createElement(iconMap[item.icon] || iconMap.Box, { size: 32, className: "text-primary" })}
               </div>
             </IconPicker>
           </div>
@@ -186,7 +186,7 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
               <Input
                 value={localTitle}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors font-semibold"
+                className="bg-gray-950 border-gray-800 focus:border-primary transition-colors font-semibold"
               />
             </div>
             <div className="space-y-2">
@@ -194,7 +194,7 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
               <Input
                 value={localSubtitle}
                 onChange={(e) => handleSubtitleChange(e.target.value)}
-                className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors"
+                className="bg-gray-950 border-gray-800 focus:border-primary transition-colors"
               />
             </div>
           </div>
@@ -207,7 +207,7 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
               type="text" // Keep as text to allow decimals
               value={localPrice}
               onChange={(e) => handlePriceChange(e.target.value)}
-              className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors font-mono text-blue-400 text-lg"
+              className="bg-gray-950 border-gray-800 focus:border-primary transition-colors font-mono text-primary text-lg"
             />
           </div>
           <div className="space-y-2">
@@ -216,7 +216,7 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
               type="text" // Keep as text to allow decimals
               value={localKw}
               onChange={(e) => handleKwChange(e.target.value)}
-              className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors font-mono"
+              className="bg-gray-950 border-gray-800 focus:border-primary transition-colors font-mono"
             />
           </div>
         </div>
@@ -230,13 +230,13 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
             <Switch
               checked={localIsActive}
               onCheckedChange={handleIsActiveChange}
-              className="data-[state=checked]:bg-blue-500 scale-75"
+              className="data-[state=checked]:bg-primary scale-75"
             />
           </div>
         </div>
 
         <div className="pt-4 border-t border-gray-800">
-          <Button onClick={handleSave} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={handleSave} className="w-full bg-primary hover:bg-primary/80 text-white">
             <Save className="w-4 h-4 mr-2" /> Guardar Cambios
           </Button>
         </div>
@@ -479,7 +479,7 @@ const PropuestaEconomicaSection = ({
     }
 
     // Title (Right Aligned)
-    doc.setTextColor(59, 130, 246); // Blue color
+    doc.setTextColor(155, 212, 40); // Solimaq Primary Green
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
     const titleFull = `${content.pageTitle || 'PROPUESTA'} ${content.pageTitleHighlight || 'ECONÓMICA'}`;
@@ -511,7 +511,7 @@ const PropuestaEconomicaSection = ({
       head: [[t('sections.propuestaDetails.desc'), t('sections.propuestaDetails.potencia'), t('sections.propuestaDetails.importe')]],
       body: tableBody,
       theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+      headStyles: { fillColor: [155, 212, 40], textColor: [0, 0, 0], fontStyle: 'bold' },
       styles: { cellPadding: 4, fontSize: 10 },
       columnStyles: {
         1: { halign: 'center' },
@@ -569,7 +569,7 @@ const PropuestaEconomicaSection = ({
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(`${t('sections.propuestaDetails.total')} (${content.currency}):`, labelX, currentY);
-    doc.setTextColor(37, 99, 235); // Blue
+    doc.setTextColor(155, 212, 40); // Solimaq Primary Green
     doc.text(formatCurrency(totalUSD, content.currency), valueX, currentY, { align: 'right' });
     currentY += lineHeight + 4;
 
@@ -609,7 +609,7 @@ const PropuestaEconomicaSection = ({
       return (
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="flex items-center gap-2 border-b border-gray-800 pb-4 mb-6">
-            <Settings className="w-6 h-6 text-blue-500" />
+            <Settings className="w-6 h-6 text-primary" />
             <h2 className="text-xl font-bold text-white">Configuración General</h2>
           </div>
           <div className="grid grid-cols-1 gap-6">
@@ -618,7 +618,7 @@ const PropuestaEconomicaSection = ({
               <Input
                 value={content.pageTitle || ''}
                 onChange={(e) => updateContent({ ...content, pageTitle: e.target.value })}
-                className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors"
+                className="bg-gray-950 border-gray-800 focus:border-primary transition-colors"
               />
             </div>
             <div className="space-y-2">
@@ -626,7 +626,7 @@ const PropuestaEconomicaSection = ({
               <Input
                 value={content.pageTitleHighlight || ''}
                 onChange={(e) => updateContent({ ...content, pageTitleHighlight: e.target.value })}
-                className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors"
+                className="bg-gray-950 border-gray-800 focus:border-primary transition-colors"
               />
             </div>
             <div className="space-y-2">
@@ -634,7 +634,7 @@ const PropuestaEconomicaSection = ({
               <Input
                 value={content.pageDescription || ''}
                 onChange={(e) => updateContent({ ...content, pageDescription: e.target.value })}
-                className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors"
+                className="bg-gray-950 border-gray-800 focus:border-primary transition-colors"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -643,7 +643,7 @@ const PropuestaEconomicaSection = ({
                 <Input
                   value={content.currency || 'USD'}
                   onChange={(e) => updateContent({ ...content, currency: e.target.value })}
-                  className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors"
+                  className="bg-gray-950 border-gray-800 focus:border-primary transition-colors"
                 />
               </div>
               <div className="space-y-2">
@@ -652,14 +652,14 @@ const PropuestaEconomicaSection = ({
                   type="number"
                   value={content.taxRate || 0}
                   onChange={(e) => updateContent({ ...content, taxRate: parseFloat(e.target.value) || 0 })}
-                  className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors"
+                  className="bg-gray-950 border-gray-800 focus:border-primary transition-colors"
                 />
               </div>
             </div>
 
-            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+            <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
               <div className="space-y-2">
-                <Label className="text-blue-400 font-bold flex items-center gap-2">
+                <Label className="text-primary font-bold flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   Tipo de Cambio (USD a MXN)
                 </Label>
@@ -668,7 +668,7 @@ const PropuestaEconomicaSection = ({
                   step="0.1"
                   value={content.exchangeRate}
                   onChange={(e) => updateContent({ ...content, exchangeRate: parseFloat(e.target.value) || 0 })}
-                  className="bg-black border-blue-500/50 focus:border-blue-400 text-white font-mono text-lg"
+                  className="bg-black border-primary/50 focus:border-primary text-white font-mono text-lg"
                 />
                 <p className="text-xs text-gray-500">
                   Se utilizará para calcular el estimado en moneda nacional en la propuesta.
@@ -688,7 +688,7 @@ const PropuestaEconomicaSection = ({
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="flex items-center justify-between border-b border-gray-800 pb-4 mb-6">
             <div className="flex items-center gap-2">
-              <FolderOpen className="w-6 h-6 text-blue-500" />
+              <FolderOpen className="w-6 h-6 text-primary" />
               <h2 className="text-xl font-bold text-white">Editar Grupo</h2>
             </div>
             <Button
@@ -704,14 +704,14 @@ const PropuestaEconomicaSection = ({
             <Input
               value={group.title}
               onChange={(e) => handleGroupTitleChange(group.id, e.target.value)}
-              className="bg-gray-950 border-gray-800 focus:border-blue-500 transition-colors text-lg font-semibold"
+              className="bg-gray-950 border-gray-800 focus:border-primary transition-colors text-lg font-semibold"
             />
           </div>
           <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800 mt-6">
             <h4 className="text-sm font-medium text-gray-400 mb-2">Resumen del Grupo</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>Items: <span className="text-white">{group.items.length}</span></div>
-              <div>Total: <span className="text-blue-400">{formatCurrency(group.items.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0), content.currency)}</span></div>
+              <div>Total: <span className="text-primary">{formatCurrency(group.items.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0), content.currency)}</span></div>
             </div>
           </div>
         </div>
@@ -747,7 +747,7 @@ const PropuestaEconomicaSection = ({
           onClick={toggleAdminMode}
           className={cn(
             "border-gray-800 transition-all gap-2",
-            localAdminMode ? "bg-blue-900/20 text-blue-400 border-blue-500/50 hover:bg-blue-900/40" : "bg-black text-gray-500 hover:text-white"
+            localAdminMode ? "bg-primary/20 text-primary border-primary/50 hover:bg-primary/40" : "bg-black text-gray-500 hover:text-white"
           )}
         >
           {localAdminMode ? <Unlock size={14} /> : <Lock size={14} />}
@@ -760,7 +760,7 @@ const PropuestaEconomicaSection = ({
           {(() => {
             const rawTitle = content.pageTitle || 'PROPUESTA';
             return rawTitle === 'PROPUESTA' ? t('sections.propuestaDetails.titulo') : rawTitle;
-          })()} <span className="text-blue-500">{(() => {
+          })()} <span className="text-primary">{(() => {
             const rawTitleH = content.pageTitleHighlight || 'ECONÓMICA';
             return rawTitleH === 'ECONÓMICA' ? t('sections.propuestaDetails.tituloDestacado') : rawTitleH;
           })()}</span>
@@ -786,7 +786,7 @@ const PropuestaEconomicaSection = ({
                   <div className="bg-[#1a1a1a] px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <div>
                       <h3 className="text-xl font-bold text-white">{group.title}</h3>
-                      <div className="text-sm text-blue-500 font-medium mt-1">
+                      <div className="text-sm text-primary font-medium mt-1">
                         {t('sections.propuestaDetails.totalGrupo')}: {formatCurrency(groupTotal, content.currency)}
                       </div>
                     </div>
@@ -812,8 +812,8 @@ const PropuestaEconomicaSection = ({
                                     {...provided.dragHandleProps}
                                     className={cn(
                                       "relative flex flex-col justify-between bg-[#0a0a0a] p-5 rounded-lg border transition-all duration-200 h-full select-none",
-                                      item.isActive ? "border-gray-700 hover:border-blue-500/50" : "border-gray-800 opacity-60",
-                                      snapshot.isDragging && "border-blue-500 shadow-lg z-50",
+                                      item.isActive ? "border-gray-700 hover:border-primary/50" : "border-gray-800 opacity-60",
+                                      snapshot.isDragging && "border-primary shadow-lg z-50",
                                       !isModeAdmin && "cursor-default"
                                     )}
                                   >
@@ -821,14 +821,14 @@ const PropuestaEconomicaSection = ({
                                       <div className="flex items-center gap-3">
                                         <div className={cn(
                                           "w-10 h-10 rounded-md flex items-center justify-center border",
-                                          item.isActive ? "bg-blue-500/10 border-blue-500 text-blue-500" : "bg-gray-800 border-gray-700 text-gray-500"
+                                          item.isActive ? "bg-primary/10 border-primary text-primary" : "bg-gray-800 border-gray-700 text-gray-500"
                                         )}>
                                           <Icon size={20} />
                                         </div>
                                         <div className="space-y-0.5">
                                           <div className="flex items-center gap-2">
-                                            <span className="text-blue-500 font-bold text-sm">{index + 1}.</span>
-                                            <span className={cn("font-bold text-sm uppercase transition-all border-b-2", item.isActive ? "border-yellow-500" : "border-transparent")}>{item.title}</span>
+                                            <span className="text-primary font-bold text-sm">{index + 1}.</span>
+                                            <span className={cn("font-bold text-sm uppercase transition-all border-b-2", item.isActive ? "border-primary" : "border-transparent")}>{item.title}</span>
                                           </div>
                                           <p className="text-gray-400 text-xs">{item.subtitle}</p>
                                         </div>
@@ -840,7 +840,7 @@ const PropuestaEconomicaSection = ({
                                         {formatCurrency(item.price, content.currency)}
                                       </div>
                                       <div className="flex items-center gap-3">
-                                        <div className="flex items-center text-yellow-500 gap-1 bg-yellow-900/20 px-2 py-1 rounded border border-yellow-500/20">
+                                        <div className="flex items-center text-primary gap-1 bg-primary/20 px-2 py-1 rounded border border-primary/20">
                                           <Zap size={10} />
                                           <span className="text-[10px] font-mono">{item.kw} KW</span>
                                         </div>
@@ -849,7 +849,7 @@ const PropuestaEconomicaSection = ({
                                           <Switch
                                             checked={item.isActive}
                                             onCheckedChange={(val) => handleItemChange(group.id, item.id, 'isActive', val)}
-                                            className="data-[state=checked]:bg-blue-500 scale-75"
+                                            className="data-[state=checked]:bg-primary scale-75"
                                           />
                                         </div>
                                       </div>
@@ -889,9 +889,9 @@ const PropuestaEconomicaSection = ({
 
                 <div className="border-t border-gray-800 pt-6 mb-6 space-y-2">
                   <div className="flex justify-between items-end">
-                    <span className="text-blue-500 font-bold text-xl uppercase">TOTAL {content.currency}:</span>
+                    <span className="text-primary font-bold text-xl uppercase">TOTAL {content.currency}:</span>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-blue-500">
+                      <div className="text-2xl font-black text-primary">
                         {formatCurrency(totalUSD, content.currency)}
                       </div>
                     </div>
@@ -901,8 +901,8 @@ const PropuestaEconomicaSection = ({
                   </p>
                 </div>
 
-                <div className="bg-yellow-900/10 border border-yellow-500/20 rounded-lg p-3 mb-4 flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-yellow-500">
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-primary">
                     <Zap size={16} />
                     <span className="text-xs font-bold uppercase tracking-wide">Potencia Instalada Total</span>
                   </div>
@@ -922,7 +922,7 @@ const PropuestaEconomicaSection = ({
 
                 <div className="space-y-3">
                   <Button
-                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold"
+                    className="w-full bg-primary hover:bg-primary/80 text-white font-bold"
                     onClick={() => {
                       updateContent(content);
                       toast({ title: "Guardado", description: "Selección almacenada correctamente." });
@@ -944,7 +944,7 @@ const PropuestaEconomicaSection = ({
                       <DialogTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full border-blue-900/50 bg-blue-900/10 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 transition-all"
+                          className="w-full border-primary/50 bg-primary/10 text-primary hover:bg-primary/30 hover:text-green-300 transition-all"
                         >
                           <Edit size={18} className="mr-2" /> Editar Estructura y Precios
                         </Button>
@@ -952,7 +952,7 @@ const PropuestaEconomicaSection = ({
                       <DialogContent className="sm:max-w-[1200px] w-full h-[85vh] flex flex-col bg-black border-gray-800 text-white p-0 gap-0 overflow-hidden">
                         <DialogHeader className="shrink-0 p-4 border-b border-gray-800 bg-[#0a0a0a] flex flex-row items-center justify-between">
                           <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                            <LayoutGrid className="w-5 h-5 text-blue-500" />
+                            <LayoutGrid className="w-5 h-5 text-primary" />
                             Editor de Propuesta
                           </DialogTitle>
                           <div className="flex gap-2 mr-8">
@@ -971,7 +971,7 @@ const PropuestaEconomicaSection = ({
                           <div className="w-80 md:w-96 shrink-0 border-r border-gray-800 flex flex-col bg-[#0f0f0f]">
                             <div className="p-4 border-b border-gray-800 flex justify-between items-center">
                               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Estructura</span>
-                              <Button size="sm" variant="ghost" onClick={handleAddGroup} className="h-7 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 text-xs">
+                              <Button size="sm" variant="ghost" onClick={handleAddGroup} className="h-7 text-primary hover:text-green-300 hover:bg-primary/20 text-xs">
                                 <Plus size={12} className="mr-1" /> Grupo
                               </Button>
                             </div>
@@ -982,7 +982,7 @@ const PropuestaEconomicaSection = ({
                                   onClick={() => setActiveSelection({ type: 'general', id: 'general' })}
                                   className={cn(
                                     "flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all text-sm",
-                                    activeSelection.type === 'general' ? "bg-blue-900/30 text-white border border-blue-500/30" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                                    activeSelection.type === 'general' ? "bg-primary/30 text-white border border-primary/30" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
                                   )}
                                 >
                                   <Settings size={16} />
@@ -994,7 +994,7 @@ const PropuestaEconomicaSection = ({
                                     <div
                                       className={cn(
                                         "flex items-center justify-between p-2 rounded-md cursor-pointer transition-all group",
-                                        activeSelection.type === 'group' && activeSelection.id === group.id ? "bg-blue-900/30 text-white border border-blue-500/30" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                                        activeSelection.type === 'group' && activeSelection.id === group.id ? "bg-primary/30 text-white border border-primary/30" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
                                       )}
                                       onClick={() => setActiveSelection({ type: 'group', id: group.id })}
                                     >
@@ -1005,7 +1005,7 @@ const PropuestaEconomicaSection = ({
                                         >
                                           {expandedGroups[group.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                         </button>
-                                        <FolderOpen size={16} className={cn(activeSelection.id === group.id ? "text-blue-400" : "text-gray-500")} />
+                                        <FolderOpen size={16} className={cn(activeSelection.id === group.id ? "text-primary" : "text-gray-500")} />
                                         <span className="font-medium truncate text-sm">{group.title}</span>
                                       </div>
                                     </div>
@@ -1018,7 +1018,7 @@ const PropuestaEconomicaSection = ({
                                             onClick={() => setActiveSelection({ type: 'item', id: item.id, groupId: group.id })}
                                             className={cn(
                                               "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all text-xs",
-                                              activeSelection.type === 'item' && activeSelection.id === item.id ? "bg-blue-900/20 text-blue-200 border border-blue-500/20" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+                                              activeSelection.type === 'item' && activeSelection.id === item.id ? "bg-primary/20 text-green-200 border border-primary/20" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
                                             )}
                                           >
                                             <Box size={14} />
@@ -1028,7 +1028,7 @@ const PropuestaEconomicaSection = ({
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="w-full justify-start text-xs text-gray-600 hover:text-blue-400 h-7 pl-2"
+                                          className="w-full justify-start text-xs text-gray-600 hover:text-primary h-7 pl-2"
                                           onClick={() => handleAddItem(group.id)}
                                         >
                                           <Plus size={12} className="mr-2" /> Item

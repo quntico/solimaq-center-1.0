@@ -99,7 +99,7 @@ const ExclusionesSection = ({ sectionData, isEditorMode, onContentChange }) => {
             return (
               <motion.div
                 key={index}
-                className="flex items-start space-x-6 p-6 rounded-2xl bg-gray-900/50 border border-blue-600/40 shadow-[0_0_15px_rgba(37,99,235,0.15)] transition-all duration-300 hover:bg-gray-900 hover:border-blue-500 hover:shadow-[0_0_30px_rgba(37,99,235,0.3)]"
+                className="flex items-start space-x-6 p-6 rounded-2xl bg-gray-900/50 border border-primary/40 shadow-[0_0_15px_hsl(var(--primary)/0.15)] transition-all duration-300 hover:bg-gray-900 hover:border-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)]"
                 variants={itemVariants}
               >
                 <div className="flex-shrink-0 relative group">
@@ -108,8 +108,8 @@ const ExclusionesSection = ({ sectionData, isEditorMode, onContentChange }) => {
                     onChange={(val) => handleSave(index, 'icon', val)}
                     isEditorMode={isEditorMode}
                     trigger={
-                      <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center border-2 border-blue-600/30 cursor-pointer">
-                        <IconComponent className="w-8 h-8 text-blue-600" />
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/30 cursor-pointer">
+                        <IconComponent className="w-8 h-8 text-primary" />
                         {isEditorMode && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                             <Edit className="w-4 h-4 text-white" />

@@ -12,7 +12,7 @@ export default {
       cotizadorMode: 'Modo Cotizador',
       admin: 'Administrador',
       logout: 'Cerrar sesión',
-      login: 'Acceso SMQ',
+      login: 'Acceso SOLIMAQ',
     },
     bottomNav: {
       more: 'Más',
@@ -22,7 +22,7 @@ export default {
       off: 'OFF',
       admin: 'Administrador',
       logout: 'Cerrar sesión',
-      login: 'Acceso SMQ'
+      login: 'Acceso SOLIMAQ'
     },
     sections: {
       portada: 'Home',
@@ -42,7 +42,7 @@ export default {
       layout: 'Layout',
       scr700_page: 'SCR700',
       cotizador_page: 'Cotizador',
-      cotizador_smq: 'Cotizador SMQ',
+      cotizador_smq: 'Cotizador SOLIMAQ',
       calculadora_prod: 'Calculadora',
       ia: 'Asistente IA',
       clientes: 'Clientes',
@@ -173,7 +173,7 @@ export default {
       cotizadorMode: 'Quoter Mode',
       admin: 'Administrator',
       logout: 'Log Out',
-      login: 'SMQ Access',
+      login: 'SOLIMAQ Access',
     },
     bottomNav: {
       more: 'More',
@@ -183,7 +183,7 @@ export default {
       off: 'OFF',
       admin: 'Administrator',
       logout: 'Log Out',
-      login: 'SMQ Access'
+      login: 'SOLIMAQ Access'
     },
     sections: {
       portada: 'Home',
@@ -203,7 +203,7 @@ export default {
       layout: 'Layout',
       scr700_page: 'SCR700',
       cotizador_page: 'Quoter',
-      cotizador_smq: 'SMQ Quoter',
+      cotizador_smq: 'SOLIMAQ Quoter',
       calculadora_prod: 'Calculator',
       ia: 'AI Assistant',
       clientes: 'Clients',
@@ -334,7 +334,7 @@ export default {
       cotizadorMode: 'Modo Cotador',
       admin: 'Administrador',
       logout: 'Sair',
-      login: 'Acesso SMQ',
+      login: 'Acesso SOLIMAQ',
     },
     bottomNav: {
       more: 'Mais',
@@ -344,7 +344,7 @@ export default {
       off: 'OFF',
       admin: 'Administrador',
       logout: 'Sair',
-      login: 'Acesso SMQ'
+      login: 'Acesso SOLIMAQ'
     },
     sections: {
       portada: 'Início',
@@ -364,7 +364,7 @@ export default {
       layout: 'Layout',
       scr700_page: 'SCR700',
       cotizador_page: 'Cotador',
-      cotizador_smq: 'Cotador SMQ',
+      cotizador_smq: 'Cotador SOLIMAQ',
       calculadora_prod: 'Calculadora',
       ia: 'Assistente IA',
       clientes: 'Clientes',

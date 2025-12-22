@@ -90,7 +90,7 @@ export default function VideoSection({ quotationData, onVideoUrlUpdate, isEditor
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter">
-            Maquinaria en <span className="text-blue-500">Acción</span>
+            Maquinaria en <span className="text-primary">Acción</span>
           </h2>
           <p className="mt-2 sm:mt-4 text-base sm:text-lg text-gray-400 max-w-xl mx-auto">
             Observa la eficiencia y precisión de nuestra línea de producción.
@@ -110,11 +110,11 @@ export default function VideoSection({ quotationData, onVideoUrlUpdate, isEditor
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Pega aquí la liga de YouTube"
-                className="flex-1 bg-black border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 outline-none"
+                className="flex-1 bg-black border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-primary outline-none"
               />
               <button
                 onClick={handleLoad}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                className="bg-primary hover:bg-primary/80 text-white font-bold py-2 px-6 rounded-lg transition-colors"
               >
                 Cargar
               </button>
@@ -135,7 +135,7 @@ export default function VideoSection({ quotationData, onVideoUrlUpdate, isEditor
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="mt-8 sm:mt-12 aspect-video max-w-4xl mx-auto bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden shadow-2xl shadow-blue-900/10"
+          className="mt-8 sm:mt-12 aspect-video max-w-4xl mx-auto bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden shadow-2xl shadow-primary/10"
         >
           {embedUrl ? (
             <iframe

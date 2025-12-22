@@ -283,7 +283,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
     <div className="w-80 md:w-96 shrink-0 border-r border-gray-800 flex flex-col bg-[#0f0f0f]">
       <div className="p-4 border-b border-gray-800 flex justify-between items-center">
         <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Fichas Técnicas</span>
-        <Button size="sm" variant="ghost" onClick={handleAddFicha} className="h-7 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 text-xs">
+        <Button size="sm" variant="ghost" onClick={handleAddFicha} className="h-7 text-primary hover:text-green-300 hover:bg-primary/20 text-xs">
           <Plus size={12} className="mr-1" /> Ficha
         </Button>
       </div>
@@ -296,7 +296,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                 <div
                   className={cn(
                     "flex items-center justify-between p-2 rounded-md cursor-pointer transition-all group",
-                    activeSelection.type === 'ficha' && activeSelection.index === index ? "bg-blue-900/30 text-white border border-blue-500/30" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                    activeSelection.type === 'ficha' && activeSelection.index === index ? "bg-primary/30 text-white border border-primary/30" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
                   )}
                   onClick={() => setActiveSelection({ type: 'ficha', index })}
                 >
@@ -319,7 +319,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                         isEditorMode={true}
                       >
                         <Button variant="ghost" size="icon" className="h-6 w-6 p-0 hover:bg-gray-700 rounded-md">
-                          <TabIcon size={16} className={cn(activeSelection.index === index ? "text-blue-400" : "text-gray-500")} />
+                          <TabIcon size={16} className={cn(activeSelection.index === index ? "text-primary" : "text-gray-500")} />
                         </Button>
                       </IconPicker>
                     </div>
@@ -353,7 +353,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                       onClick={() => setActiveSelection({ type: 'category', index, category: 'technical_data' })}
                       className={cn(
                         "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all text-xs",
-                        activeSelection.type === 'category' && activeSelection.index === index && activeSelection.category === 'technical_data' ? "bg-blue-900/20 text-blue-200 border border-blue-500/20" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+                        activeSelection.type === 'category' && activeSelection.index === index && activeSelection.category === 'technical_data' ? "bg-primary/20 text-green-200 border border-primary/20" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
                       )}
                     >
                       <Database size={14} />
@@ -363,7 +363,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                       onClick={() => setActiveSelection({ type: 'category', index, category: 'components' })}
                       className={cn(
                         "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all text-xs",
-                        activeSelection.type === 'category' && activeSelection.index === index && activeSelection.category === 'components' ? "bg-blue-900/20 text-blue-200 border border-blue-500/20" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+                        activeSelection.type === 'category' && activeSelection.index === index && activeSelection.category === 'components' ? "bg-primary/20 text-green-200 border border-primary/20" : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
                       )}
                     >
                       <Cpu size={14} />
@@ -399,7 +399,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
         <div className="space-y-8">
           <div>
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <FileText className="text-blue-500" /> Configuración de Ficha
+              <FileText className="text-primary" /> Configuración de Ficha
             </h3>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -486,7 +486,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
               {category === 'technical_data' ? <Database className="text-green-500" /> : <Cpu className="text-orange-500" />}
               Editando: {category === 'technical_data' ? 'Datos Técnicos' : 'Componentes'}
             </h3>
-            <Button size="sm" onClick={() => handleAddItem(fichaIndex, category)} className="bg-blue-600 hover:bg-blue-700">
+            <Button size="sm" onClick={() => handleAddItem(fichaIndex, category)} className="bg-primary hover:bg-primary/80">
               <Plus className="w-4 h-4 mr-2" /> Agregar Item
             </Button>
           </div>
@@ -511,7 +511,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                 <div key={item.id} className="bg-gray-900/50 border border-gray-800 rounded-lg p-4 flex gap-4 items-start group hover:border-gray-700 transition-colors">
                   <div className="shrink-0 pt-1">
                     <IconPicker value={item.icon} onChange={(newIcon) => handleUpdateItem(fichaIndex, category, idx, 'icon', newIcon)} isEditorMode={true}>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-gray-800 hover:bg-gray-700 text-blue-400">
+                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-gray-800 hover:bg-gray-700 text-primary">
                         <Icon className="w-5 h-5" />
                       </Button>
                     </IconPicker>
@@ -531,7 +531,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                       <Input
                         value={item.value}
                         onChange={(e) => handleUpdateItem(fichaIndex, category, idx, 'value', e.target.value)}
-                        className="h-8 bg-black/20 border-gray-700 font-mono text-blue-300"
+                        className="h-8 bg-black/20 border-gray-700 font-mono text-green-300"
                       />
                     </div>
                     {category === 'technical_data' && (
@@ -599,11 +599,11 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
               >
                 <div className="flex items-center gap-4 flex-1">
                   <div className="h-10 w-10 flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-[#2563eb]" />
+                    <Icon className="w-6 h-6 text-primary" />
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-base sm:text-lg text-[#2563eb]">
+                    <div className="font-semibold text-base sm:text-lg text-primary">
                       {item.label}
                     </div>
                   </div>
@@ -640,14 +640,14 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
             {isModeAdmin && (
               <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="border-blue-900/50 bg-blue-900/10 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300">
+                  <Button variant="outline" className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/30 hover:text-green-300">
                     <Edit className="w-4 h-4 mr-2" /> Editar Fichas
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[1200px] w-full h-[85vh] flex flex-col bg-black border-gray-800 text-white p-0 gap-0 overflow-hidden">
                   <DialogHeader className="shrink-0 p-4 border-b border-gray-800 bg-[#0a0a0a] flex flex-row items-center justify-between">
                     <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                      <LayoutGrid className="w-5 h-5 text-blue-500" />
+                      <LayoutGrid className="w-5 h-5 text-primary" />
                       Editor de Fichas Técnicas
                       {isModeAdmin && (
                         <span className="text-xs font-normal text-gray-500 ml-2 border border-gray-700 rounded px-2 py-0.5">
@@ -704,8 +704,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
                   <div className={cn(
                     "px-6 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-all flex items-center justify-center min-w-[120px] gap-2",
                     activeTab === index
-                      ? 'bg-primary/10 text-[#2563eb] border-b-2 border-[#2563eb] shadow-[0_4px_10px_-4px_rgba(37,99,235,0.5)]'
-                      : 'bg-transparent text-gray-400 hover:bg-white/5 hover:text-[#2563eb] hover:drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]'
+                      ? 'bg-primary/10 text-primary border-b-2 border-primary shadow-[0_4px_10px_-4px_hsl(var(--primary)/0.5)]'
+                      : 'bg-transparent text-gray-400 hover:bg-white/5 hover:text-primary hover:drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]'
                   )}>
                     <TabIcon size={16} />
                     {tab.tabTitle}

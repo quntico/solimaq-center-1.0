@@ -173,13 +173,13 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
         <div
           className={cn(
             "relative aspect-video bg-gray-900/50 rounded-xl overflow-hidden border border-gray-800 transition-all duration-300 group shadow-lg",
-            isEditorMode && "cursor-pointer hover:border-blue-500/50 hover:shadow-blue-900/20"
+            isEditorMode && "cursor-pointer hover:border-primary/50 hover:shadow-primary/20"
           )}
           onClick={() => isEditorMode && !isLoading && inputRef.current?.click()}
         >
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-              <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
             </div>
           ) : null}
 
@@ -276,8 +276,8 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
           <div className="max-w-4xl mx-auto">
             <div className="flex flex-col items-center mb-8 justify-center text-center">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-500/10 rounded-full">
-                  <Video className="w-6 h-6 text-blue-500" />
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Video className="w-6 h-6 text-primary" />
                 </div>
                 <EditableField
                   value={content.videoTitle}

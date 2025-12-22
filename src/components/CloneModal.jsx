@@ -20,7 +20,7 @@ const slugify = (text) => {
     .replace(/--+/g, '-');
 };
 
-const CloneModal = ({ isOpen, onClose, themes, setThemes, setActiveTheme, activeTheme }) => {
+const CloneModal = ({ isOpen, onClose, themes, setThemes, activeTheme, onCloneSuccess }) => {
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [isCloning, setIsCloning] = useState(false);
@@ -115,7 +115,7 @@ const CloneModal = ({ isOpen, onClose, themes, setThemes, setActiveTheme, active
       if (error) throw error;
 
       setThemes(prev => ({ ...prev, [newThemeKey]: newRecord }));
-      setActiveTheme(newThemeKey);
+      if (onCloneSuccess) onCloneSuccess(newThemeKey);
 
       toast({
         title: "¡Clonación exitosa! 🎉",
@@ -167,10 +167,10 @@ const CloneModal = ({ isOpen, onClose, themes, setThemes, setActiveTheme, active
               </Button>
 
               <div className="flex flex-col items-center text-center">
-                <div className="p-3 bg-blue-600/10 rounded-full mb-4 border border-blue-600/20 shadow-[0_0_15px_rgba(37,99,235,0.2)]">
-                  <Copy className="w-8 h-8 text-blue-600" />
+                <div className="p-3 bg-primary/10 rounded-full mb-4 border border-primary/20 shadow-[0_0_15px_hsl(var(--primary)/0.2)]">
+                  <Copy className="w-8 h-8 text-primary" />
                 </div>
-                <h2 className="text-xl font-bold tracking-tight text-blue-600">Clonar desde Plantilla Base</h2>
+                <h2 className="text-xl font-bold tracking-tight text-primary">Clonar desde Plantilla Base</h2>
                 <p className="text-sm text-gray-400 mt-2">
                   Crea una nueva cotización basada en la plantilla actual.
                 </p>
@@ -179,32 +179,32 @@ const CloneModal = ({ isOpen, onClose, themes, setThemes, setActiveTheme, active
 
             <div className="p-6 space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="clientName" className="text-blue-600 font-semibold">Nombre del Cliente</Label>
+                <Label htmlFor="clientName" className="text-primary font-semibold">Nombre del Cliente</Label>
                 <Input
                   id="clientName"
                   name="clientName"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="Ej: Nuevo Cliente S.A. de C.V."
-                  className="bg-gray-900 border-gray-700 text-white focus:border-blue-600 focus:ring-blue-600 placeholder:text-gray-600"
+                  className="bg-gray-900 border-gray-700 text-white focus:border-primary focus:ring-primary placeholder:text-gray-600"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="projectName" className="text-blue-600 font-semibold">Nombre del Proyecto/Máquina</Label>
+                <Label htmlFor="projectName" className="text-primary font-semibold">Nombre del Proyecto/Máquina</Label>
                 <Input
                   id="projectName"
                   name="projectName"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   placeholder="Ej: Línea de Empaque 5000"
-                  className="bg-gray-900 border-gray-700 text-white focus:border-blue-600 focus:ring-blue-600 placeholder:text-gray-600"
+                  className="bg-gray-900 border-gray-700 text-white focus:border-primary focus:ring-primary placeholder:text-gray-600"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-3 p-6 border-t border-gray-800 bg-[#0f0f0f]">
               <Button variant="outline" onClick={onClose} disabled={isCloning} className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">Cancelar</Button>
-              <Button onClick={handleClone} disabled={isCloning || !sourceThemeData} className="bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+              <Button onClick={handleClone} disabled={isCloning || !sourceThemeData} className="bg-primary hover:bg-primary/90 text-white shadow-[0_0_15px_hsl(var(--primary)/0.4)]">
                 {isCloning ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                 {isCloning ? 'Clonando...' : 'Clonar'}
               </Button>

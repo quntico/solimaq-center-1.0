@@ -33,16 +33,16 @@ const Banner = ({
         >
             <div className="inline-block w-full">
                 <div className={`flex items-center gap-8 min-w-full ${marqueeClass}`}>
-                    <span className="text-sm font-semibold text-[#2563eb] whitespace-nowrap">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
                         {displayText}
                     </span>
-                    <span className="text-sm font-semibold text-[#2563eb] whitespace-nowrap">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
                         {displayText}
                     </span>
-                    <span className="text-sm font-semibold text-[#2563eb] whitespace-nowrap">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
                         {displayText}
                     </span>
-                    <span className="text-sm font-semibold text-[#2563eb] whitespace-nowrap">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
                         {displayText}
                     </span>
                 </div>

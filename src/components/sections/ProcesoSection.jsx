@@ -88,7 +88,7 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
             <div className="absolute top-0 right-0 z-20">
               <Button
                 onClick={() => setIsModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-600/90 text-white gap-2 shadow-lg shadow-blue-900/20"
+                className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-lg shadow-primary/20"
               >
                 <Settings className="w-4 h-4" />
                 Editar Flujo
@@ -100,7 +100,7 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
         <div ref={timelineRef} className="relative mt-16 max-w-5xl mx-auto">
           {/* Animated Vertical line */}
           <motion.div
-            className="absolute left-8 sm:left-1/2 top-0 bottom-0 w-0.5 bg-blue-600 origin-top"
+            className="absolute left-8 sm:left-1/2 top-0 bottom-0 w-0.5 bg-primary origin-top"
             style={{ scaleY, transformOrigin: 'top', translateX: '-50%' }}
           />
 
@@ -118,7 +118,7 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                       whileInView={{ x: 0, opacity: 1 }}
                       viewport={{ once: true, amount: 0.5 }}
                       transition={{ duration: 0.6 }}
-                      className="hidden sm:block bg-gray-900/50 p-6 rounded-xl border border-blue-600/40 backdrop-blur-sm text-right shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:border-blue-500 transition-all duration-300 hover:shadow-[0_0_30px_rgba(37,99,235,0.3)]"
+                      className="hidden sm:block bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm text-right shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)]"
                     >
                       <TimelineCardContent step={step} />
                     </motion.div>
@@ -131,12 +131,12 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                     whileInView={{ scale: 1 }}
                     viewport={{ once: true, amount: 0.8 }}
                     transition={{ duration: 0.5, type: 'spring' }}
-                    className="row-start-1 sm:col-start-2 sm:row-start-auto z-10 p-3 sm:p-4 bg-gray-900 rounded-full border-2 border-primary shadow-[0_0_15px_rgba(37,99,235,0.4)] relative group cursor-pointer"
+                    className="row-start-1 sm:col-start-2 sm:row-start-auto z-10 p-3 sm:p-4 bg-gray-900 rounded-full border-2 border-primary shadow-[0_0_15px_hsl(var(--primary)/0.4)] relative group cursor-pointer"
                     onClick={() => isEditorMode && setIsModalOpen(true)}
                   >
-                    <IconComponent className="w-6 h-6 sm:w-8 sm:h-8 text-[#2563eb]" />
+                    <IconComponent className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                     {isEditorMode && (
-                      <div className="absolute inset-0 bg-blue-600/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-primary/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <Edit className="w-4 h-4 text-white" />
                       </div>
                     )}
@@ -148,7 +148,7 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                     whileInView={{ x: 0, opacity: 1 }}
                     viewport={{ once: true, amount: 0.5 }}
                     transition={{ duration: 0.6 }}
-                    className={`bg-gray-900/50 p-6 rounded-xl border border-blue-600/40 backdrop-blur-sm ${!isLeft ? 'sm:block' : 'sm:hidden'} shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:border-blue-500 transition-all duration-300 hover:shadow-[0_0_30px_rgba(37,99,235,0.3)]`}
+                    className={`bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm ${!isLeft ? 'sm:block' : 'sm:hidden'} shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)]`}
                   >
                     <TimelineCardContent step={step} />
                   </motion.div>

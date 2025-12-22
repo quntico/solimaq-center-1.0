@@ -99,17 +99,17 @@ const ServiciosSection = ({ sectionData, isEditorMode, onContentChange, activeTh
             return (
               <motion.div
                 key={service.id}
-                className="bg-gray-900/50 p-8 rounded-2xl border border-blue-600/40 shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:shadow-[0_0_30px_rgba(37,99,235,0.3)] hover:border-blue-500 transition-all duration-300 flex flex-col items-center text-center"
+                className="bg-gray-900/50 p-8 rounded-2xl border border-primary/40 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)] hover:border-primary transition-all duration-300 flex flex-col items-center text-center"
                 variants={itemVariants}
               >
-                <div className="mb-6 bg-blue-600/10 p-5 rounded-full border border-blue-600/20 relative group">
+                <div className="mb-6 bg-primary/10 p-5 rounded-full border border-primary/20 relative group">
                   <IconPicker
                     value={service.icon}
                     onChange={(val) => handleSave(index, 'icon', val)}
                     isEditorMode={isEditorMode}
                     trigger={
                       <div className="cursor-pointer">
-                        <IconComponent className="w-12 h-12 text-blue-600" />
+                        <IconComponent className="w-12 h-12 text-primary" />
                         {isEditorMode && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                             <Edit className="w-6 h-6 text-white" />

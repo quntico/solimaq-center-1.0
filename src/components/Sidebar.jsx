@@ -195,7 +195,7 @@ const Sidebar = ({
                 <>
                   <button
                     onClick={onCotizadorClick}
-                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeSection === 'cotizador_page' ? 'bg-blue-600 text-white' : 'hover:bg-gray-800'}`}
+                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeSection === 'cotizador_page' ? 'bg-primary text-white' : 'hover:bg-gray-800'}`}
                   >
                     <Calculator size={20} />
                     {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.cotizadorMode')}</span>}

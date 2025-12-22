@@ -145,7 +145,17 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     };
     const initialThemes = isAdminView ? allThemes : { [initialQuotationData.theme_key]: processedData };
     setThemes(initialThemes);
-    setActiveTheme(initialQuotationData.theme_key);
+
+    if (isAdminView) {
+      const savedTheme = localStorage.getItem('activeTheme');
+      if (savedTheme && allThemes[savedTheme]) {
+        setActiveTheme(savedTheme);
+      } else {
+        setActiveTheme(initialQuotationData.theme_key);
+      }
+    } else {
+      setActiveTheme(initialQuotationData.theme_key);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuotationData.theme_key, isAdminView]);
 
@@ -216,7 +226,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
       // Dynamic Brand Theming
       const root = document.documentElement;
       const colorMap = {
-        blue: '221.2 83.2% 53.3%', // Royal Blue #2563eb
+        blue: '80 69% 49%', // Solimaq Green #9BD428 (Renamed concept internally)
         red: '0 72.2% 50.6%',     // Deep Red #dc2626
         yellow: '47.9 95.8% 53.1%' // Novapack Yellow #facc15
       };
@@ -363,6 +373,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     <>
       <Helmet>
         <title>{displayData.company} - {displayData.project}</title>
+        {displayData.favicon && <link rel="icon" href={displayData.favicon} />}
       </Helmet>
       {isAdminView && showPasswordPrompt && (
         <PasswordPrompt

@@ -80,7 +80,7 @@ const CalculationInput = ({
 
   return (
     <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg">
-      <Label htmlFor={id} className="text-[#2563eb] font-semibold">{label}</Label>
+      <Label htmlFor={id} className="text-primary font-semibold">{label}</Label>
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1 w-full relative">
           <Input

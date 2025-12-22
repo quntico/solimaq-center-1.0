@@ -17,8 +17,8 @@ module.exports = {
     },
     extend: {
       colors: {
-        primary: 'rgb(var(--color-primary) / <alpha-value>)',
-        'primary-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
+        primary: 'hsl(var(--primary) / <alpha-value>)',
+        'primary-hover': 'hsl(var(--color-primary-hover) / <alpha-value>)',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

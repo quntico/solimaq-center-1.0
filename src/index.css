@@ -36,27 +36,28 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 12%;
+    /* Dark Grey #1f1f1f approx */
+    --foreground: 0 0% 100%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 221.2 83.2% 53.3%;
-    /* Royal Blue #2563eb */
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 88 100% 41%;
+    /* Vibrant Lime Green */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 20%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
@@ -158,14 +159,14 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2563eb;
-  /* Royal Blue */
+  background: #9BD428;
+  /* Lime Green */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1d4ed8;
-  /* Darker Blue on hover */
+  background: #258C28;
+  /* Dark Green on hover */
 }
 
 /* Override for specific components if needed, e.g., Shadcn/ui inputs in dark theme */
@@ -191,10 +192,10 @@
 }
 
 .led-blue-box {
-  background-color: #2563eb !important;
-  /* Solid Blue */
-  border-color: #2563eb !important;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.5), 0 2px 4px -1px rgba(37, 99, 235, 0.3);
+  background-color: #9BD428 !important;
+  /* Solid Lime */
+  border-color: #9BD428 !important;
+  box-shadow: 0 4px 6px -1px rgba(155, 212, 40, 0.5), 0 2px 4px -1px rgba(155, 212, 40, 0.3);
 }
 
 .led-blue-hover:hover {
@@ -202,9 +203,9 @@
 }
 
 .led-blue-box-hover:hover {
-  background-color: rgba(37, 99, 235, 0.8) !important;
-  border-color: rgba(37, 99, 235, 0.8) !important;
-  box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+  background-color: rgba(155, 212, 40, 0.8) !important;
+  border-color: rgba(155, 212, 40, 0.8) !important;
+  box-shadow: 0 0 10px rgba(155, 212, 40, 0.3);
 }
 
 /* Print Styles */

@@ -43,10 +43,10 @@ const PasswordPrompt = ({ onCorrectPassword, onCancel }) => {
         className="bg-gray-950 border border-gray-800 rounded-lg shadow-2xl w-full max-w-md p-6 overflow-hidden"
       >
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="p-3 bg-blue-600/10 rounded-full mb-4 border border-blue-600/20 shadow-[0_0_15px_rgba(37,99,235,0.2)]">
-            <Shield className="w-8 h-8 text-blue-600" />
+          <div className="p-3 bg-primary/10 rounded-full mb-4 border border-primary/20 shadow-[0_0_15px_hsl(var(--primary)/0.2)]">
+            <Shield className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight text-blue-600">Acceso de Administrador</h2>
+          <h2 className="text-xl font-bold tracking-tight text-primary">Acceso de Administrador</h2>
           <p className="text-sm text-gray-400 mt-2">
             Ingrese sus credenciales para acceder al panel de control.
           </p>
@@ -59,7 +59,7 @@ const PasswordPrompt = ({ onCorrectPassword, onCancel }) => {
               placeholder="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`text-center bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-600 focus:ring-blue-600 ${error ? 'border-destructive ring-1 ring-destructive' : ''}`}
+              className={`text-center bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary focus:ring-primary ${error ? 'border-destructive ring-1 ring-destructive' : ''}`}
               autoFocus
             />
           </div>
@@ -68,7 +68,7 @@ const PasswordPrompt = ({ onCorrectPassword, onCancel }) => {
             <Button type="button" variant="outline" onClick={onCancel} className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white">
               Cancelar
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white shadow-[0_0_15px_hsl(var(--primary)/0.4)]">
               Acceder
             </Button>
           </div>

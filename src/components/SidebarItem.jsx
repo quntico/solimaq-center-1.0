@@ -165,8 +165,8 @@ const SidebarItem = ({
               onClick={(e) => isEditorMode && !isLocked && e.stopPropagation()}
             >
               <Icon className={cn(
-                "w-5 h-5 led-blue-hover",
-                isActive && (hasSubItems ? "text-blue-600" : "scale-110 led-blue-text"),
+                "w-5 h-5 hover:text-primary",
+                isActive && (hasSubItems ? "text-primary" : "scale-110 text-primary"),
                 isCollapsed && "mx-auto"
               )} />
             </div>
@@ -183,16 +183,16 @@ const SidebarItem = ({
                 onBlur={handleSaveLabel}
                 onKeyDown={handleKeyDown}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full bg-gray-900 text-white text-sm px-2 py-1 rounded border border-blue-500 outline-none shadow-lg z-50 relative"
+                className="w-full bg-gray-900 text-white text-sm px-2 py-1 rounded border border-primary outline-none shadow-lg z-50 relative"
               />
             ) : (
               <span
                 className={cn(
-                  "block truncate text-sm transition-all duration-200 select-none led-blue-hover",
+                  "block truncate text-sm transition-all duration-200 select-none hover:text-primary",
                   isActive
-                    ? (hasSubItems ? "font-bold text-blue-600" : "font-semibold led-blue-text")
+                    ? (hasSubItems ? "font-bold text-primary" : "font-semibold text-primary")
                     : "text-gray-300",
-                  isEditorMode && !isLocked && "hover:text-blue-400 cursor-text"
+                  isEditorMode && !isLocked && "hover:text-green-300 cursor-text"
                 )}
                 onDoubleClick={(e) => {
                   if (isEditorMode && !isLocked) {
@@ -231,7 +231,7 @@ const SidebarItem = ({
             {!isLocked && (
               <button
                 onClick={(e) => { e.stopPropagation(); setIsEditingLabel(true); }}
-                className="p-1.5 hover:text-blue-400 text-gray-400 transition-colors rounded-md hover:bg-white/5"
+                className="p-1.5 hover:text-primary text-gray-400 transition-colors rounded-md hover:bg-white/5"
                 title="Renombrar"
               >
                 <Edit2 className="w-3.5 h-3.5" />
@@ -255,7 +255,7 @@ const SidebarItem = ({
                 onClick={(e) => { e.stopPropagation(); onVisibilityToggle(); }}
                 className={cn(
                   "p-1.5 transition-colors rounded-md hover:bg-white/5",
-                  isVisible ? "hover:text-blue-400 text-gray-400" : "text-gray-600"
+                  isVisible ? "hover:text-primary text-gray-400" : "text-gray-600"
                 )}
                 title={isVisible ? "Ocultar" : "Mostrar"}
               >
@@ -306,7 +306,7 @@ const SidebarItem = ({
                 className={cn(
                   "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all text-sm",
                   activeSubItemIndex === subItem.id
-                    ? "text-blue-600 underline decoration-blue-600 underline-offset-4 font-bold"
+                    ? "text-primary underline decoration-primary underline-offset-4 font-bold"
                     : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
                 )}
               >
@@ -327,17 +327,17 @@ const SidebarItem = ({
 
   // Only apply hover effect if it has NO sub-items (leaf nodes)
   if (!hasSubItems) {
-    containerClasses += " led-blue-box-hover";
+    containerClasses += " hover:bg-gray-800/80";
   }
 
   // Only apply solid blue background (led-blue-box) if it's active AND has NO sub-items
   if (isActive && !isEditorMode && !hasSubItems) {
-    containerClasses += " led-blue-box";
+    containerClasses += " bg-gray-800 border-l-4 border-primary";
   }
 
   // Editor mode active style
   if (isEditorMode && isActive) {
-    containerClasses += " bg-blue-500/10 border-blue-500/30";
+    containerClasses += " bg-primary/10 border-primary/30";
   }
 
   // Hidden item style

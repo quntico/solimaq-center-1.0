@@ -32,20 +32,20 @@ const IconPicker = ({ value, onChange, trigger, children, isEditorMode }) => {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
         {trigger || children || (
-          <Button variant="outline" size="icon" className="h-8 w-8 border-dashed border-blue-500/50 hover:border-blue-500">
+          <Button variant="outline" size="icon" className="h-8 w-8 border-dashed border-primary/50 hover:border-primary">
             {CurrentIcon && <CurrentIcon className="h-4 w-4" />}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col bg-gray-950 border-gray-800 text-white">
         <DialogHeader>
-          <DialogTitle className="text-blue-500">Seleccionar Icono</DialogTitle>
+          <DialogTitle className="text-primary">Seleccionar Icono</DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="extrusion" value={category} onValueChange={setCategory} className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-gray-900 border border-gray-800">
-            <TabsTrigger value="extrusion" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Extrusión</TabsTrigger>
-            <TabsTrigger value="all" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Todos</TabsTrigger>
+            <TabsTrigger value="extrusion" className="data-[state=active]:bg-primary data-[state=active]:text-white">Extrusión</TabsTrigger>
+            <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-white">Todos</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -55,7 +55,7 @@ const IconPicker = ({ value, onChange, trigger, children, isEditorMode }) => {
             placeholder={category === 'extrusion' ? "Buscar en Extrusión..." : "Buscar todos los iconos..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-gray-900 border-gray-700 focus:border-blue-500 text-white"
+            className="pl-9 bg-gray-900 border-gray-700 focus:border-primary text-white"
           />
         </div>
 
@@ -77,8 +77,8 @@ const IconPicker = ({ value, onChange, trigger, children, isEditorMode }) => {
                     key={iconName}
                     variant="ghost"
                     className={cn(
-                      "h-10 w-10 p-2 hover:bg-gray-800 hover:text-blue-500 transition-all",
-                      isSelected && "bg-blue-500/20 text-blue-500 border border-blue-500/50"
+                      "h-10 w-10 p-2 hover:bg-gray-800 hover:text-primary transition-all",
+                      isSelected && "bg-primary/20 text-primary border border-primary/50"
                     )}
                     onClick={() => {
                       onChange(iconName);

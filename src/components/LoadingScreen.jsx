@@ -35,7 +35,7 @@ const LoadingScreen = () => {
   }, []);
 
   const icons = [
-    { icon: Cog, color: 'text-blue-400' },
+    { icon: Cog, color: 'text-primary' },
     { icon: Database, color: 'text-purple-400' },
     { icon: ShieldCheck, color: 'text-green-400' },
     { icon: Zap, color: 'text-yellow-400' },
@@ -70,10 +70,10 @@ const LoadingScreen = () => {
             </motion.div>
           );
         })}
-        <motion.div 
-            className="w-16 h-16 bg-primary rounded-full"
-            animate={{ scale: [1, 1.2, 1], rotate: [0, -180, -360] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        <motion.div
+          className="w-16 h-16 bg-primary rounded-full"
+          animate={{ scale: [1, 1.2, 1], rotate: [0, -180, -360] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         />
       </motion.div>
 

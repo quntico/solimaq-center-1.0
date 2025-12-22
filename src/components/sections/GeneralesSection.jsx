@@ -41,7 +41,7 @@ const EditableText = ({ value, onSave, isEditorMode, className = '', tag: Tag = 
         </div>
       ) : (
         <Tag onClick={() => setIsEditing(true)} className={`${className} cursor-pointer p-1 border border-transparent group-hover:border-primary/30 rounded-md transition-all relative`}>
-          <Edit className="absolute top-1 right-1 w-3 h-3 text-[#2563eb] opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Edit className="absolute top-1 right-1 w-3 h-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
           {value}
         </Tag>
       )}
@@ -67,7 +67,7 @@ const EditableList = ({ items, onSave, isEditorMode }) => {
       <ul className="space-y-2">
         {items.map((item, index) => (
           <li key={index} className="flex items-start">
-            <ChevronsRight className="w-4 h-4 text-[#2563eb] mr-2 mt-1 flex-shrink-0" />
+            <ChevronsRight className="w-4 h-4 text-primary mr-2 mt-1 flex-shrink-0" />
             <span>{item}</span>
           </li>
         ))}
@@ -95,11 +95,11 @@ const EditableList = ({ items, onSave, isEditorMode }) => {
         </div>
       ) : (
         <div onClick={() => setIsEditing(true)} className="cursor-pointer p-2 border border-transparent group-hover:border-primary/30 rounded-md transition-all relative">
-          <Edit className="absolute top-2 right-2 w-4 h-4 text-[#2563eb] opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Edit className="absolute top-2 right-2 w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
           <ul className="space-y-2">
             {items.map((item, index) => (
               <li key={index} className="flex items-start">
-                <ChevronsRight className="w-4 h-4 text-[#2563eb] mr-2 mt-1 flex-shrink-0" />
+                <ChevronsRight className="w-4 h-4 text-primary mr-2 mt-1 flex-shrink-0" />
                 <span>{item}</span>
               </li>
             ))}
@@ -117,21 +117,21 @@ const SpecCard = ({ iconName, title, value, onSave, onIconChange, isEditorMode }
   return (
     <motion.div
       variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
-      className="bg-gray-900/50 p-6 rounded-xl border border-[#2563eb]/50 shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all duration-300"
+      className="bg-gray-900/50 p-6 rounded-xl border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300"
     >
       <div className="flex items-center gap-3 mb-2">
         <div className="relative">
           {isEditorMode ? (
             <IconPicker value={iconName} onChange={onIconChange} isEditorMode={isEditorMode}>
-              <div className="cursor-pointer p-2 rounded-full hover:bg-blue-500/10 transition-colors border border-transparent hover:border-[#2563eb]/50">
-                <Icon className="w-6 h-6 text-[#2563eb]" />
+              <div className="cursor-pointer p-2 rounded-full hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/50">
+                <Icon className="w-6 h-6 text-primary" />
               </div>
             </IconPicker>
           ) : (
-            <Icon className="w-6 h-6 text-[#2563eb]" />
+            <Icon className="w-6 h-6 text-primary" />
           )}
         </div>
-        <h3 className="text-lg font-bold text-[#2563eb]">
+        <h3 className="text-lg font-bold text-primary">
           <EditableText value={title} onSave={(v) => onSave('title', v)} isEditorMode={isEditorMode} tag="span" />
         </h3>
       </div>
@@ -249,12 +249,12 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
             ))}
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-gray-400">
-            <div className="bg-gray-900/50 p-6 rounded-lg border border-[#2563eb]/50 shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all duration-300">
-              <h4 className="font-bold text-[#2563eb] mb-2"><EditableText value={content.materiaPrima.title} onSave={(v) => handleSave('materiaPrima', { ...content.materiaPrima, title: v })} isEditorMode={isEditorMode} tag="span" /></h4>
+            <div className="bg-gray-900/50 p-6 rounded-lg border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300">
+              <h4 className="font-bold text-primary mb-2"><EditableText value={content.materiaPrima.title} onSave={(v) => handleSave('materiaPrima', { ...content.materiaPrima, title: v })} isEditorMode={isEditorMode} tag="span" /></h4>
               <p><EditableText value={content.materiaPrima.value} onSave={(v) => handleSave('materiaPrima', { ...content.materiaPrima, value: v })} isEditorMode={isEditorMode} /></p>
             </div>
-            <div className="bg-gray-900/50 p-6 rounded-lg border border-[#2563eb]/50 shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all duration-300">
-              <h4 className="font-bold text-[#2563eb] mb-2"><EditableText value={content.specProducto.title} onSave={(v) => handleSave('specProducto', { ...content.specProducto, title: v })} isEditorMode={isEditorMode} tag="span" /></h4>
+            <div className="bg-gray-900/50 p-6 rounded-lg border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300">
+              <h4 className="font-bold text-primary mb-2"><EditableText value={content.specProducto.title} onSave={(v) => handleSave('specProducto', { ...content.specProducto, title: v })} isEditorMode={isEditorMode} tag="span" /></h4>
               <p><EditableText value={content.specProducto.value} onSave={(v) => handleSave('specProducto', { ...content.specProducto, value: v })} isEditorMode={isEditorMode} /></p>
             </div>
           </div>
@@ -279,14 +279,14 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
             {content.features.map((feature, index) => (
               <motion.div
                 key={feature.id}
-                className="bg-gray-900/50 p-8 rounded-2xl border border-[#2563eb]/50 shadow-[0_0_15px_rgba(37,99,235,0.15)] hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all duration-300"
+                className="bg-gray-900/50 p-8 rounded-2xl border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300"
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true, amount: 0.5 }}
                 transition={{ duration: 0.5 }}
               >
-                <h3 className="text-2xl font-bold text-[#2563eb] mb-4">
-                  <span className="text-[#2563eb]">0{feature.id} - </span>
+                <h3 className="text-2xl font-bold text-primary mb-4">
+                  <span className="text-primary">0{feature.id} - </span>
                   <EditableText value={feature.title} onSave={(v) => handleFeatureSave(index, 'title', v)} isEditorMode={isEditorMode} tag="span" />
                 </h3>
                 <div className="text-gray-300">

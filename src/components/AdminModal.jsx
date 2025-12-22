@@ -324,7 +324,7 @@ const AdminModal = ({ isOpen, onClose, themes, setThemes, activeTheme, setActive
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label htmlFor="company" className="text-[#2563eb] mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-[#2563eb]" /></div>
+                <div><Label htmlFor="company" className="text-primary mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
 
                 {/* Start Page Switch */}
                 <div className="flex items-center justify-between p-3 rounded-lg border border-gray-800 bg-gray-900/50">

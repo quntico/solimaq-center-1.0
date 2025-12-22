@@ -11,8 +11,8 @@ const InfoCard = ({ icon: Icon, label, value, index }) => (
     className="bg-[#111111] p-6 rounded-2xl flex-1 min-w-[280px] sm:min-w-0"
   >
     <div className="flex justify-between items-center mb-2">
-      <span className="text-sm text-blue-500 font-semibold uppercase tracking-wider">{label}</span>
-      <Icon className="w-6 h-6 text-blue-500" />
+      <span className="text-sm text-primary font-semibold uppercase tracking-wider">{label}</span>
+      <Icon className="w-6 h-6 text-primary" />
     </div>
     <p className="text-2xl font-bold text-white tracking-wide">{value}</p>
   </motion.div>
@@ -55,7 +55,7 @@ const PortadaSection = ({ quotationData }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-5xl md:text-7xl font-bold text-blue-500 tracking-tight"
+            className="text-5xl md:text-7xl font-bold text-primary tracking-tight"
           >
             {quotationData.subtitle}
           </motion.h2>
