@@ -366,7 +366,8 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     <>
       <Helmet>
         <title>{displayData.company} - {displayData.project}</title>
-        <link rel="icon" href="/favicon-secure.png" />
+        <link rel="icon" href="/favicon.png?v=manual_upload" />
+
       </Helmet>
       {isAdminView && showPasswordPrompt && (
         <PasswordPrompt
