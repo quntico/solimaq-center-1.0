@@ -25,7 +25,8 @@ const AdminLayout = () => {
         }
 
         const themesObject = {};
-        allData.forEach(item => {
+        // Filter out soft-deleted items
+        allData.filter(item => !item.theme_key.startsWith('deleted_')).forEach(item => {
           themesObject[item.theme_key] = item;
         });
         setAllThemes(themesObject);

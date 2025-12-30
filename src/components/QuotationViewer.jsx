@@ -11,6 +11,7 @@ import PasswordPrompt from '@/components/PasswordPrompt';
 import BottomNavBar from '@/components/BottomNavBar';
 import CloneModal from '@/components/CloneModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { BRANDS, DEFAULT_BRAND } from '@/lib/brands';
 
 import PortadaSection from '@/components/sections/PortadaSection';
 import DescripcionSection from '@/components/sections/DescripcionSection';
@@ -224,27 +225,19 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
       document.body.className = 'theme-nova';
 
       // Dynamic Brand Theming
+      // Dynamic Brand Theming
       const root = document.documentElement;
-      const colorMap = {
-        blue: '80 69% 49%', // Solimaq Green #9BD428 (Renamed concept internally)
-        red: '0 72.2% 50.6%',     // Deep Red #dc2626
-        yellow: '47.9 95.8% 53.1%' // Novapack Yellow #facc15
-      };
 
-      const brandColor = displayData.brand_color || 'blue';
-      const primaryValue = colorMap[brandColor] || colorMap['blue'];
+      const brandId = displayData.brand_color || DEFAULT_BRAND;
+      const brandConfig = BRANDS[brandId] || BRANDS[DEFAULT_BRAND];
 
-      root.style.setProperty('--primary', primaryValue);
-      root.style.setProperty('--ring', primaryValue);
+      root.style.setProperty('--primary', brandConfig.colors.primary);
+      root.style.setProperty('--secondary', brandConfig.colors.secondary);
+      root.style.setProperty('--primary-foreground', brandConfig.colors.primaryForeground);
+      root.style.setProperty('--ring', brandConfig.colors.primary);
 
-      // Legacy support if needed
-      root.style.setProperty('--color-led-blue', primaryValue);
-
-      if (brandColor === 'yellow') {
-        root.style.setProperty('--primary-foreground', '0 0% 0%'); // Black text on yellow
-      } else {
-        root.style.setProperty('--primary-foreground', '210 40% 98%'); // White text
-      }
+      // Legacy support
+      root.style.setProperty('--color-led-blue', brandConfig.colors.primary);
     }
   }, [activeTheme, displayData, isAdminView]);
 
@@ -373,7 +366,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     <>
       <Helmet>
         <title>{displayData.company} - {displayData.project}</title>
-        {displayData.favicon && <link rel="icon" href={displayData.favicon} />}
+        <link rel="icon" href="/favicon-secure.png" />
       </Helmet>
       {isAdminView && showPasswordPrompt && (
         <PasswordPrompt
