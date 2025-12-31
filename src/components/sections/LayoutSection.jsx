@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, Loader2, Video, Image as ImageIcon, FileVideo, Trash2 } from 'lucide-react';
+import { Upload, Loader2, Video, Image as ImageIcon, FileVideo, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
@@ -147,6 +147,7 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
 
     videoUrl: sectionData.content?.videoUrl || '',
     videoTitle: sectionData.content?.videoTitle || 'Animación del Proyecto',
+    showVideo: sectionData.content?.showVideo !== false, // Default to true if undefined
 
     ...sectionData.content
   };
@@ -223,6 +224,66 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
     setLocalVideoUrl(sectionData.content?.videoUrl || '');
   }, [sectionData.content?.videoUrl]);
 
+  // If video is hidden and not in editor mode, don't render the section
+  if (!content.showVideo && !isEditorMode) {
+    return (
+      <div className="py-16 sm:py-24 bg-black text-white min-h-screen">
+        <SectionHeader
+          sectionData={sectionData}
+          isEditorMode={isEditorMode}
+          onContentChange={updateContent}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* 1. Layout Views Grid ONLY */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 mb-20">
+            <LayoutViewCard
+              type="topView"
+              title={content.topViewTitle}
+              url={optimisticUrls.topView || content.topViewUrl}
+              bucket="logos-bucket"
+              folder="layout-superior"
+              accept="image/*"
+              icon={ImageIcon}
+              isLoading={uploadingState.topView}
+              isEditorMode={isEditorMode}
+              onSaveTitle={(val) => updateContent({ topViewTitle: val })}
+              onDelete={() => updateContent({ topViewUrl: '' })}
+              onUpload={handleFileUpload}
+            />
+            <LayoutViewCard
+              type="sideView"
+              title={content.sideViewTitle}
+              url={optimisticUrls.sideView || content.sideViewUrl}
+              bucket="logos-bucket"
+              folder="layout-lateral"
+              accept="image/*"
+              icon={ImageIcon}
+              isLoading={uploadingState.sideView}
+              isEditorMode={isEditorMode}
+              onSaveTitle={(val) => updateContent({ sideViewTitle: val })}
+              onDelete={() => updateContent({ sideViewUrl: '' })}
+              onUpload={handleFileUpload}
+            />
+            <LayoutViewCard
+              type="isoView"
+              title={content.isoViewTitle}
+              url={optimisticUrls.isoView || content.isoViewUrl}
+              bucket="logos-bucket"
+              folder="layout-isometrico"
+              accept="image/*"
+              icon={ImageIcon}
+              isLoading={uploadingState.isoView}
+              isEditorMode={isEditorMode}
+              onSaveTitle={(val) => updateContent({ isoViewTitle: val })}
+              onDelete={() => updateContent({ isoViewUrl: '' })}
+              onUpload={handleFileUpload}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="py-16 sm:py-24 bg-black text-white min-h-screen">
       <SectionHeader
@@ -282,7 +343,7 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
         </div>
 
         {/* 2. Video Section - Specialized for YouTube Input */}
-        <div className="border-t border-gray-800 pt-16">
+        <div className={cn("border-t border-gray-800 pt-16 transition-opacity duration-300", !content.showVideo && isEditorMode && "opacity-50 grayscale")}>
           <div className="max-w-4xl mx-auto">
             <div className="flex flex-col items-center mb-8 justify-center text-center">
               <div className="flex items-center gap-3 mb-4">
@@ -298,6 +359,28 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
                     isEditorMode && "border border-transparent hover:border-gray-700 rounded px-2"
                   )}
                 />
+
+                {/* Visibility Toggle for Video Section */}
+                {isEditorMode && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn("ml-4 gap-2", !content.showVideo ? "text-gray-500" : "text-primary")}
+                    onClick={() => updateContent({ showVideo: !content.showVideo })}
+                  >
+                    {content.showVideo ? (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        <span className="text-xs">Visible</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-4 h-4" />
+                        <span className="text-xs">Oculto</span>
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
 
               {isEditorMode && (
@@ -310,7 +393,7 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
                     className="bg-gray-900/50 border-gray-700 text-white text-center placeholder:text-gray-600"
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    Se actualizará automáticamente la vista previa al pegar el enlace.
+                    {!content.showVideo ? "Este video está OCULTO para el cliente." : "Se actualizará la vista previa automáticamente."}
                   </p>
                 </div>
               )}
