@@ -60,15 +60,10 @@ const SidebarItem = ({
   const inputRef = useRef(null);
 
   // Logic to determine display label:
-  // Prioritize translation for standard sections, fallback to DB label
-  const translationKey = `sections.${section.id}`;
-  const translatedLabel = t(translationKey);
-  // Check if translation exists (assumes t() returns key if not found, or matches exactly if strictly defined)
-  // Simple check: If translatedLabel is different from key, use it. 
-  // ALSO check if it's a "standard" section ID to avoid translating custom user IDs that might coincidentally match.
-  // Actually, t() returns content from translations.js. If returns key, then no translation.
-
-  const displayLabel = translatedLabel !== translationKey ? translatedLabel : (section.label || section.id);
+  // Prioritize saved label from DB/State first (so user rename works).
+  // If no saved label, try translation.
+  // Fallback to ID.
+  const displayLabel = section.label || (translatedLabel !== translationKey ? translatedLabel : section.id);
 
   useEffect(() => {
     setTempLabel(displayLabel);

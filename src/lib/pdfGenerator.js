@@ -87,7 +87,7 @@ const addFooter = (doc) => {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
-  const text = "SMQ INTERNACIONAL - DIRECCIÓN DE VENTAS";
+  const text = "www.solimaq.mx";
   doc.text(text, pageWidth / 2, pageHeight - 25, { align: 'center' });
 };
 
@@ -267,14 +267,12 @@ export const generateFichasTecnicasPDF = async (fichas, quotationData) => {
       const logoBase64 = await toBase64(quotationData.logo);
       if (logoBase64) {
         const imgProps = doc.getImageProperties(logoBase64);
-        // Maximize logo within 30mm header
-        // User liked the large logo, so we fill the 30mm header almost entirely.
-        const maxHeight = 28; // Leaves 1mm padding top/bottom
-        const maxWidth = 150;
+        // Maximize logo within 30mm header - adjusted to fit better (less massive)
+        const maxHeight = 12; // Reduced to match Propuesta Económica style
+        const maxWidth = 120;
 
         let logoWidth = imgProps.width;
         let logoHeight = imgProps.height;
-
         // Scale to fit constraints
         const ratio = Math.min(maxWidth / logoWidth, maxHeight / logoHeight);
         logoWidth *= ratio;
@@ -299,7 +297,7 @@ export const generateFichasTecnicasPDF = async (fichas, quotationData) => {
     // Header Title
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 100, 255); // Blue
+    doc.setTextColor(155, 212, 40); // Solimaq Green
     // Align vertically roughly with logo center (approx Y=20 for 30mm height)
     doc.text('FICHAS TÉCNICAS', pageWidth - margin, 20, { align: 'right' });
 
@@ -335,11 +333,11 @@ export const generateFichasTecnicasPDF = async (fichas, quotationData) => {
     // Ficha Title
     doc.setFontSize(11); // Slightly smaller font for thinner bar
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255); // White text for title bar
+    doc.setTextColor(0, 0, 0); // Black text for title
 
     // Title Bar Background (Reduced height to 8mm)
     const titleBarHeight = 8;
-    doc.setFillColor(59, 130, 246); // Blue-500
+    doc.setFillColor(155, 212, 40); // Solimaq Green
     // Draw rect starting at cursorY
     doc.rect(margin, cursorY, pageWidth - (margin * 2), titleBarHeight, 'F');
 
@@ -368,8 +366,8 @@ export const generateFichasTecnicasPDF = async (fichas, quotationData) => {
     const fichaTableStyles = {
       theme: 'grid',
       headStyles: {
-        fillColor: [59, 130, 246], // Blue header
-        textColor: 255,
+        fillColor: [155, 212, 40], // Solimaq Green
+        textColor: 0, // Black text on green
         fontStyle: 'bold',
         halign: 'left',
         fontSize: 10
