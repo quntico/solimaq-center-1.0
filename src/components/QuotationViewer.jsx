@@ -149,7 +149,8 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
 
     if (isAdminView) {
       const savedTheme = localStorage.getItem('activeTheme');
-      if (savedTheme && allThemes[savedTheme]) {
+      // Only restore if valid AND FULL (has sections_config)
+      if (savedTheme && allThemes[savedTheme] && allThemes[savedTheme].sections_config) {
         setActiveTheme(savedTheme);
       } else {
         setActiveTheme(initialQuotationData.theme_key);
@@ -159,6 +160,99 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuotationData.theme_key, isAdminView]);
+
+  // EFFECT: Auto-fetch full data if the ACTIVE theme is a stub
+  useEffect(() => {
+    const currentTheme = themes[activeTheme];
+    // Check if it exists but is missing heavy content (e.g. sections_config)
+    if (currentTheme && !currentTheme.sections_config) {
+      console.log(`[LazyLoad] Active theme ${activeTheme} is a stub. Fetching full content...`);
+      supabase
+        .from('quotations')
+        .select('*')
+        .eq('theme_key', activeTheme)
+        .single()
+        .then(({ data, error }) => {
+          if (data && !error) {
+            setThemes(prev => ({
+              ...prev,
+              [activeTheme]: { ...prev[activeTheme], ...data }
+            }));
+            console.log(`[LazyLoad] Content loaded for ${activeTheme}`);
+          } else {
+            console.error(`[LazyLoad] Failed to load content for ${activeTheme}`, error);
+            toast({ title: "Error de Carga", description: "No se pudo descargar el contenido.", variant: "destructive" });
+          }
+        });
+    }
+  }, [activeTheme, themes]);
+
+  // EFFECT: Handle "Saved Theme" hydration with strict check for data completeness
+  useEffect(() => {
+    if (!isAdminView) return;
+
+    const savedTheme = localStorage.getItem('activeTheme');
+    // If we have a saved theme, it exists in our list, and it's NOT the already-loaded initial data...
+    if (savedTheme && allThemes[savedTheme] && savedTheme !== initialQuotationData.theme_key) {
+
+      // Check if it's "Stub" data (metadata only) -> Check for a key field like 'sections_config'
+      if (!allThemes[savedTheme].sections_config) {
+        console.log(`[Hydration] Saved theme ${savedTheme} is metadata-only. Fetching full data...`);
+        supabase
+          .from('quotations')
+          .select('*')
+          .eq('theme_key', savedTheme)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              setThemes(prev => ({ ...prev, [savedTheme]: data }));
+              setActiveTheme(savedTheme);
+            } else {
+              // Fallback if fetch fails
+              setActiveTheme(initialQuotationData.theme_key);
+            }
+          });
+      } else {
+        // It's already full data (rare but possible if logic changes)
+        setActiveTheme(savedTheme);
+      }
+    }
+  }, [isAdminView, allThemes, initialQuotationData.theme_key]);
+
+  // LAZY LOADING THEME SWITCHER
+  const handleThemeSwitch = async (newThemeKey) => {
+    // 1. Check if we already have the full data (e.g. sections_config exists)
+    const targetTheme = themes[newThemeKey];
+    if (targetTheme && targetTheme.sections_config) {
+      setActiveTheme(newThemeKey);
+      return;
+    }
+
+    // 2. If not, fetch it from Supabase
+    try {
+      const { data, error } = await supabase
+        .from('quotations')
+        .select('*')
+        .eq('theme_key', newThemeKey)
+        .single();
+
+      if (error) throw error;
+
+      // 3. Update themes state with the full data
+      setThemes(prev => ({
+        ...prev,
+        [newThemeKey]: data
+      }));
+
+      // 4. Switch
+      setActiveTheme(newThemeKey);
+      toast({ title: "Cargado", description: `Proyecto ${data.project} listo.` });
+
+    } catch (err) {
+      console.error("Error lazy loading theme:", err);
+      toast({ title: "Error", description: "No se pudo cargar el proyecto.", variant: "destructive" });
+    }
+  };
 
   const handleAdminLogout = () => {
     setIsAdminAuthenticated(false);
@@ -382,7 +476,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
           themes={themes}
           setThemes={setThemes}
           activeTheme={activeTheme}
-          setActiveTheme={setActiveTheme}
+          setActiveTheme={handleThemeSwitch}
           onCloneClick={() => { setShowAdminModal(false); setShowCloneModal(true); }}
           onPreviewUpdate={setPreviewData}
         />
@@ -395,7 +489,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
           setThemes={setThemes}
           activeTheme={activeTheme}
           onCloneSuccess={(newThemeKey) => {
-            setActiveTheme(newThemeKey);
+            handleThemeSwitch(newThemeKey);
             setShowCloneModal(false);
             toast({ title: "¡Clonado exitoso! 🚀", description: "La cotización ha sido duplicada correctamente." });
           }}

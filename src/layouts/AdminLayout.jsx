@@ -17,8 +17,10 @@ const AdminLayout = () => {
       setError(null);
 
       try {
-        // Fetch all quotations first
-        const { data: allData, error: allError } = await supabase.from('quotations').select('*');
+        // Fetch all quotations first (METADATA ONLY)
+        const { data: allData, error: allError } = await supabase
+          .from('quotations')
+          .select('id, theme_key, project, client, is_home, is_template, updated_at, slug');
 
         if (allError) {
           throw new Error(`${t('adminLayout.loadError')} ${allError.message}`);
@@ -31,25 +33,19 @@ const AdminLayout = () => {
         });
         setAllThemes(themesObject);
 
-        // Then, specifically fetch the home quotation
-        // Then, specifically fetch the home quotation
-        const { data: homeDataList, error: homeError } = await supabase
-          .from('quotations')
-          .select('*')
-          .eq('is_home', true)
-          .limit(1);
+        // Find Home project from metadata
+        const homeStub = allData.find(item => item.is_home);
 
-        if (homeError || !homeDataList || homeDataList.length === 0) {
-          // If no home page is set, fallback to a default or show an error
-          const fallbackTheme = themesObject['NOVA'] || Object.values(themesObject)[0];
-          if (fallbackTheme) {
-            setInitialQuotationData(fallbackTheme);
+        if (!homeStub) {
+          // If no home page is set, fallback to the first available project
+          if (allData.length > 0) {
+            setInitialQuotationData(allData[0]);
             console.warn(t('adminLayout.noHome'));
           } else {
             throw new Error(t('adminLayout.noHomeNoFallback'));
           }
         } else {
-          setInitialQuotationData(homeDataList[0]);
+          setInitialQuotationData(homeStub);
         }
 
       } catch (e) {
