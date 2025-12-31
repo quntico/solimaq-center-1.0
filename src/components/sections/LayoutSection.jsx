@@ -132,6 +132,9 @@ const LayoutViewCard = ({
 };
 
 const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
+  // Debug log for incoming props to troubleshoot persistence
+  console.log('[LayoutSection] Render. content:', sectionData.content, 'showVideo:', sectionData.content?.showVideo);
+
   const { toast } = useToast();
   const [uploadingState, setUploadingState] = useState({});
   const [optimisticUrls, setOptimisticUrls] = useState({});
@@ -365,38 +368,19 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
                 />
 
                 {/* Visibility Toggle for Video Section */}
-                {/* Visibility Toggle for Video Section */}
                 {isEditorMode && (
-                  <div
-                    className="flex items-center gap-3 ml-6 bg-gray-900/50 px-4 py-2 rounded-full border border-gray-800 cursor-pointer pointer-events-auto relative z-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Manual toggle if switch click is intercepted
-                      updateContent({ showVideo: !content.showVideo });
-                    }}
-                  >
+                  <div className="flex items-center gap-2 ml-4 bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-800">
                     <Switch
-                      checked={content.showVideo}
+                      checked={!!content.showVideo}
                       onCheckedChange={(checked) => {
-                        // This might not fire if parent intercepts, hence the onClick above
-                        // But we keep it for accessibility
+                        console.log("[LayoutSection] Switch changed to:", checked);
                         updateContent({ showVideo: checked });
                       }}
-                      className="data-[state=checked]:bg-primary pointer-events-none" // Disable pointer events on switch to let parent handle click
+                      className="data-[state=checked]:bg-primary"
                     />
-                    <div className="flex items-center gap-2 min-w-[60px]">
-                      {content.showVideo ? (
-                        <>
-                          <Eye className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-medium text-white">Visible</span>
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="w-4 h-4 text-gray-500" />
-                          <span className="text-xs font-medium text-gray-500">Oculto</span>
-                        </>
-                      )}
-                    </div>
+                    <span className={cn("text-xs font-medium", content.showVideo ? "text-white" : "text-gray-500")}>
+                      {content.showVideo ? "Visible" : "Oculto"}
+                    </span>
                   </div>
                 )}
               </div>
