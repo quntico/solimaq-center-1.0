@@ -293,7 +293,8 @@ const PropuestaEconomicaSection = ({
   const totalKW = activeItems.reduce((sum, item) => sum + (parseFloat(item.kw) || 0), 0);
   const totalTax = subtotal * (content.taxRate / 100);
   const totalUSD = subtotal + totalTax;
-  const totalMXN = totalUSD * (parseFloat(content.exchangeRate) || 1);
+  // User requested TOTAL to be Subtotal (Pre-tax). So MXN conversion should also be Pre-tax.
+  const totalMXN = subtotal * (parseFloat(content.exchangeRate) || 1);
 
   const updateContent = (newContent) => {
     // Optimistic update
@@ -453,7 +454,7 @@ const PropuestaEconomicaSection = ({
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
-        doc.text('www.smq.mx', 105, 290, { align: 'center' });
+        doc.text('www.solimaq.mx', 105, 290, { align: 'center' });
       }
     };
 
@@ -463,7 +464,9 @@ const PropuestaEconomicaSection = ({
 
     // Logo
     try {
-      const logoUrl = '/smq-logo.png';
+      // Prioritize dynamic logo from DB, fallback to local solimaq_logo.png
+      const logoUrl = quotationData?.logo || '/solimaq_logo.png';
+
       const logoImg = await new Promise((resolve, reject) => {
         const img = new Image();
         img.src = logoUrl;
@@ -492,12 +495,13 @@ const PropuestaEconomicaSection = ({
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${t('sections.propuestaDetails.cliente')}: ${quotationData?.client || 'N/A'}`, margin, y);
+    // Hardcoded labels as requested to avoid missing translation keys
+    doc.text(`CLIENTE: ${quotationData?.client || 'N/A'}`, margin, y);
     y += 6;
-    doc.text(`${t('sections.propuestaDetails.proyecto')}: ${quotationData?.project || 'N/A'}`, margin, y);
+    doc.text(`PROYECTO: ${quotationData?.project || 'N/A'}`, margin, y);
     y += 6;
     const dateStr = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.text(`${t('sections.propuestaDetails.fecha')}: ${dateStr}`, margin, y);
+    doc.text(`FECHA: ${dateStr}`, margin, y);
     y += 15;
 
     const tableBody = activeItems.map((item, index) => [
@@ -555,22 +559,20 @@ const PropuestaEconomicaSection = ({
     doc.text(`${totalKW.toFixed(2)} KW`, valueX, currentY, { align: 'right' });
     currentY += lineHeight;
 
-    // Subtotal
-    doc.text(`${t('sections.propuestaDetails.subtotal')}:`, labelX, currentY);
-    doc.text(formatCurrency(subtotal, content.currency), valueX, currentY, { align: 'right' });
-    currentY += lineHeight;
-
-    // IVA
-    doc.text(`${t('sections.propuestaDetails.iva')} (${content.taxRate}%):`, labelX, currentY);
-    doc.text(formatCurrency(totalTax, content.currency), valueX, currentY, { align: 'right' });
-    currentY += lineHeight + 2;
-
-    // Total USD
+    // Subtotal (Shown as Main Total)
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${t('sections.propuestaDetails.total')} (${content.currency}):`, labelX, currentY);
     doc.setTextColor(155, 212, 40); // Solimaq Primary Green
-    doc.text(formatCurrency(totalUSD, content.currency), valueX, currentY, { align: 'right' });
+    doc.text(`${t('sections.propuestaDetails.total')} (${content.currency}):`, labelX, currentY);
+    doc.text(formatCurrency(subtotal, content.currency), valueX, currentY, { align: 'right' });
+    currentY += lineHeight + 2;
+
+    // Text: Prices + VAT
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
+    const vatText = `PRECIOS MÁS ${content.taxRate}% DE I.V.A`;
+    doc.text(vatText, valueX, currentY, { align: 'right' });
     currentY += lineHeight + 4;
 
     // Exchange Rate
@@ -874,25 +876,14 @@ const PropuestaEconomicaSection = ({
               <div className="bg-[#111] rounded-2xl border border-gray-800 p-6 shadow-2xl shadow-black/50">
                 <h3 className="text-xl font-bold text-white mb-6">Resumen de Inversión</h3>
 
-                <div className="space-y-3 mb-6 text-sm">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Subtotal:</span>
-                    <span className="font-mono text-white">{formatCurrency(subtotal, content.currency)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <span>I.V.A ({content.taxRate}%):</span>
-                    </div>
-                    <span className="font-mono text-white">{formatCurrency(totalTax, content.currency)}</span>
-                  </div>
-                </div>
+                {/* Breakdown Removed as per request */}
 
-                <div className="border-t border-gray-800 pt-6 mb-6 space-y-2">
+                <div className="border-t border-gray-800 pt-6 mb-6 space-y-2 text-center sm:text-right">
                   <div className="flex justify-between items-end">
                     <span className="text-primary font-bold text-xl uppercase">TOTAL {content.currency}:</span>
                     <div className="text-right">
                       <div className="text-2xl font-black text-primary">
-                        {formatCurrency(totalUSD, content.currency)}
+                        {formatCurrency(subtotal, content.currency)}
                       </div>
                     </div>
                   </div>
