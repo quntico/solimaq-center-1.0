@@ -781,7 +781,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                 {!isEditingHome && (
                   <Button variant="secondary" onClick={handleSetAsHome} className="bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 w-full"><Home className="h-4 w-4 mr-2" />{t('adminModal.setAsHomePage')}</Button>
                 )}
-                <Button variant="outline" onClick={() => window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime()} className="border-red-500 text-red-500 hover:bg-red-500/10 w-full"><RefreshCw className="h-4 w-4 mr-2" />Forzar Actualización</Button>
+                <Button variant="outline" onClick={() => window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime()} className="border-green-500 text-green-500 hover:bg-green-500/10 w-full"><RefreshCw className="h-4 w-4 mr-2" />Ver Cambios en Vivo</Button>
 
                 {!isEditingTemplate && !isEditingHome && (
                   <Button
@@ -799,7 +799,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
               {/* Save & Reset */}
               <div className="flex gap-3 pt-2 border-t border-gray-800">
                 <Button variant="outline" onClick={handleReset} disabled={isSaving} className="border-primary text-primary hover:bg-primary/10 flex-1"><Eraser className="h-4 w-4 mr-2" />{t('adminModal.reset')}</Button>
-                <Button onClick={handleSave} disabled={isSaving || isUploadingLogo || isUploadingFavicon} className="bg-primary text-white hover:bg-primary/90 shadow-[0_0_15px_hsl(var(--primary)/0.4)] flex-[2]">{isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}{t('adminModal.saveChanges')}</Button>
+                <Button onClick={handleSave} disabled={isSaving || isUploadingLogo || isUploadingFavicon} className="bg-primary text-white hover:bg-primary/90 shadow-[0_0_15px_hsl(var(--primary)/0.4)] flex-[2]">{isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}{"Guardar y Publicar"}</Button>
               </div>
             </div>
           </motion.div>
