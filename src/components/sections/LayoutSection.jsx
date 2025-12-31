@@ -361,12 +361,18 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
                 />
 
                 {/* Visibility Toggle for Video Section */}
+                {/* Visibility Toggle for Video Section */}
                 {isEditorMode && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className={cn("ml-4 gap-2", !content.showVideo ? "text-gray-500" : "text-primary")}
-                    onClick={() => updateContent({ showVideo: !content.showVideo })}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent bubbling issues
+                      const newValue = !content.showVideo;
+                      console.log("[LayoutSection] Toggling video visibility to:", newValue);
+                      updateContent({ showVideo: newValue });
+                    }}
                   >
                     {content.showVideo ? (
                       <>
