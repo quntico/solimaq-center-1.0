@@ -13,11 +13,128 @@ import { cn } from '@/lib/utils';
 const DEFAULT_ISO_IMAGE = 'https://horizons-cdn.hostinger.com/0f98fff3-e5cd-4ceb-b0fd-55d6f1d7dd5c/253c1c55c47b5f7d4ece09fb2bd9a441.png';
 const DEFAULT_TOP_IMAGE = 'https://horizons-cdn.hostinger.com/0f98fff3-e5cd-4ceb-b0fd-55d6f1d7dd5c/dcea69d21f8fa04833cff852034084fb.png';
 
+const LayoutViewCard = ({
+  title,
+  url,
+  type,
+  bucket,
+  folder,
+  accept,
+  icon: Icon,
+  isLoading,
+  isEditorMode,
+  onSaveTitle,
+  onDelete,
+  onUpload
+}) => {
+  const inputRef = useRef(null);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="flex flex-col gap-4"
+    >
+      <div className="flex items-center justify-between">
+        <EditableField
+          value={title}
+          onSave={onSaveTitle}
+          isEditorMode={isEditorMode}
+          className={cn(
+            "text-xl font-semibold text-white",
+            isEditorMode && "border border-transparent hover:border-gray-700 rounded px-2 -ml-2"
+          )}
+        />
+        {isEditorMode && (
+          <>
+            {url && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 mr-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm('¿Estás seguro de querer borrar esta imagen?')) {
+                    onDelete();
+                  }
+                }}
+              >
+                <Trash2 className="w-3 h-3 mr-2" />
+                Borrar
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-gray-400 hover:text-white"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload className="w-3 h-3 mr-2" />
+              {url ? 'Cambiar' : 'Subir'}
+            </Button>
+          </>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          "relative aspect-video bg-gray-900/50 rounded-xl overflow-hidden border border-gray-800 transition-all duration-300 group shadow-lg",
+          isEditorMode && "cursor-pointer hover:border-primary/50 hover:shadow-primary/20"
+        )}
+        onClick={() => isEditorMode && !isLoading && inputRef.current?.click()}
+      >
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          </div>
+        ) : null}
+
+        {url ? (
+          <img
+            src={url}
+            alt={title}
+            className="w-full h-full object-contain p-2"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 gap-3">
+            <Icon className="w-16 h-16 opacity-20" />
+            <span className="text-sm font-medium opacity-50">
+              {isEditorMode ? 'Haz clic para subir imagen' : 'Sin imagen disponible'}
+            </span>
+          </div>
+        )}
+
+        {isEditorMode && (
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 backdrop-blur-[2px]">
+            <Icon className="w-12 h-12 text-white mb-3" />
+            <span className="text-white font-medium mb-2">
+              {url ? 'Reemplazar Imagen' : 'Subir Imagen'}
+            </span>
+            <span className="text-xs text-gray-300 bg-black/50 px-2 py-1 rounded">
+              {folder ? `Carpeta: ${folder}` : 'Root Bucket'}
+            </span>
+          </div>
+        )}
+
+        <input
+          type="file"
+          ref={inputRef}
+          className="hidden"
+          accept={accept}
+          onChange={(e) => onUpload(e, type, bucket, folder)}
+          disabled={isLoading}
+        />
+      </div>
+    </motion.div>
+  );
+};
+
 const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
   const { toast } = useToast();
-  const [uploadingState, setUploadingState] = useState({}); // Tracks loading state per field key
+  const [uploadingState, setUploadingState] = useState({});
+  const [optimisticUrls, setOptimisticUrls] = useState({});
 
-  // Initialize content with new structure, preserving old data if needed
   const content = {
     topViewUrl: sectionData.content?.topViewUrl ?? DEFAULT_TOP_IMAGE,
     topViewTitle: sectionData.content?.topViewTitle || 'Vista Superior',
@@ -43,31 +160,19 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
   const getEmbedUrl = (url) => {
     if (!url) return '';
     try {
-      // Already an embed link
       if (url.includes('youtube.com/embed/')) return url;
-
       let videoId = '';
-      // Standard watch URL
       if (url.includes('watch?v=')) {
         videoId = url.split('watch?v=')[1].split('&')[0];
-      }
-      // Shortened URL
-      else if (url.includes('youtu.be/')) {
+      } else if (url.includes('youtu.be/')) {
         videoId = url.split('youtu.be/')[1].split('?')[0];
       }
-
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
+      if (videoId) return `https://www.youtube.com/embed/${videoId}`;
     } catch (e) {
       console.error("Error parsing video URL", e);
     }
-    // Return original if no known pattern matched (might be valid iframe src already)
     return url;
   };
-
-  // Create a local state to show uploaded images immediately (optimistic UI)
-  const [optimisticUrls, setOptimisticUrls] = useState({});
 
   const handleFileUpload = async (event, type, bucketName, folderPath) => {
     const file = event.target.files?.[0];
@@ -90,10 +195,7 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
         .from(bucketName)
         .getPublicUrl(filePath);
 
-      // 1. Update Optimistic State immediately
       setOptimisticUrls(prev => ({ ...prev, [type]: publicUrl }));
-
-      // 2. Propagate to Parent/DB
       const newContent = { [`${type}Url`]: publicUrl };
       updateContent(newContent);
 
@@ -114,119 +216,9 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
     }
   };
 
-  // Component for Image Views
-  const LayoutViewCard = ({ titleKey, urlKey, type, bucket, folder, accept, icon: Icon }) => {
-    const inputRef = useRef(null);
-    const isLoading = uploadingState[type];
-    // Prioritize optimistic local state, then saved content
-    const url = optimisticUrls[type] || content[`${type}Url`];
-    const title = content[`${type}Title`];
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="flex flex-col gap-4"
-      >
-        <div className="flex items-center justify-between">
-          <EditableField
-            value={title}
-            onSave={(val) => updateContent({ [`${type}Title`]: val })}
-            isEditorMode={isEditorMode}
-            className={cn(
-              "text-xl font-semibold text-white",
-              isEditorMode && "border border-transparent hover:border-gray-700 rounded px-2 -ml-2"
-            )}
-          />
-          {isEditorMode && (
-            <>
-              {url && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 mr-2"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm('¿Estás seguro de querer borrar esta imagen?')) {
-                      updateContent({ [`${type}Url`]: '' });
-                    }
-                  }}
-                >
-                  <Trash2 className="w-3 h-3 mr-2" />
-                  Borrar
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-gray-400 hover:text-white"
-                onClick={() => inputRef.current?.click()}
-              >
-                <Upload className="w-3 h-3 mr-2" />
-                {url ? 'Cambiar' : 'Subir'}
-              </Button>
-            </>
-          )}
-        </div>
-
-        <div
-          className={cn(
-            "relative aspect-video bg-gray-900/50 rounded-xl overflow-hidden border border-gray-800 transition-all duration-300 group shadow-lg",
-            isEditorMode && "cursor-pointer hover:border-primary/50 hover:shadow-primary/20"
-          )}
-          onClick={() => isEditorMode && !isLoading && inputRef.current?.click()}
-        >
-          {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
-            </div>
-          ) : null}
-
-          {url ? (
-            <img
-              src={url}
-              alt={title}
-              className="w-full h-full object-contain p-2"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 gap-3">
-              <Icon className="w-16 h-16 opacity-20" />
-              <span className="text-sm font-medium opacity-50">
-                {isEditorMode ? 'Haz clic para subir imagen' : 'Sin imagen disponible'}
-              </span>
-            </div>
-          )}
-
-          {isEditorMode && (
-            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 backdrop-blur-[2px]">
-              <Icon className="w-12 h-12 text-white mb-3" />
-              <span className="text-white font-medium mb-2">
-                {url ? 'Reemplazar Imagen' : 'Subir Imagen'}
-              </span>
-              <span className="text-xs text-gray-300 bg-black/50 px-2 py-1 rounded">
-                {folder ? `Carpeta: ${folder}` : 'Root Bucket'}
-              </span>
-            </div>
-          )}
-
-          <input
-            type="file"
-            ref={inputRef}
-            className="hidden"
-            accept={accept}
-            onChange={(e) => handleFileUpload(e, type, bucket, folder)}
-            disabled={isLoading}
-          />
-        </div>
-      </motion.div>
-    );
-  };
-
-  // Local state for video URL to prevent freezing on typing (debounce/onBlur pattern)
+  // Local state for video URL
   const [localVideoUrl, setLocalVideoUrl] = useState(sectionData.content?.videoUrl || '');
 
-  // Sync local state when prop changes (external updates)
   React.useEffect(() => {
     setLocalVideoUrl(sectionData.content?.videoUrl || '');
   }, [sectionData.content?.videoUrl]);
@@ -245,29 +237,47 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 mb-20">
           <LayoutViewCard
             type="topView"
-            titleKey="topViewTitle"
+            title={content.topViewTitle}
+            url={optimisticUrls.topView || content.topViewUrl}
             bucket="logos-bucket"
             folder="layout-superior"
             accept="image/*"
             icon={ImageIcon}
+            isLoading={uploadingState.topView}
+            isEditorMode={isEditorMode}
+            onSaveTitle={(val) => updateContent({ topViewTitle: val })}
+            onDelete={() => updateContent({ topViewUrl: '' })}
+            onUpload={handleFileUpload}
           />
 
           <LayoutViewCard
             type="sideView"
-            titleKey="sideViewTitle"
+            title={content.sideViewTitle}
+            url={optimisticUrls.sideView || content.sideViewUrl}
             bucket="logos-bucket"
             folder="layout-lateral"
             accept="image/*"
             icon={ImageIcon}
+            isLoading={uploadingState.sideView}
+            isEditorMode={isEditorMode}
+            onSaveTitle={(val) => updateContent({ sideViewTitle: val })}
+            onDelete={() => updateContent({ sideViewUrl: '' })}
+            onUpload={handleFileUpload}
           />
 
           <LayoutViewCard
             type="isoView"
-            titleKey="isoViewTitle"
+            title={content.isoViewTitle}
+            url={optimisticUrls.isoView || content.isoViewUrl}
             bucket="logos-bucket"
             folder="layout-isometrico"
             accept="image/*"
             icon={ImageIcon}
+            isLoading={uploadingState.isoView}
+            isEditorMode={isEditorMode}
+            onSaveTitle={(val) => updateContent({ isoViewTitle: val })}
+            onDelete={() => updateContent({ isoViewUrl: '' })}
+            onUpload={handleFileUpload}
           />
         </div>
 
