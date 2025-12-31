@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Loader2, Video, Image as ImageIcon, FileVideo, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -363,29 +364,29 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
                 {/* Visibility Toggle for Video Section */}
                 {/* Visibility Toggle for Video Section */}
                 {isEditorMode && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn("ml-4 gap-2", !content.showVideo ? "text-gray-500" : "text-primary")}
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent bubbling issues
-                      const newValue = !content.showVideo;
-                      console.log("[LayoutSection] Toggling video visibility to:", newValue);
-                      updateContent({ showVideo: newValue });
-                    }}
-                  >
-                    {content.showVideo ? (
-                      <>
-                        <Eye className="w-4 h-4" />
-                        <span className="text-xs">Visible</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="w-4 h-4" />
-                        <span className="text-xs">Oculto</span>
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-3 ml-6 bg-gray-900/50 px-4 py-2 rounded-full border border-gray-800">
+                    <Switch
+                      checked={content.showVideo}
+                      onCheckedChange={(checked) => {
+                        console.log("[LayoutSection] Switch toggled:", checked);
+                        updateContent({ showVideo: checked });
+                      }}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                    <div className="flex items-center gap-2 min-w-[60px]">
+                      {content.showVideo ? (
+                        <>
+                          <Eye className="w-4 h-4 text-primary" />
+                          <span className="text-xs font-medium text-white">Visible</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-4 h-4 text-gray-500" />
+                          <span className="text-xs font-medium text-gray-500">Oculto</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
