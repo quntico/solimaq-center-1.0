@@ -66,11 +66,13 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
     return url;
   };
 
+  // Create a local state to show uploaded images immediately (optimistic UI)
+  const [optimisticUrls, setOptimisticUrls] = useState({});
+
   const handleFileUpload = async (event, type, bucketName, folderPath) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    console.log(`[LayoutSection] Uploading ${file.name} to ${bucketName}/${folderPath} for type ${type}`);
     setUploadingState(prev => ({ ...prev, [type]: true }));
 
     try {
@@ -82,36 +84,33 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
         .from(bucketName)
         .upload(filePath, file);
 
-      if (uploadError) {
-        console.error("[LayoutSection] Supabase Upload Error:", uploadError);
-        throw uploadError;
-      }
-      console.log("[LayoutSection] Upload Data:", data);
+      if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(filePath);
 
-      console.log("[LayoutSection] Generated Public URL:", publicUrl);
+      // 1. Update Optimistic State immediately
+      setOptimisticUrls(prev => ({ ...prev, [type]: publicUrl }));
 
+      // 2. Propagate to Parent/DB
       const newContent = { [`${type}Url`]: publicUrl };
-      console.log("[LayoutSection] Calling updateContent with:", newContent);
       updateContent(newContent);
 
       toast({
-        title: "Imagen subida",
-        description: "La imagen se ha guardado correctamente.",
+        title: "Imagen actualizada",
+        description: "Vista guardada correctamente.",
       });
     } catch (error) {
       console.error('Upload error:', error);
       toast({
         variant: "destructive",
         title: "Error al subir",
-        description: error.message || "No se pudo guardar el archivo.",
+        description: "No se pudo actualizar la imagen.",
       });
     } finally {
       setUploadingState(prev => ({ ...prev, [type]: false }));
-      event.target.value = '';
+      if (event.target) event.target.value = '';
     }
   };
 
@@ -119,7 +118,8 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
   const LayoutViewCard = ({ titleKey, urlKey, type, bucket, folder, accept, icon: Icon }) => {
     const inputRef = useRef(null);
     const isLoading = uploadingState[type];
-    const url = content[`${type}Url`];
+    // Prioritize optimistic local state, then saved content
+    const url = optimisticUrls[type] || content[`${type}Url`];
     const title = content[`${type}Title`];
 
     return (
