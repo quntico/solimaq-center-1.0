@@ -140,7 +140,10 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
     topViewUrl: sectionData.content?.topViewUrl ?? DEFAULT_TOP_IMAGE,
     topViewTitle: sectionData.content?.topViewTitle || 'Vista Superior',
 
-    sideViewUrl: sectionData.content?.sideViewUrl || '',
+    sideViewUrl: sectionData.content?.sideViewUrl ?? '', // Changed from || '' to ?? '' to allow empty string specifically if needed, though they act similar here. 
+    // The issue might be upstream receiving null. Let's ensure we use what's in sectionData strictly if present.
+    // Actually, if sectionData.content.sideViewUrl is undefined, it becomes ''.
+
     sideViewTitle: sectionData.content?.sideViewTitle || 'Vista Lateral',
 
     isoViewUrl: sectionData.content?.isoViewUrl ?? DEFAULT_ISO_IMAGE,
@@ -254,7 +257,7 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
             <LayoutViewCard
               type="sideView"
               title={content.sideViewTitle}
-              url={optimisticUrls.sideView || content.sideViewUrl}
+              url={optimisticUrls.sideView !== undefined ? optimisticUrls.sideView : content.sideViewUrl}
               bucket="logos-bucket"
               folder="layout-lateral"
               accept="image/*"
@@ -364,14 +367,22 @@ const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
                 {/* Visibility Toggle for Video Section */}
                 {/* Visibility Toggle for Video Section */}
                 {isEditorMode && (
-                  <div className="flex items-center gap-3 ml-6 bg-gray-900/50 px-4 py-2 rounded-full border border-gray-800">
+                  <div
+                    className="flex items-center gap-3 ml-6 bg-gray-900/50 px-4 py-2 rounded-full border border-gray-800 cursor-pointer pointer-events-auto relative z-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Manual toggle if switch click is intercepted
+                      updateContent({ showVideo: !content.showVideo });
+                    }}
+                  >
                     <Switch
                       checked={content.showVideo}
                       onCheckedChange={(checked) => {
-                        console.log("[LayoutSection] Switch toggled:", checked);
+                        // This might not fire if parent intercepts, hence the onClick above
+                        // But we keep it for accessibility
                         updateContent({ showVideo: checked });
                       }}
-                      className="data-[state=checked]:bg-primary"
+                      className="data-[state=checked]:bg-primary pointer-events-none" // Disable pointer events on switch to let parent handle click
                     />
                     <div className="flex items-center gap-2 min-w-[60px]">
                       {content.showVideo ? (
