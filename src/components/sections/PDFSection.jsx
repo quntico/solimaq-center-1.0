@@ -237,80 +237,130 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
     fetchQuotations();
   }, [fetchQuotations]);
 
-  // Fetch Signed URL and convert to Blob to avoid X-Frame-Options issues
-  useEffect(() => {
-    let activeObjectUrl = null;
+  /* PDF Cache Ref to store blob URLs and prevent re-fetching: { [id]: { pdfUrl, downloadUrl } } */
+  const pdfCache = useRef({});
 
-    const fetchPdfContent = async () => {
-      if (!selectedQuotation || !selectedQuotation.file_path || selectedQuotation.file_path === 'uploading') {
+  const loadPdfToCache = useCallback(async (quotation) => {
+    if (!quotation || !quotation.file_path || quotation.file_path === 'uploading') return null;
+
+    if (pdfCache.current[quotation.id]) {
+      return pdfCache.current[quotation.id];
+    }
+
+    const filePath = quotation.file_path;
+    const parts = filePath.split('/');
+    const potentialBucket = parts[0];
+    const knownBuckets = ['quotation-pdfs', 'quotation-files', 'public', 'storage', 'logos-bucket'];
+
+    let bucketToUse = activeBucket || 'quotation-pdfs';
+    let pathToUse = filePath;
+
+    if (knownBuckets.includes(potentialBucket)) {
+      bucketToUse = potentialBucket;
+      pathToUse = parts.slice(1).join('/');
+    }
+
+    try {
+      let urlToFetch = null;
+      let originalSignedUrl = null;
+
+      const { data, error } = await supabase.storage
+        .from(bucketToUse)
+        .createSignedUrl(pathToUse, 3600);
+
+      if (data?.signedUrl) {
+        urlToFetch = data.signedUrl;
+        originalSignedUrl = data.signedUrl;
+      } else {
+        const { data: publicData } = supabase.storage.from(bucketToUse).getPublicUrl(pathToUse);
+        urlToFetch = publicData.publicUrl;
+        originalSignedUrl = publicData.publicUrl;
+      }
+
+      const response = await fetch(urlToFetch);
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      const cacheItem = {
+        pdfUrl: objectUrl,
+        downloadUrl: originalSignedUrl
+      };
+
+      pdfCache.current[quotation.id] = cacheItem;
+      return cacheItem;
+
+    } catch (err) {
+      console.error(`Error loading PDF for ${quotation.name}:`, err);
+      return null;
+    }
+  }, [activeBucket]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(pdfCache.current).forEach(cacheItem => {
+        if (cacheItem.pdfUrl) URL.revokeObjectURL(cacheItem.pdfUrl);
+      });
+    };
+  }, []);
+
+  // Main Effect: Load Selected Quotation
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSelected = async () => {
+      if (!selectedQuotation) {
         setPdfUrl(null);
         setDownloadUrl(null);
         return;
       }
 
-      // Better not touch global loading as it hides the list. 
-      // We'll just let the iframe load.
-
-      const filePath = selectedQuotation.file_path;
-      const parts = filePath.split('/');
-      const potentialBucket = parts[0];
-      const knownBuckets = ['quotation-pdfs', 'quotation-files', 'public', 'storage', 'logos-bucket'];
-
-      let bucketToUse = activeBucket || 'quotation-pdfs';
-      let pathToUse = filePath;
-
-      if (knownBuckets.includes(potentialBucket)) {
-        bucketToUse = potentialBucket;
-        pathToUse = parts.slice(1).join('/');
+      // Check cache first for instant switch
+      if (pdfCache.current[selectedQuotation.id]) {
+        console.log(`[PDF Cache] Hit for ${selectedQuotation.name}`);
+        setPdfUrl(pdfCache.current[selectedQuotation.id].pdfUrl);
+        setDownloadUrl(pdfCache.current[selectedQuotation.id].downloadUrl);
+        return;
       }
 
-      let urlToFetch = null;
-      let originalSignedUrl = null;
+      console.log(`[PDF Cache] Miss for ${selectedQuotation.name}, fetching...`);
+      setPdfUrl(null);
 
-      try {
-        // 1. Get Signed URL
-        const { data, error } = await supabase.storage
-          .from(bucketToUse)
-          .createSignedUrl(pathToUse, 3600);
+      const cached = await loadPdfToCache(selectedQuotation);
 
-        if (data?.signedUrl) {
-          urlToFetch = data.signedUrl;
-          originalSignedUrl = data.signedUrl;
-        } else {
-          console.error("Error fetching signed URL:", error);
-          // Fallback to public URL
-          const { data: publicData } = supabase.storage.from(bucketToUse).getPublicUrl(pathToUse);
-          urlToFetch = publicData.publicUrl;
-          originalSignedUrl = publicData.publicUrl; // Use public URL as fallback for download
-        }
-        setDownloadUrl(originalSignedUrl); // Set the URL for the download button
-
-        // 2. Fetch content as Blob
-        const response = await fetch(urlToFetch);
-        if (!response.ok) throw new Error('Network response was not ok');
-
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-
-        activeObjectUrl = objectUrl;
-        setPdfUrl(objectUrl);
-
-      } catch (err) {
-        console.error("Error loading PDF blob:", err);
-        // If blob creation fails, try to set the original signed/public URL for the viewer
-        // This might still fail in the iframe due to X-Frame-Options, but allows download.
-        setPdfUrl(originalSignedUrl);
+      if (isMounted && cached) {
+        setPdfUrl(cached.pdfUrl);
+        setDownloadUrl(cached.downloadUrl);
       }
     };
 
-    fetchPdfContent();
+    loadSelected();
 
-    return () => {
-      if (activeObjectUrl) {
-        URL.revokeObjectURL(activeObjectUrl);
+    return () => { isMounted = false; };
+  }, [selectedQuotation, loadPdfToCache]);
+
+  // Preloader Effect: Load others in background
+  useEffect(() => {
+    const preloadOthers = async () => {
+      if (quotations.length <= 1) return;
+
+      for (const q of quotations) {
+        if (selectedQuotation && q.id === selectedQuotation.id) continue;
+        if (pdfCache.current[q.id]) continue;
+
+        console.log(`[PDF Preloader] Fetching ${q.name}...`);
+        await loadPdfToCache(q);
+        await new Promise(r => setTimeout(r, 100)); // Small delay to yield
       }
     };
-  }, [selectedQuotation, activeBucket]);
+
+    const timer = setTimeout(() => {
+      preloadOthers();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [quotations, selectedQuotation, loadPdfToCache]);
 
 
   const handleAdminToggle = () => {
