@@ -5,6 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSelector from '@/components/LanguageSelector';
 import Banner from '@/components/Banner';
 import MobileMenu from '@/components/MobileMenu';
+import { BRANDS, DEFAULT_BRAND } from '@/lib/brands';
 
 const Header = ({
   quotationData,
@@ -28,8 +29,20 @@ const Header = ({
   onAdminClick
 }) => {
   const { t } = useLanguage();
-  const { company, project, client, logo, logo_size, banner_text, banner_scale, banner_direction, hide_banner } = quotationData;
+  const { company, project, client, logo, logo_size, banner_text, banner_scale, banner_direction, hide_banner, brand_color } = quotationData;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Determine Brand Logo
+  const brandId = brand_color || DEFAULT_BRAND;
+  const brandConfig = BRANDS[brandId] || BRANDS[DEFAULT_BRAND];
+
+  // Force fallback if logo is the generic favicon and we want the brand logo
+  let potentialLogo = logo;
+  if (potentialLogo && potentialLogo.includes('favicon.png') && brandId === 'solimaq') {
+    potentialLogo = null;
+  }
+
+  const finalLogoUrl = potentialLogo || brandConfig.defaultLogo;
 
   // Show banner if not hidden in settings, and if the idle/initial timer says it should be visible.
   const showBanner = !hide_banner && isBannerVisible;
@@ -55,11 +68,11 @@ const Header = ({
               <Menu size={28} />
             </button>
 
-            {logo && (
+            {finalLogoUrl && (
               <button onClick={onLogoClick} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-md">
                 <div className="header-logo-container scale-75 sm:scale-100 origin-left" style={logoContainerStyle}>
                   <img
-                    src={logo}
+                    src={finalLogoUrl}
                     alt={`${company} Logo`}
                     className="header-logo"
                   />

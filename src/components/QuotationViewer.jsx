@@ -11,6 +11,7 @@ import PasswordPrompt from '@/components/PasswordPrompt';
 import BottomNavBar from '@/components/BottomNavBar';
 import CloneModal from '@/components/CloneModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/components/ui/use-toast';
 import { BRANDS, DEFAULT_BRAND } from '@/lib/brands';
 
 import PortadaSection from '@/components/sections/PortadaSection';
@@ -135,6 +136,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
   const hasInteracted = useRef(false);
   const [previewData, setPreviewData] = useState(null);
   const { t } = useLanguage();
+  const { toast } = useToast();
 
   const quotationData = themes[activeTheme];
   const displayData = previewData ? { ...quotationData, ...previewData } : quotationData;
@@ -459,8 +461,8 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
   return (
     <>
       <Helmet>
-        <title>{displayData.company} - {displayData.project}</title>
-        <link rel="icon" href={displayData.favicon || "/favicon.png"} />
+        <title>{displayData?.company || 'Solimaq'} - {displayData?.project || 'Proyecto'}</title>
+        <link rel="icon" href={displayData?.favicon || "/favicon.png"} />
 
       </Helmet>
       {isAdminView && showPasswordPrompt && (

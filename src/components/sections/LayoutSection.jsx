@@ -186,8 +186,7 @@ const LayoutViewCard = ({
 };
 
 const LayoutSection = ({ sectionData = {}, isEditorMode, onContentChange }) => {
-  // Debug log for incoming props to troubleshoot persistence
-  console.log('[LayoutSection] Render. content:', sectionData.content, 'showVideo:', sectionData.content?.showVideo);
+
 
   const { toast } = useToast();
   const [uploadingState, setUploadingState] = useState({});

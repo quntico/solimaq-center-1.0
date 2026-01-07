@@ -4,6 +4,8 @@ import App from '@/App';
 import '@/index.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
+import ErrorBoundary from '@/components/ErrorBoundary';
+
 // SW Cleanup
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function (registrations) {
@@ -14,7 +16,9 @@ if ('serviceWorker' in navigator) {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <LanguageProvider>
-    <App />
-  </LanguageProvider>
+  <ErrorBoundary>
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
+  </ErrorBoundary>
 );

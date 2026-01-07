@@ -49,7 +49,7 @@ const MainContent = ({
         if (!Component) return null;
 
         const sectionDataWithContent = {
-          ...quotationData.sections_config.find(s => s.id === section.id),
+          ...(quotationData.sections_config || []).find(s => s.id === section.id),
           ...section,
         };
 

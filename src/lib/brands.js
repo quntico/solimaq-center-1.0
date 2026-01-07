@@ -12,7 +12,7 @@ export const BRANDS = {
             primaryForeground: '0 0% 100%',
         },
         // Default logo path (can be overridden by quotation.logo)
-        defaultLogo: '/favicon-solimaq.png'
+        defaultLogo: '/solimaq_logo.png'
     },
     solifood: {
         id: 'solifood',
