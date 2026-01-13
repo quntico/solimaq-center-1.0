@@ -69,13 +69,18 @@ const Header = ({
             </button>
 
             {finalLogoUrl && (
-              <button onClick={onLogoClick} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-md">
+              <button onClick={onLogoClick} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-md flex items-center gap-3">
                 <div className="header-logo-container scale-75 sm:scale-100 origin-left" style={logoContainerStyle}>
                   <img
                     src={finalLogoUrl}
                     alt={`${company} Logo`}
                     className="header-logo"
                   />
+                </div>
+                {/* Version LED Indicator */}
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-full">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse" />
+                  <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">VER 2.0</span>
                 </div>
               </button>
             )}
