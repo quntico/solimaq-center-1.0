@@ -413,19 +413,45 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
   }
 
   const handleCopyLink = () => {
-    if (currentThemeData?.slug) {
-      navigator.clipboard.writeText(`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`);
-      toast({ title: "Copiado 📋", description: "Enlace en portapapeles (solimaq.site)." });
-    } else {
+    if (!currentThemeData?.slug) {
       toast({ title: "Sin Slug", description: "Esta cotización no tiene slug.", variant: "destructive" });
+      return;
     }
+
+    // Check for unsaved changes in slug
+    const savedSlug = themes[activeTheme]?.slug;
+    const currentSlug = currentThemeData.slug;
+
+    if (savedSlug !== currentSlug) {
+      toast({
+        title: "⚠️ Cambios sin guardar",
+        description: "El slug ha cambiado. Guarda los cambios para que el enlace funcione correctamente.",
+        variant: "destructive",
+        duration: 5000
+      });
+    }
+
+    navigator.clipboard.writeText(`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`);
+    toast({ title: "Copiado 📋", description: "Enlace en portapapeles (solimaq.site)." });
   };
 
   const handleOpenLink = () => {
-    if (currentThemeData?.slug) {
-      // Force solimaq.site as requested
-      window.open(`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`, '_blank');
+    if (!currentThemeData?.slug) return;
+
+    const savedSlug = themes[activeTheme]?.slug;
+    const currentSlug = currentThemeData.slug;
+
+    if (savedSlug !== currentSlug) {
+      toast({
+        title: "⚠️ Cambios sin guardar",
+        description: "Guarda los cambios antes de abrir el enlace.",
+        variant: "destructive"
+      });
+      return;
     }
+
+    // Force solimaq.site as requested
+    window.open(`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`, '_blank');
   };
 
   if (!isOpen) return null;

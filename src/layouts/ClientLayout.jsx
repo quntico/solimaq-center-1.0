@@ -27,19 +27,19 @@ const ClientLayout = () => {
         const { data, error: fetchError } = await supabase
           .from('quotations')
           .select('*')
-          .eq('slug', slug)
+          .ilike('slug', slug)
           .single();
 
         if (fetchError) {
           if (fetchError.code === 'PGRST116') { // PostgREST error for "exact one row" not found
-             setError(t('clientLayout.notFound'));
+            setError(t('clientLayout.notFound'));
           } else {
             throw fetchError;
           }
         } else if (data) {
           setQuotationData(data);
         } else {
-           setError(t('clientLayout.notFound'));
+          setError(t('clientLayout.notFound'));
         }
       } catch (err) {
         console.error('Error fetching quotation by slug:', err);
