@@ -72,9 +72,9 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col bg-gray-950 border-gray-800 text-white">
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col bg-black/60 backdrop-blur-xl border-white/10 text-white shadow-2xl">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold text-blue-500">Editar Flujo del Proceso</DialogTitle>
+                    <DialogTitle className="text-2xl font-bold text-primary">Editar Flujo del Proceso</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-hidden flex gap-6 mt-4">
@@ -82,7 +82,7 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                     <div className="w-1/3 flex flex-col border-r border-gray-800 pr-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-semibold text-gray-300">Pasos</h3>
-                            <Button onClick={handleAddStep} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            <Button onClick={handleAddStep} size="sm" className="bg-primary hover:bg-primary/90 text-white">
                                 <Plus className="w-4 h-4 mr-1" /> Agregar
                             </Button>
                         </div>
@@ -92,8 +92,8 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                                 <div
                                     key={step.id}
                                     className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center gap-2 ${editingStepId === step.id
-                                        ? 'bg-blue-900/20 border-blue-500'
-                                        : 'bg-gray-900 border-gray-800 hover:border-gray-700'
+                                        ? 'bg-primary/10 border-primary'
+                                        : 'bg-gray-900/50 border-white/5 hover:border-white/10'
                                         }`}
                                     onClick={() => setEditingStepId(step.id)}
                                 >
@@ -151,8 +151,8 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                                                     onChange={(val) => handleUpdateStep(step.id, 'icon', val)}
                                                     isEditorMode={true}
                                                     trigger={
-                                                        <Button variant="outline" className="h-12 w-12 p-2 border-gray-700 bg-gray-900">
-                                                            <Icon className="w-full h-full text-blue-500" />
+                                                        <Button variant="outline" className="h-12 w-12 p-2 border-gray-700 bg-gray-900/50">
+                                                            <Icon className="w-full h-full text-primary" />
                                                         </Button>
                                                     }
                                                 />
@@ -209,7 +209,7 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                     <Button variant="outline" onClick={onClose} className="border-gray-700 hover:bg-gray-800 text-white">
                         Cancelar
                     </Button>
-                    <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-white">
                         Guardar Cambios
                     </Button>
                 </DialogFooter>
