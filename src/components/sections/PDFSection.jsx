@@ -454,7 +454,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
             </Button>
           </div>
         </div>
-        <p className="text-gray-400 text-base sm:text-lg mb-6 sm:mb-8 text-center -mt-8">
+        <p className="text-gray-400 text-sm sm:text-base mb-6 text-center mt-2">
           {isEditorMode ? 'Gestiona las cotizaciones.' : 'Selecciona una cotización para visualizarla.'}
         </p>
 
