@@ -74,7 +74,7 @@ const defaultSections = [
   { id: 'layout', label: 'Lay Out', icon: 'LayoutGrid', isVisible: true, isLocked: false, component: 'layout' },
   { id: 'video', label: 'Video', icon: 'Video', isVisible: true, isLocked: false, component: 'video' },
   { id: 'proceso', label: 'Proceso', icon: 'TrendingUp', isVisible: true, component: 'proceso' },
-  { id: 'calculadora_prod', label: 'Calculadora', icon: 'Calculator', isVisible: true, isLocked: false, component: 'calculadora_prod' },
+  { id: 'calculadora_prod', label: 'Calculadora', icon: 'Calculator', isVisible: false, isLocked: false, component: 'calculadora_prod' },
   { id: 'pdf', label: 'Cotizaciones PDF', icon: 'FileDown', isVisible: true, component: 'pdf' },
   { id: 'analiticas', label: 'Analíticas', icon: 'BarChart', isVisible: true, component: 'admin', adminOnly: true },
   { id: 'ajustes', label: 'Ajustes', icon: 'Settings', isVisible: true, component: 'admin', adminOnly: true },
@@ -85,7 +85,7 @@ const defaultSections = [
   { id: 'portada', label: 'Home', icon: 'Home', isVisible: false, component: 'portada' },
   { id: 'generales', label: 'Generales', icon: 'ClipboardList', isVisible: false, component: 'generales' },
   { id: 'exclusiones', label: 'Exclusiones', icon: 'XCircle', isVisible: false, component: 'exclusiones' },
-  { id: 'ia', label: 'Asistente IA', icon: 'BrainCircuit', isVisible: true, isLocked: false, component: 'ia' },
+  { id: 'ia', label: 'Asistente IA', icon: 'BrainCircuit', isVisible: false, isLocked: false, component: 'ia' },
 ];
 
 const clientVisibleSections = new Set(defaultSections.filter(s => !s.adminOnly).map(s => s.id));
@@ -402,7 +402,13 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
 
   if (!isAdminView) {
     // Filter hidden items and admin items for normal view
-    menuItems = menuItems.filter(item => item.isVisible && clientVisibleSections.has(item.id.split('_copy')[0]) && !item.adminOnly);
+    // ALSO explicitly hide Calculator and IA Assistant for clients as requested
+    menuItems = menuItems.filter(item =>
+      item.isVisible &&
+      clientVisibleSections.has(item.id.split('_copy')[0]) &&
+      !item.adminOnly &&
+      !['calculadora_prod', 'ia'].includes(item.id)
+    );
   } else if (!isAdminAuthenticated) {
     // Filter admin items for non-authenticated admin view AND respect visibility
     menuItems = menuItems.filter(item => item.isVisible && !item.adminOnly);
