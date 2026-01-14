@@ -321,13 +321,24 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
       document.body.className = 'theme-nova';
 
       // Dynamic Brand Theming
-      // Dynamic Brand Theming
       const root = document.documentElement;
 
       const brandId = displayData.brand_color || DEFAULT_BRAND;
       const brandConfig = BRANDS[brandId] || BRANDS[DEFAULT_BRAND];
 
-      root.style.setProperty('--primary', brandConfig.colors.primary);
+      const primaryColor = brandConfig.colors.primary;
+      root.style.setProperty('--primary', primaryColor);
+
+      // Convert Hex to RGB for LED effects
+      const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : null;
+      };
+
+      const primaryRgb = hexToRgb(primaryColor);
+      if (primaryRgb) {
+        root.style.setProperty('--primary-rgb', primaryRgb);
+      }
       root.style.setProperty('--secondary', brandConfig.colors.secondary);
       root.style.setProperty('--primary-foreground', brandConfig.colors.primaryForeground);
       root.style.setProperty('--ring', brandConfig.colors.primary);

@@ -213,7 +213,7 @@ const SidebarItem = ({
         {isActive && !isCollapsed && !isEditorMode && (
           <motion.div
             layoutId="activeIndicator"
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full"
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           />
         )}
@@ -325,9 +325,9 @@ const SidebarItem = ({
     containerClasses += " hover:bg-gray-800/80";
   }
 
-  // Only apply solid blue background (led-blue-box) if it's active AND has NO sub-items
+  // LED Accent effect if active AND has NO sub-items
   if (isActive && !isEditorMode && !hasSubItems) {
-    containerClasses += " bg-gray-800 border-l-4 border-primary";
+    containerClasses += " bg-primary/20 border-l-4 border-primary shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)] backdrop-blur-sm";
   }
 
   // Editor mode active style

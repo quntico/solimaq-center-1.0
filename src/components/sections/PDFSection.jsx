@@ -538,21 +538,21 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                       <FileText className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-white font-bold text-sm sm:text-base leading-tight drop-shadow-md">
+                      <span className="text-white font-bold text-sm sm:text-base leading-tight drop-shadow-md truncate max-w-[150px] sm:max-w-none">
                         {quotations.findIndex(q => q.id === selectedQuotation.id) + 1}. {selectedQuotation.name}
                       </span>
                       <span className="text-[10px] text-primary/80 font-bold uppercase tracking-widest">Documento Activo</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="sm" className="text-[10px] hidden sm:flex text-gray-400 hover:text-white border border-white/10 bg-white/5">
+                      <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] text-primary hover:text-white border border-primary/30 bg-primary/10 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]">
                         PANTALLA COMPLETA
                       </Button>
                     </a>
                     <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-primary hover:bg-primary/20 transition-all rounded-full" title="Descargar PDF">
-                        <Download className="w-5 h-5" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary hover:bg-primary/20 transition-all rounded-full" title="Descargar PDF">
+                        <Download className="w-4 h-4" />
                       </Button>
                     </a>
                   </div>
@@ -564,13 +564,17 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                     <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 via-transparent to-primary/20" />
                   </div>
 
-                  <div className="w-full h-full overflow-auto touch-auto [-webkit-overflow-scrolling:touch] flex items-center justify-center p-0 sm:p-4 bg-black/40">
-                    <iframe
-                      src={`${pdfUrl}#view=Fit&toolbar=0&navpanes=0`}
-                      className="w-full h-full min-h-[75vh] sm:min-h-full border-0 shadow-3xl bg-white"
-                      title={selectedQuotation.name}
-                      loading="lazy"
-                    />
+                  <div className="w-full h-full overflow-hidden relative flex flex-col items-center justify-center p-0 sm:p-4 bg-black/40">
+                    <div className="w-full h-full overflow-auto touch-auto [-webkit-overflow-scrolling:touch]">
+                      <iframe
+                        src={`${pdfUrl}#view=FitV&toolbar=0&navpanes=0`}
+                        className="w-full h-full min-h-[70vh] sm:min-h-full border-0 shadow-3xl bg-white"
+                        style={{ display: 'block' }}
+                        title={selectedQuotation.name}
+                        loading="lazy"
+                        scrolling="yes"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

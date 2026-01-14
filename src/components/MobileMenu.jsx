@@ -118,7 +118,7 @@ const MobileMenu = ({
                                     <>
                                         <button
                                             onClick={() => { onCotizadorClick(); onClose(); }}
-                                            className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeSection === 'cotizador_page' ? 'bg-blue-600 text-white' : 'hover:bg-gray-800 text-gray-300'}`}
+                                            className={`w-full flex items-center p-3 rounded-lg transition-all duration-300 ${activeSection === 'cotizador_page' ? 'bg-primary/25 text-primary border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]' : 'hover:bg-gray-800 text-gray-300'}`}
                                         >
                                             <Calculator size={20} />
                                             <span className="ml-3 font-semibold">Modo Cotizador</span>
