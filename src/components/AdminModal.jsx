@@ -878,9 +878,22 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
               <div className="p-4 bg-white rounded-lg shadow-inner border border-gray-200">
                 <QRCodeCanvas value={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`} size={256} level="H" includeMargin={true} />
               </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-600 font-medium mb-1">{currentThemeData.project}</p>
-                <Button onClick={() => setShowQR(false)} className="w-full mt-4">Cerrar</Button>
+              <div className="text-center w-full max-w-[280px]">
+                <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2 truncate">{currentThemeData.project}</p>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4">
+                  <a
+                    href={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-blue-600 hover:text-blue-800 break-all font-mono leading-relaxed underline underline-offset-2 flex items-center justify-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <span>solimaq.site/cotizacion/{currentThemeData.slug}</span>
+                  </a>
+                </div>
+                <Button onClick={() => setShowQR(false)} className="w-full bg-primary text-white hover:bg-primary/90">
+                  Cerrar
+                </Button>
               </div>
             </div>
           </div>
