@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import SectionHeader from '@/components/SectionHeader';
 import { getActiveBucket } from '@/lib/bucketResolver';
+import { cn } from '@/lib/utils';
 
 const AdminLoginDialog = ({ isOpen, onClose, onLogin }) => {
   const [password, setPassword] = useState('');
@@ -468,7 +469,8 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                 </Button>
               )}
             </div>
-            <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-4 space-y-2 flex-grow overflow-y-auto">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-3 flex-grow overflow-y-auto shadow-2xl relative group/list">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none rounded-2xl" />
               {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -481,7 +483,18 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                 </div>
               ) : (
                 quotations.map((q, index) => (
-                  <div key={q.id} className={`p-3 rounded-lg transition-all cursor-pointer group ${selectedQuotation?.id === q.id ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-white/5'}`}>
+                  <div
+                    key={q.id}
+                    className={cn(
+                      "p-4 rounded-xl transition-all duration-300 cursor-pointer group/item relative overflow-hidden active:scale-[0.98]",
+                      selectedQuotation?.id === q.id
+                        ? 'bg-primary/20 ring-1 ring-primary/50 shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)]'
+                        : 'bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10'
+                    )}
+                  >
+                    {selectedQuotation?.id === q.id && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full" />
+                    )}
                     <div className="flex justify-between items-center" onClick={() => !editingQuotation && setSelectedQuotation(q)}>
                       {editingQuotation === q.id ? (
                         <Input
@@ -497,13 +510,13 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                       )}
 
                       {isEditorMode && (
-                        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity z-10">
                           {editingQuotation === q.id ? (
-                            <Button size="icon" variant="ghost" onClick={() => setEditingQuotation(null)}><X className="w-4 h-4 text-gray-500" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-white" onClick={() => setEditingQuotation(null)}><X className="w-4 h-4" /></Button>
                           ) : (
-                            <Button size="icon" variant="ghost" onClick={() => setEditingQuotation(q.id)}><Edit className="w-4 h-4 text-primary hover:text-green-300" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-primary/70 hover:text-primary" onClick={() => setEditingQuotation(q.id)}><Edit className="w-4 h-4" /></Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => handleDeleteQuotation(q.id, q.file_path)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500/70 hover:text-red-500" onClick={() => handleDeleteQuotation(q.id, q.file_path)}><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       )}
                     </div>
@@ -516,25 +529,43 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
           {/* Viewer Section - 9 Columns */}
           <div className="lg:col-span-9 h-full flex flex-col">
             {selectedQuotation && pdfUrl ? (
-              <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg overflow-hidden h-full flex flex-col">
-                <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-gray-900/50 shrink-0">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-primary" />
-                    <span className="text-white font-semibold truncate">{selectedQuotation.name}</span>
+              <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden h-full flex flex-col shadow-2xl relative">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5 backdrop-blur-md shrink-0 z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-white font-bold text-sm sm:text-base leading-tight">
+                        {quotations.findIndex(q => q.id === selectedQuotation.id) + 1}. {selectedQuotation.name}
+                      </span>
+                      <span className="text-[10px] text-gray-500 font-medium uppercase tracking-widest">Documento Activo</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 hidden sm:inline">¿No carga?</span>
-                    <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="icon" title="Descargar PDF"><Download className="w-5 h-5" /></Button>
+                  <div className="flex items-center gap-3">
+                    <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer" className="hidden sm:block">
+                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-primary hover:bg-primary/10 transition-colors" title="Descargar PDF">
+                        <Download className="w-5 h-5" />
+                      </Button>
                     </a>
                   </div>
                 </div>
-                <div className="flex-grow overflow-hidden relative bg-white">
-                  <iframe
-                    src={pdfUrl}
-                    className="w-full h-full absolute inset-0"
-                    title={selectedQuotation.name}
-                  />
+
+                {/* PDF Viewer with Mobile Scrolling Fix */}
+                <div className="flex-grow overflow-hidden relative bg-[#121212] group">
+                  <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-primary/10" />
+                  </div>
+
+                  {/* For mobile, we sometimes need a wrapper or a direct view if iframe fails to scroll */}
+                  <div className="w-full h-full overflow-auto touch-auto [-webkit-overflow-scrolling:touch]">
+                    <iframe
+                      src={`${pdfUrl}#view=FitH`}
+                      className="w-full h-full min-h-[600px] sm:min-h-full border-0"
+                      title={selectedQuotation.name}
+                      loading="lazy"
+                    />
+                  </div>
                 </div>
               </div>
             ) : (

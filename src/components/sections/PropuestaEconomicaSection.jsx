@@ -94,7 +94,8 @@ const DEFAULT_CONTENT = {
   ],
   currency: 'USD',
   taxRate: 16,
-  exchangeRate: 18.50
+  exchangeRate: 18.50,
+  showMXN: true
 };
 
 // --- Item Editor Component (Local State) ---
@@ -567,28 +568,35 @@ const PropuestaEconomicaSection = ({
     doc.text(formatCurrency(subtotal, content.currency), valueX, currentY, { align: 'right' });
     currentY += lineHeight + 2;
 
-    // Text: Prices + VAT
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    const vatText = `PRECIOS MÁS ${content.taxRate}% DE I.V.A`;
-    doc.text(vatText, valueX, currentY, { align: 'right' });
-    currentY += lineHeight + 4;
+    // Text: Prices + VAT (Conditional)
+    if (content.showMXN !== false) {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      const vatText = `PRECIOS MÁS ${content.taxRate}% DE I.V.A`;
+      doc.text(vatText, valueX, currentY, { align: 'right' });
+      currentY += lineHeight + 4;
+    } else {
+      currentY += 4; // Add a bit of spacing even if hidden
+    }
 
-    // Exchange Rate
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${t('sections.propuestaDetails.tipoCambio')}:`, labelX, currentY);
-    doc.text(`$${content.exchangeRate} MXN`, valueX, currentY, { align: 'right' });
-    currentY += lineHeight;
+    // Exchange Rate & Total MXN (Conditional)
+    if (content.showMXN !== false) {
+      // Exchange Rate
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${t('sections.propuestaDetails.tipoCambio')}:`, labelX, currentY);
+      doc.text(`$${content.exchangeRate} MXN`, valueX, currentY, { align: 'right' });
+      currentY += lineHeight;
 
-    // Total MXN
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${t('sections.propuestaDetails.total')} (MXN):`, labelX, currentY);
-    doc.text(formatCurrency(totalMXN, 'MXN'), valueX, currentY, { align: 'right' });
+      // Total MXN
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${t('sections.propuestaDetails.total')} (MXN):`, labelX, currentY);
+      doc.text(formatCurrency(totalMXN, 'MXN'), valueX, currentY, { align: 'right' });
+    }
 
     // Add Footer to all pages
     addFooter();
@@ -659,10 +667,26 @@ const PropuestaEconomicaSection = ({
               </div>
             </div>
 
-            <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
-              <div className="space-y-2">
-                <Label className="text-primary font-bold flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
+            <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-primary font-bold flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Mostrar Total en Pesos (MXN)
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    Habilita o deshabilita la visualización del total convertido a moneda nacional.
+                  </p>
+                </div>
+                <Switch
+                  checked={content.showMXN !== false}
+                  onCheckedChange={(val) => updateContent({ ...content, showMXN: val })}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-primary/20">
+                <Label className="text-primary font-bold text-xs">
                   Tipo de Cambio (USD a MXN)
                 </Label>
                 <Input
@@ -671,10 +695,8 @@ const PropuestaEconomicaSection = ({
                   value={content.exchangeRate}
                   onChange={(e) => updateContent({ ...content, exchangeRate: parseFloat(e.target.value) || 0 })}
                   className="bg-black border-primary/50 focus:border-primary text-white font-mono text-lg"
+                  disabled={content.showMXN === false}
                 />
-                <p className="text-xs text-gray-500">
-                  Se utilizará para calcular el estimado en moneda nacional en la propuesta.
-                </p>
               </div>
             </div>
           </div>
@@ -887,9 +909,11 @@ const PropuestaEconomicaSection = ({
                       </div>
                     </div>
                   </div>
-                  <p className="text-[10px] text-gray-500 font-medium tracking-wider uppercase text-right">
-                    PRECIOS MÁS {content.taxRate}% DE I.V.A
-                  </p>
+                  {content.showMXN !== false && (
+                    <p className="text-[10px] text-gray-500 font-medium tracking-wider uppercase text-right">
+                      PRECIOS MÁS {content.taxRate}% DE I.V.A
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex justify-between items-center">
@@ -900,16 +924,18 @@ const PropuestaEconomicaSection = ({
                   <span className="font-mono text-white font-bold text-lg">{totalKW.toFixed(2)} KW</span>
                 </div>
 
-                <div className="bg-gray-900 rounded-lg p-3 mb-6 border border-gray-800">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>T.C. Estimado</span>
-                    <span>${content.exchangeRate} MXN</span>
+                {content.showMXN !== false && (
+                  <div className="bg-gray-900 rounded-lg p-3 mb-6 border border-gray-800">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>T.C. Estimado</span>
+                      <span>${content.exchangeRate} MXN</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <span className="text-gray-300 font-bold text-sm uppercase">Total (MXN):</span>
+                      <span className="font-mono text-white font-bold text-xl">{formatCurrency(totalMXN, 'MXN')}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-end">
-                    <span className="text-gray-300 font-bold text-sm uppercase">Total (MXN):</span>
-                    <span className="font-mono text-white font-bold text-xl">{formatCurrency(totalMXN, 'MXN')}</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="space-y-3">
                   <Button
