@@ -286,9 +286,9 @@ const SidebarItem = ({
         )}
       </div>
 
-      {/* Sub-items Render */}
+      {/* Sub-items Render - Glassmorphism Effect */}
       {!isCollapsed && isExpanded && hasSubItems && (
-        <div className="pl-9 space-y-1 mt-1">
+        <div className="ml-6 mt-2 mb-2 p-2 space-y-1 bg-white/5 backdrop-blur-md border border-white/10 border-l-2 border-l-primary/50 rounded-r-xl rounded-bl-xl shadow-lg shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] overflow-hidden transition-all duration-300">
           {subItems.map((subItem, idx) => {
             const SubIcon = subItem.icon && iconMap[subItem.icon] ? iconMap[subItem.icon] : iconMap['FileText'];
             return (

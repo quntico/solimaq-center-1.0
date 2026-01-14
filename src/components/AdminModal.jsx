@@ -368,19 +368,32 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
     if (!themes) return;
     setIsSaving(true);
     try {
+      // 1. Desmarcar template anterior
       const currentTemplateKey = Object.keys(themes).find(key => themes[key].is_template);
       if (currentTemplateKey) {
         await supabase.from('quotations').update({ is_template: false }).eq('theme_key', currentTemplateKey);
       }
-      await supabase.from('quotations').update({ is_template: true }).eq('theme_key', activeTheme);
+
+      // 2. Desmarcar home anterior (porque la nueva plantilla será la nueva home)
+      const currentHomeKey = Object.keys(themes).find(key => themes[key].is_home);
+      if (currentHomeKey && currentHomeKey !== activeTheme) { // Optimización: no desmarcar si ya es el mismo
+        await supabase.from('quotations').update({ is_home: false }).eq('theme_key', currentHomeKey);
+      }
+
+      // 3. Marcar activo como template Y home
+      await supabase.from('quotations').update({ is_template: true, is_home: true }).eq('theme_key', activeTheme);
 
       setThemes(prev => {
         const newThemes = { ...prev };
+        // Limpiar flags anteriores
         if (currentTemplateKey) newThemes[currentTemplateKey] = { ...newThemes[currentTemplateKey], is_template: false };
-        newThemes[activeTheme] = { ...newThemes[activeTheme], is_template: true };
+        if (currentHomeKey) newThemes[currentHomeKey] = { ...newThemes[currentHomeKey], is_home: false };
+
+        // Setear flags nuevos
+        newThemes[activeTheme] = { ...newThemes[activeTheme], is_template: true, is_home: true };
         return newThemes;
       });
-      toast({ title: "Nueva Plantilla Base 🌟", description: "Cotización establecida como template." });
+      toast({ title: "Plantilla y Home Actualizados 🌟", description: "Esta cotización ahora es la Plantilla y página de Inicio." });
     } catch (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -392,19 +405,33 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
     if (!themes) return;
     setIsSaving(true);
     try {
-      const currentHomeKey = Object.keys(themes).find(key => themes[key].is_home);
-      if (currentHomeKey) {
-        await supabase.from('quotations').update({ is_home: false }).eq('theme_key', currentHomeKey);
+      const newVal = !currentThemeData.is_home; // Toggle logic although typical use is setting to TRUE only via toggle? 
+      // Actually switch handles toggle. If setting to TRUE, wipe others.
+      // If setting to FALSE, just toggle off (risk: no home).
+
+      if (newVal) {
+        // Setting TO Home -> Wipe others
+        await supabase.from('quotations').update({ is_home: false }).neq('theme_key', activeTheme);
+        await supabase.from('quotations').update({ is_home: true }).eq('theme_key', activeTheme);
+      } else {
+        // Setting OFF Home -> Just update self
+        await supabase.from('quotations').update({ is_home: false }).eq('theme_key', activeTheme);
       }
-      await supabase.from('quotations').update({ is_home: true }).eq('theme_key', activeTheme);
 
       setThemes(prev => {
-        const newThemes = { ...prev };
-        if (currentHomeKey) newThemes[currentHomeKey] = { ...newThemes[currentHomeKey], is_home: false };
-        newThemes[activeTheme] = { ...newThemes[activeTheme], is_home: true };
+        const newThemes = {};
+        Object.keys(prev).forEach(key => {
+          // If turning ON, wipe others. If turning OFF, just wipe self.
+          const isTarget = key === activeTheme;
+          newThemes[key] = {
+            ...prev[key],
+            is_home: newVal ? isTarget : (isTarget ? false : prev[key].is_home)
+          };
+        });
         return newThemes;
       });
-      toast({ title: "Nueva Home Page 🏠", description: "Cotización establecida como inicio." });
+
+      toast({ title: newVal ? "Proyecto Activo Definido 🏠" : "Desmarcado", description: newVal ? "Se limpiaron otros proyectos activos." : "Ya no es el proyecto activo." });
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -610,9 +637,8 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                                 // Or always ask? Let's just switch if empty for now to be safe, or just relying on manual upload.
                                 // Actually, user said "cada marca podra tener su propio logo".
                                 // Let's auto-set it if it's currently empty.
-                                if (!currentLogo) {
-                                  updates.logo = brand.defaultLogo;
-                                }
+                                // Always update logo to match the brand when explicitly changed by user
+                                updates.logo = brand.defaultLogo;
                                 updateState(updates);
                               }}
                               className={cn(
@@ -701,21 +727,30 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
                 <div><Label htmlFor="company" className="text-primary mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
 
-                {/* Start Page Switch */}
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-2">
-                    <Home className={`w-5 h-5 ${currentThemeData.is_home ? 'text-primary' : 'text-gray-400'}`} />
-                    <Label htmlFor="is_home" className="text-white cursor-pointer select-none font-semibold">
-                      {t('adminModal.setAsHomePage') || "Página de Inicio"}
-                    </Label>
-                  </div>
-                  <Switch
-                    id="is_home"
-                    checked={!!currentThemeData.is_home}
-                    onCheckedChange={handleSetAsHome}
+
+                <div className="flex flex-col gap-2 mt-4 p-3 rounded-xl border border-gray-800 bg-gray-950/50">
+                  <Label className="text-gray-400 text-xs font-semibold mb-1 uppercase tracking-wider">
+                    Visibilidad (Default)
+                  </Label>
+                  <button
+                    onClick={handleSetAsHome}
                     disabled={isSaving}
-                    className="data-[state=checked]:bg-primary"
-                  />
+                    className={cn(
+                      "w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-wide relative overflow-hidden group border",
+                      currentThemeData.is_home
+                        ? "bg-primary/20 text-primary border-primary shadow-[0_0_15px_rgba(155,212,40,0.3)]" // Active State (Sutil)
+                        : "bg-gray-900 text-gray-500 border-gray-800 hover:border-gray-600 hover:text-gray-300" // Inactive State
+                    )}
+                  >
+                    {/* Status Indicator */}
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shadow-sm mr-1",
+                      currentThemeData.is_home ? "bg-primary animate-pulse shadow-[0_0_8px_currentColor]" : "bg-gray-700"
+                    )} />
+
+                    <Home className={cn("w-4 h-4 z-10", currentThemeData.is_home ? "fill-current" : "")} />
+                    <span className="z-10 relative">{currentThemeData.is_home ? "PROYECTO ACTIVO" : "Establecer como Activo"}</span>
+                  </button>
                 </div>
 
                 <div><Label htmlFor="project" className="text-primary mb-2 block font-semibold">{t('adminModal.project')}</Label><Input id="project" name="project" value={currentThemeData.project || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
