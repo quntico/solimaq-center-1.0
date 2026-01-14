@@ -469,8 +469,9 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                 </Button>
               )}
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-3 flex-grow overflow-y-auto shadow-2xl relative group/list">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none rounded-2xl" />
+            <div className="bg-white/10 backdrop-blur-3xl border border-white/20 rounded-2xl p-4 space-y-3 flex-grow overflow-y-auto shadow-[0_8px_32px_0_rgba(0,0,0,0.6)] relative group/list overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none rounded-2xl" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-50" />
               {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -486,14 +487,14 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                   <div
                     key={q.id}
                     className={cn(
-                      "p-4 rounded-xl transition-all duration-300 cursor-pointer group/item relative overflow-hidden active:scale-[0.98]",
+                      "p-4 rounded-xl transition-all duration-500 cursor-pointer group/item relative overflow-hidden border border-white/5 hover:border-white/10 active:scale-[0.98]",
                       selectedQuotation?.id === q.id
-                        ? 'bg-primary/20 ring-1 ring-primary/50 shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)]'
-                        : 'bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10'
+                        ? 'bg-primary/30 backdrop-blur-md ring-1 ring-primary/40 shadow-[0_0_30px_rgba(var(--primary-rgb),0.25)] border-white/20'
+                        : 'bg-white/5 hover:bg-white/10'
                     )}
                   >
                     {selectedQuotation?.id === q.id && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full" />
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary-rgb),0.8)]" />
                     )}
                     <div className="flex justify-between items-center" onClick={() => !editingQuotation && setSelectedQuotation(q)}>
                       {editingQuotation === q.id ? (
@@ -529,39 +530,44 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
           {/* Viewer Section - 9 Columns */}
           <div className="lg:col-span-9 h-full flex flex-col">
             {selectedQuotation && pdfUrl ? (
-              <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden h-full flex flex-col shadow-2xl relative">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5 backdrop-blur-md shrink-0 z-10">
+              <div className="bg-white/10 backdrop-blur-[30px] border border-white/20 rounded-2xl overflow-hidden h-full flex flex-col shadow-[0_12px_40px_rgba(0,0,0,0.7)] relative">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50 z-20" />
+                <div className="p-4 border-b border-white/20 flex justify-between items-center bg-white/5 backdrop-blur-md shrink-0 z-10">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                    <div className="w-10 h-10 rounded-xl bg-primary/30 flex items-center justify-center border border-primary/50 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
                       <FileText className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-white font-bold text-sm sm:text-base leading-tight">
+                      <span className="text-white font-bold text-sm sm:text-base leading-tight drop-shadow-md">
                         {quotations.findIndex(q => q.id === selectedQuotation.id) + 1}. {selectedQuotation.name}
                       </span>
-                      <span className="text-[10px] text-gray-500 font-medium uppercase tracking-widest">Documento Activo</span>
+                      <span className="text-[10px] text-primary/80 font-bold uppercase tracking-widest">Documento Activo</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer" className="hidden sm:block">
-                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-primary hover:bg-primary/10 transition-colors" title="Descargar PDF">
+                    <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                      <Button variant="ghost" size="sm" className="text-[10px] hidden sm:flex text-gray-400 hover:text-white border border-white/10 bg-white/5">
+                        PANTALLA COMPLETA
+                      </Button>
+                    </a>
+                    <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer">
+                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-primary hover:bg-primary/20 transition-all rounded-full" title="Descargar PDF">
                         <Download className="w-5 h-5" />
                       </Button>
                     </a>
                   </div>
                 </div>
 
-                {/* PDF Viewer with Mobile Scrolling Fix */}
-                <div className="flex-grow overflow-hidden relative bg-[#121212] group">
-                  <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-primary/10" />
+                {/* PDF Viewer with Mobile Scrolling and Centering Fix */}
+                <div className="flex-grow overflow-hidden relative bg-[#0a0a0a]/50 group">
+                  <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 via-transparent to-primary/20" />
                   </div>
 
-                  {/* For mobile, we sometimes need a wrapper or a direct view if iframe fails to scroll */}
-                  <div className="w-full h-full overflow-auto touch-auto [-webkit-overflow-scrolling:touch]">
+                  <div className="w-full h-full overflow-auto touch-auto [-webkit-overflow-scrolling:touch] flex items-center justify-center p-0 sm:p-4 bg-black/40">
                     <iframe
-                      src={`${pdfUrl}#view=FitH`}
-                      className="w-full h-full min-h-[600px] sm:min-h-full border-0"
+                      src={`${pdfUrl}#view=Fit&toolbar=0&navpanes=0`}
+                      className="w-full h-full min-h-[75vh] sm:min-h-full border-0 shadow-3xl bg-white"
                       title={selectedQuotation.name}
                       loading="lazy"
                     />

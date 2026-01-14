@@ -111,7 +111,7 @@ const Header = ({
                 {/* Version LED Indicator */}
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-full">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse" />
-                  <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">VER 2.3</span>
+                  <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">VER 2.4</span>
                 </div>
               </button>
             )}
