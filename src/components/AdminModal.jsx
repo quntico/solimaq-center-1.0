@@ -872,8 +872,11 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
       {
         showQR && currentThemeData && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4" onClick={() => setShowQR(false)}>
-            <div className="bg-white p-8 rounded-xl flex flex-col items-center gap-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={() => setShowQR(false)}>
+            <div className="bg-white p-8 rounded-2xl flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+
+
+
               <h3 className="text-2xl font-bold text-black">Código QR</h3>
               <div className="p-4 bg-white rounded-lg shadow-inner border border-gray-200">
                 <QRCodeCanvas value={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`} size={256} level="H" includeMargin={true} />
