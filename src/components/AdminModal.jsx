@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getActiveBucket } from '@/lib/bucketResolver';
 import {
   Select,
   SelectContent,
@@ -275,12 +276,12 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
   const handleLogoUploadClick = () => logoFileInputRef.current && logoFileInputRef.current.click();
   const handleFaviconUploadClick = () => faviconFileInputRef.current && faviconFileInputRef.current.click();
 
-  const handleFileChange = (event, fileType) => {
+  const handleFileChange = async (event, fileType) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "Archivo demasiado grande", description: "Sube imagen < 2MB.", variant: "destructive" });
+    if (file.size > 100 * 1024 * 1024) {
+      toast({ title: "Archivo demasiado grande", description: "Sube imagen < 100MB.", variant: "destructive" });
       return;
     }
 
@@ -290,21 +291,32 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
     setIsUploading(true);
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result;
-      updateState({ [field]: base64String });
-      setIsUploading(false);
-      toast({ title: isLogo ? 'Logo cargado 🖼️' : 'Favicon cargado ✨', description: "Imagen procesada. Recuerda guardar." });
-    };
+    try {
+      const bucketName = await getActiveBucket();
+      const fileName = `${field}s/${activeTheme.toLowerCase()}-${Date.now()}-${file.name.replace(/\s/g, '_')}`;
 
-    reader.onerror = () => {
-      setIsUploading(false);
-      toast({ title: "Error", description: "No se pudo procesar la imagen.", variant: "destructive" });
-    };
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-    reader.readAsDataURL(file);
-    if (event.target) event.target.value = "";
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(fileName);
+
+      updateState({ [field]: publicUrl });
+      toast({ title: isLogo ? 'Logo cargado 🖼️' : 'Favicon cargado ✨', description: "Imagen guardada en la nube. Recuerda guardar cambios." });
+    } catch (error) {
+      console.error(`Error uploading ${fileType}:`, error);
+      toast({ title: "Error", description: `No se pudo subir el ${fileType}: ${error.message}`, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (event.target) event.target.value = "";
+    }
   };
 
   const handleSave = async () => {
