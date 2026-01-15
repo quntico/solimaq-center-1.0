@@ -69,8 +69,8 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (file.size > 1 * 1024 * 1024) {
-            alert("La imagen es demasiado grande. Máximo 1MB.");
+        if (file.size > 100 * 1024 * 1024) {
+            alert("La imagen es demasiado grande. Máximo 100MB.");
             return;
         }
 
@@ -237,7 +237,7 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                                                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                                         <ImageIcon className="w-10 h-10 text-gray-500 group-hover:text-primary transition-colors mb-3" />
                                                         <p className="text-sm text-gray-400 font-medium tracking-tight">Cargar imagen del proceso</p>
-                                                        <p className="text-xs text-gray-600 mt-1">PNG, JPG o WebP (Max. 1MB)</p>
+                                                        <p className="text-xs text-gray-600 mt-1">PNG, JPG o WebP (Max. 100MB)</p>
                                                     </div>
                                                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(step.id, e)} />
                                                 </label>
