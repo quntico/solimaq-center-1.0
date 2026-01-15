@@ -163,18 +163,22 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuotationData.theme_key, isAdminView]);
 
+  const [isFullDataLoading, setIsFullDataLoading] = useState(false);
+
   // EFFECT: Auto-fetch full data if the ACTIVE theme is a stub
   useEffect(() => {
     const currentTheme = themes[activeTheme];
     // Check if it exists but is missing heavy content (e.g. sections_config)
     if (currentTheme && !currentTheme.sections_config) {
       console.log(`[LazyLoad] Active theme ${activeTheme} is a stub. Fetching full content...`);
+      setIsFullDataLoading(true);
       supabase
         .from('quotations')
         .select('*')
         .eq('theme_key', activeTheme)
         .single()
         .then(({ data, error }) => {
+          setIsFullDataLoading(false);
           if (data && !error) {
             setThemes(prev => ({
               ...prev,
@@ -183,7 +187,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
             console.log(`[LazyLoad] Content loaded for ${activeTheme}`);
           } else {
             console.error(`[LazyLoad] Failed to load content for ${activeTheme}`, error);
-            toast({ title: "Error de Carga", description: "No se pudo descargar el contenido.", variant: "destructive" });
+            toast({ title: "Error de Carga", description: "No se pudo descargar el contenido completo.", variant: "destructive" });
           }
         });
     }
@@ -200,12 +204,14 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
       // Check if it's "Stub" data (metadata only) -> Check for a key field like 'sections_config'
       if (!allThemes[savedTheme].sections_config) {
         console.log(`[Hydration] Saved theme ${savedTheme} is metadata-only. Fetching full data...`);
+        setIsFullDataLoading(true);
         supabase
           .from('quotations')
           .select('*')
           .eq('theme_key', savedTheme)
           .single()
           .then(({ data, error }) => {
+            setIsFullDataLoading(false);
             if (data && !error) {
               setThemes(prev => ({ ...prev, [savedTheme]: data }));
               setActiveTheme(savedTheme);
@@ -231,6 +237,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     }
 
     // 2. If not, fetch it from Supabase
+    setIsFullDataLoading(true);
     try {
       const { data, error } = await supabase
         .from('quotations')
@@ -253,6 +260,8 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
     } catch (err) {
       console.error("Error lazy loading theme:", err);
       toast({ title: "Error", description: "No se pudo cargar el proyecto.", variant: "destructive" });
+    } finally {
+      setIsFullDataLoading(false);
     }
   };
 
@@ -544,6 +553,7 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
             isBannerVisible={isBannerVisible}
             isEditorMode={isEditorMode}
             isAdminView={isAdminView}
+            isLoadingData={isFullDataLoading}
             // Mobile Menu Props
             sections={menuItems}
             activeSection={activeSection}

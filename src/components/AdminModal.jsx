@@ -337,7 +337,8 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
         phase3_name: currentThemeData.phase3_name, phase4_name: currentThemeData.phase4_name,
         slug: currentThemeData.slug,
         hide_banner: currentThemeData.hide_banner,
-        brand_color: currentThemeData.brand_color, // Save brand selection
+        brand_color: currentThemeData.brand_color,
+        sections_config: currentThemeData.sections_config, // Ensure sections are saved!
         updated_at: new Date().toISOString(),
       };
 
@@ -356,6 +357,91 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
       toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
+  const migrateBase64ToStorage = async () => {
+    if (!currentThemeData) return;
+    setIsOptimizing(true);
+    let migratedCount = 0;
+
+    try {
+      const bucketName = await getActiveBucket();
+      const updatedData = { ...currentThemeData };
+
+      // 1. Helper function to upload base64
+      const uploadBase64 = async (base64, path) => {
+        if (!base64 || !base64.startsWith('data:')) return base64;
+
+        const response = await fetch(base64);
+        const blob = await response.blob();
+        const extension = blob.type.split('/')[1] || 'png';
+        const fileName = `${path}-${Date.now()}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(bucketName)
+          .upload(fileName, blob, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(fileName);
+
+        migratedCount++;
+        return publicUrl;
+      };
+
+      // 2. Migrate Logo
+      if (updatedData.logo?.startsWith('data:')) {
+        updatedData.logo = await uploadBase64(updatedData.logo, `logos/${activeTheme.toLowerCase()}-logo`);
+      }
+
+      // 3. Migrate Favicon
+      if (updatedData.favicon?.startsWith('data:')) {
+        updatedData.favicon = await uploadBase64(updatedData.favicon, `favicons/${activeTheme.toLowerCase()}-favicon`);
+      }
+
+      // 4. Migrate Sections
+      if (updatedData.sections_config && Array.isArray(updatedData.sections_config)) {
+        const newSections = await Promise.all(updatedData.sections_config.map(async (section) => {
+          if (section.content?.image?.startsWith('data:')) {
+            const newImage = await uploadBase64(section.content.image, `sections/${section.id}/${activeTheme.toLowerCase()}`);
+            return { ...section, content: { ...section.content, image: newImage } };
+          }
+          // Handle Process Flow images if they were stored in a different structure
+          if (section.id === 'proceso' && section.content && Array.isArray(section.content)) {
+            const newSteps = await Promise.all(section.content.map(async (step) => {
+              if (step.image?.startsWith('data:')) {
+                const newImg = await uploadBase64(step.image, `proceso/${activeTheme.toLowerCase()}-step`);
+                return { ...step, image: newImg };
+              }
+              return step;
+            }));
+            return { ...section, content: newSteps };
+          }
+          return section;
+        }));
+        updatedData.sections_config = newSections;
+      }
+
+      if (migratedCount > 0) {
+        setCurrentThemeData(updatedData);
+        if (onPreviewUpdate) onPreviewUpdate(updatedData);
+        toast({
+          title: "Optimización completada 🚀",
+          description: `Se han migrado ${migratedCount} imágenes pesadas a la nube. ¡Recuerda GUARDAR cambios!`
+        });
+      } else {
+        toast({ title: "Todo en orden ✨", description: "No se encontraron imágenes pesadas para optimizar." });
+      }
+    } catch (error) {
+      console.error("Migration error:", error);
+      toast({ title: "Error en optimización", description: error.message, variant: "destructive" });
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -772,6 +858,27 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                 <div className="md:col-span-2"><Label htmlFor="slug" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><LinkIcon className="w-4 h-4" />{t('adminModal.slug')}</Label><Input id="slug" name="slug" value={currentThemeData.slug || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
                 <div className="md:col-span-2"><Label htmlFor="description" className="text-primary mb-2 block font-semibold">{t('adminModal.description')}</Label><textarea id="description" name="description" value={currentThemeData.description || ''} onChange={handleInputChange} rows="3" className="flex w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" /></div>
 
+                <div className="pt-4 border-t border-white/10 space-y-4">
+                  <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Optimización de Rendimiento
+                  </h3>
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl space-y-2">
+                    <p className="text-sm text-yellow-200/80">
+                      Si la página tarda más de 5 segundos en cargar, es probable que tengas imágenes antiguas guardadas de forma ineficiente.
+                    </p>
+                    <Button
+                      onClick={migrateBase64ToStorage}
+                      disabled={isOptimizing}
+                      className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold"
+                    >
+                      {isOptimizing ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Optimizando...</>
+                      ) : (
+                        "ACELERAR CARGA (MIGRAR A LA NUBE)"
+                      )}
+                    </Button>
+                  </div>
+                </div>
                 {/* Banner Settings */}
                 <div className="md:col-span-2 border-t border-gray-800 pt-6">
                   <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2"><Announce className="w-5 h-5" />{t('adminModal.bannerSettings')}</h3>

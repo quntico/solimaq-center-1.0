@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Menu } from 'lucide-react';
+import { Search, Menu, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -26,7 +26,8 @@ const Header = ({
   onSubItemSelect,
   activeTabMap,
   setIsEditorMode,
-  onAdminClick
+  onAdminClick,
+  isLoadingData
 }) => {
   const { t } = useLanguage();
   const { company, project, client, logo, logo_size, banner_text, banner_scale, banner_direction, hide_banner, brand_color } = quotationData;
@@ -110,8 +111,14 @@ const Header = ({
                 </div>
                 {/* Version LED Indicator */}
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse" />
-                  <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">VER 3.0</span>
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.8)]",
+                    isLoadingData ? "bg-yellow-400 animate-spin" : "bg-green-500 animate-pulse"
+                  )} />
+                  <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
+                    {isLoadingData ? "SYNCING..." : "VER 3.1"}
+                  </span>
+                  {isLoadingData && <Loader2 className="w-2.5 h-2.5 text-yellow-500 animate-spin ml-1" />}
                 </div>
               </button>
             )}

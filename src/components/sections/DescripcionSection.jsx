@@ -205,6 +205,25 @@ const DescripcionSection = ({
     p1ToUse = t('sections.descripcionText', { project: quotationData.project });
   }
 
+  // Loading Skeleton State
+  if (!content.image && !quotationData.sections_config) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center py-16 sm:py-24 bg-black animate-pulse">
+        <div className="w-full max-w-7xl px-4 grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="space-y-8">
+            <div className="h-16 bg-gray-900 rounded-lg w-3/4"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-gray-900 rounded w-full"></div>
+              <div className="h-4 bg-gray-900 rounded w-full"></div>
+              <div className="h-4 bg-gray-900 rounded w-2/3"></div>
+            </div>
+          </div>
+          <div className="aspect-video bg-gray-900 rounded-2xl"></div>
+        </div>
+      </div>
+    );
+  }
+
   return <div className="min-h-screen w-full flex items-center justify-center py-16 sm:py-24 bg-black">
     <motion.div initial={{
       opacity: 0,
