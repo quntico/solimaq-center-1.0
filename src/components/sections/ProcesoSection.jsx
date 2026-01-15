@@ -111,29 +111,19 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
 
               return (
                 <div key={step.id} className="grid grid-cols-[auto_1fr] sm:grid-cols-[1fr_auto_1fr] items-start gap-x-6 sm:gap-x-8">
-                  {/* Left Side: Card or Image */}
-                  <motion.div
-                    initial={{ x: -50, opacity: 0 }}
-                    whileInView={{ x: 0, opacity: 1 }}
-                    viewport={{ once: true, amount: 0.5 }}
-                    transition={{ duration: 0.6 }}
-                    className={`hidden sm:flex items-center ${isLeft ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {isLeft ? (
-                      <div className="bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm text-right shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)] w-full">
-                        <TimelineCardContent step={step} />
-                      </div>
-                    ) : (
-                      step.image && (
-                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.1)] group">
-                          <img src={step.image} alt={step.title} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
-                          <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-end p-4">
-                            <div className="w-8 h-1 bg-primary rounded-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </motion.div>
+                  {/* Left Card (Desktop only) */}
+                  {isLeft && (
+                    <motion.div
+                      initial={{ x: -50, opacity: 0 }}
+                      whileInView={{ x: 0, opacity: 1 }}
+                      viewport={{ once: true, amount: 0.5 }}
+                      transition={{ duration: 0.6 }}
+                      className="hidden sm:block bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm text-right shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)]"
+                    >
+                      <TimelineCardContent step={step} />
+                    </motion.div>
+                  )}
+                  {!isLeft && <div className="hidden sm:block"></div>}
 
                   {/* Icon */}
                   <motion.div
@@ -152,38 +142,18 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                     )}
                   </motion.div>
 
-                  {/* Right Side: Card or Image */}
+                  {/* Right Card (or Mobile Card) */}
                   <motion.div
-                    initial={{ x: 50, opacity: 0 }}
+                    initial={{ x: isLeft ? 0 : 50, opacity: 0 }}
                     whileInView={{ x: 0, opacity: 1 }}
                     viewport={{ once: true, amount: 0.5 }}
                     transition={{ duration: 0.6 }}
-                    className={`flex items-center ${!isLeft ? 'sm:justify-start' : 'sm:justify-end'}`}
+                    className={`bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm ${!isLeft ? 'sm:block' : 'sm:hidden'} shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)]`}
                   >
-                    {!isLeft ? (
-                      <div className="bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)] w-full">
-                        <TimelineCardContent step={step} />
-                      </div>
-                    ) : (
-                      <div className="w-full">
-                        {step.image ? (
-                          <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.1)] group hidden sm:block">
-                            <img src={step.image} alt={step.title} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
-                            <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent flex items-end p-4 justify-end">
-                              <div className="w-8 h-1 bg-primary rounded-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </div>
-                        ) : (
-                          // Fallback or empty on desktop for Left entries
-                          <div className="hidden sm:block"></div>
-                        )}
-                        {/* Mobile view only card if Left */}
-                        <div className="sm:hidden bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm shadow-[0_0_15px_hsl(var(--primary)/0.15)] w-full">
-                          <TimelineCardContent step={step} />
-                        </div>
-                      </div>
-                    )}
+                    <TimelineCardContent step={step} />
                   </motion.div>
+                  {!isLeft && <div className="hidden sm:block"></div>}
+
                 </div>
               );
             })}
@@ -197,7 +167,7 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
         initialSteps={steps}
         onSave={handleModalSave}
       />
-    </div >
+    </div>
   );
 };
 

@@ -279,8 +279,8 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
     const file = event.target.files[0];
     if (!file) return;
 
-    if (file.size > 100 * 1024 * 1024) {
-      toast({ title: "Archivo demasiado grande", description: "Sube imagen < 100MB.", variant: "destructive" });
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Archivo demasiado grande", description: "Sube imagen < 2MB.", variant: "destructive" });
       return;
     }
 

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2, Plus, ArrowUp, ArrowDown, Image as ImageIcon, X } from 'lucide-react';
+import { Trash2, Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import IconPicker from '@/components/IconPicker';
 import { iconMap } from '@/lib/iconMap';
 
@@ -63,22 +63,6 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
         const step = steps.find(s => s.id === stepId);
         const newDetails = step.details.filter((_, i) => i !== index);
         handleUpdateStep(stepId, 'details', newDetails);
-    };
-
-    const handleImageUpload = (stepId, e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (file.size > 100 * 1024 * 1024) {
-            alert("La imagen es demasiado grande. Máximo 100MB.");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            handleUpdateStep(stepId, 'image', reader.result);
-        };
-        reader.readAsDataURL(file);
     };
 
     const handleSave = () => {
@@ -209,39 +193,6 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-
-                                        <div className="space-y-3 pt-4 border-t border-white/5">
-                                            <Label>Imagen del Paso (Opcional)</Label>
-                                            {step.image ? (
-                                                <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 group">
-                                                    <img src={step.image} alt="Preview" className="w-full h-full object-cover" />
-                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            onClick={() => handleUpdateStep(step.id, 'image', null)}
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-2" /> Eliminar
-                                                        </Button>
-                                                        <label className="cursor-pointer">
-                                                            <div className="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center">
-                                                                <ImageIcon className="w-4 h-4 mr-2" /> Cambiar
-                                                            </div>
-                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(step.id, e)} />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group">
-                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                        <ImageIcon className="w-10 h-10 text-gray-500 group-hover:text-primary transition-colors mb-3" />
-                                                        <p className="text-sm text-gray-400 font-medium tracking-tight">Cargar imagen del proceso</p>
-                                                        <p className="text-xs text-gray-600 mt-1">PNG, JPG o WebP (Max. 100MB)</p>
-                                                    </div>
-                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(step.id, e)} />
-                                                </label>
-                                            )}
                                         </div>
                                     </div>
                                 );
