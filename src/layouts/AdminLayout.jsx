@@ -33,20 +33,38 @@ const AdminLayout = () => {
         });
         setAllThemes(themesObject);
 
-        // Find Home project from metadata
+        // Identify which project to load first (Home or Fallback)
+        let targetThemeKey = null;
         const homeStub = allData.find(item => item.is_home);
 
-        if (!homeStub) {
-          // If no home page is set, fallback to the first available project
-          if (allData.length > 0) {
-            setInitialQuotationData(allData[0]);
-            console.warn(t('adminLayout.noHome'));
+        if (homeStub) {
+          targetThemeKey = homeStub.theme_key;
+        } else if (allData.length > 0) {
+          targetThemeKey = allData[0].theme_key;
+          console.warn(t('adminLayout.noHome'));
+        }
+
+        if (targetThemeKey) {
+          // FETCH FULL DATA FOR THE INITIAL PROJECT ONLY
+          const { data: fullData, error: fullError } = await supabase
+            .from('quotations')
+            .select('*')
+            .eq('theme_key', targetThemeKey)
+            .single();
+
+          if (!fullError && fullData) {
+            setInitialQuotationData(fullData);
+            // Update allThemes with the full data so the shell has it
+            themesObject[targetThemeKey] = fullData;
           } else {
-            throw new Error(t('adminLayout.noHomeNoFallback'));
+            // Fallback to stub if full fetch fails
+            setInitialQuotationData(allData.find(d => d.theme_key === targetThemeKey));
           }
         } else {
-          setInitialQuotationData(homeStub);
+          throw new Error(t('adminLayout.noHomeNoFallback'));
         }
+
+        setAllThemes(themesObject);
 
       } catch (e) {
         console.error(e);
