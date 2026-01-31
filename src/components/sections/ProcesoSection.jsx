@@ -6,6 +6,7 @@ import SectionHeader from '@/components/SectionHeader';
 import { iconMap } from '@/lib/iconMap';
 import ProcessEditorModal from '@/components/ProcessEditorModal';
 import { Button } from '@/components/ui/button';
+import ImageModal from '@/components/ImageModal';
 
 const defaultContent = {
   steps: [
@@ -62,6 +63,7 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
   const steps = content.steps || defaultContent.steps;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProfileImage, setSelectedProfileImage] = useState(null);
   const timelineRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: timelineRef,
@@ -125,7 +127,10 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                       </div>
                     ) : (
                       step.image && (
-                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.1)] group">
+                        <div
+                          className="relative w-full aspect-video rounded-xl overflow-hidden border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.1)] group cursor-pointer"
+                          onClick={() => setSelectedProfileImage({ src: step.image, title: step.title })}
+                        >
                           <img src={step.image} alt={step.title} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
                           <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-end p-4">
                             <div className="w-8 h-1 bg-primary rounded-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -167,7 +172,10 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                     ) : (
                       <div className="w-full">
                         {step.image ? (
-                          <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.1)] group hidden sm:block">
+                          <div
+                            className="relative w-full aspect-video rounded-xl overflow-hidden border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.1)] group hidden sm:block cursor-pointer"
+                            onClick={() => setSelectedProfileImage({ src: step.image, title: step.title })}
+                          >
                             <img src={step.image} alt={step.title} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
                             <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent flex items-end p-4 justify-end">
                               <div className="w-8 h-1 bg-primary rounded-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -196,6 +204,13 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
         onClose={() => setIsModalOpen(false)}
         initialSteps={steps}
         onSave={handleModalSave}
+      />
+
+      <ImageModal
+        src={selectedProfileImage?.src}
+        alt={selectedProfileImage?.title}
+        isOpen={!!selectedProfileImage}
+        onClose={() => setSelectedProfileImage(null)}
       />
     </div >
   );

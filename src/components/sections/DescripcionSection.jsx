@@ -5,6 +5,7 @@ import { UploadCloud, Save, X, Loader2, AlignLeft, AlignJustify } from 'lucide-r
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver';
+import ImageModal from '@/components/ImageModal';
 
 const EditableText = ({
   value,
@@ -111,6 +112,8 @@ const DescripcionSection = ({
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+
   const defaultContent = {
     p1: `La línea ${quotationData.project} es una solución de producción continua que integra cuatro áreas fundamentales: mezclado, formado, enfriamiento y empaquetado. Cada área ha sido diseñada para trabajar en sincronía perfecta, garantizando una producción fluida y eficiente de barras de cereal de alta calidad.`,
     p1_align: 'left',
@@ -133,6 +136,8 @@ const DescripcionSection = ({
   const handleImageClick = () => {
     if (isEditorMode) {
       fileInputRef.current.click();
+    } else {
+      setIsImageModalOpen(true);
     }
   };
   const handleFileChange = async files => {
@@ -293,6 +298,13 @@ const DescripcionSection = ({
         </motion.div>
       </div>
     </motion.div>
+
+    <ImageModal
+      src={content.image}
+      alt={`Línea de producción ${quotationData.project}`}
+      isOpen={isImageModalOpen}
+      onClose={() => setIsImageModalOpen(false)}
+    />
   </div>;
 };
 export default DescripcionSection;
