@@ -493,7 +493,11 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
       </Helmet>
       {isAdminView && showPasswordPrompt && (
         <PasswordPrompt
-          onCorrectPassword={() => { setIsAdminAuthenticated(true); setShowPasswordPrompt(false); }}
+          onCorrectPassword={(autoEditor) => {
+            setIsAdminAuthenticated(true);
+            if (autoEditor) setIsEditorMode(true);
+            setShowPasswordPrompt(false);
+          }}
           onCancel={() => setShowPasswordPrompt(false)}
         />
       )}

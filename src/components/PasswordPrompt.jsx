@@ -12,12 +12,17 @@ const PasswordPrompt = ({ onCorrectPassword, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (password === '1917') {
+
+    const editorPasswords = ['2020', '2021'];
+    const adminPasswords = ['1917', ...editorPasswords];
+
+    if (adminPasswords.includes(password)) {
+      const shouldOpenEditor = editorPasswords.includes(password);
       setError(false);
-      onCorrectPassword();
+      onCorrectPassword(shouldOpenEditor);
       toast({
         title: 'Acceso Concedido',
-        description: 'Bienvenido, Administrador.',
+        description: shouldOpenEditor ? 'Modo Editor activado.' : 'Bienvenido, Administrador.',
       });
     } else {
       setError(true);
