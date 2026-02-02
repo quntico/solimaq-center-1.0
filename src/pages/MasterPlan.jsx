@@ -293,9 +293,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
             const { error } = await supabase.from('quotations').upsert({
                 slug: CLOUD_SLUG,
+                theme_key: CLOUD_SLUG, // theme_key is required and usually must be unique
+                project: `MASTER PLAN: ${projectName}`,
+                client: clientName,
                 sections_config: configObject,
                 video_url: heroVideoUrl,
-                last_update: new Date().toISOString()
+                updated_at: new Date().toISOString()
             }, { onConflict: 'slug' });
 
             if (error) throw error;
