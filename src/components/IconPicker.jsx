@@ -3,18 +3,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { iconMap, iconList, extrusionIcons } from '@/lib/iconMap';
+import { iconMap, iconList, extrusionIcons, normatividadSlugs } from '@/lib/iconMap';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const IconPicker = ({ value, onChange, trigger, children, isEditorMode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('extrusion');
+  const [category, setCategory] = useState('normatividad');
 
   const filteredIcons = useMemo(() => {
     // Safety check: ensure lists exist
-    const baseList = (category === 'extrusion' && extrusionIcons) ? extrusionIcons : iconList;
+    let baseList = iconList;
+    if (category === 'extrusion') baseList = extrusionIcons;
+    if (category === 'normatividad') baseList = normatividadSlugs;
 
     if (!search) return baseList.slice(0, 2000);
     return baseList.filter(name =>
@@ -42,17 +44,18 @@ const IconPicker = ({ value, onChange, trigger, children, isEditorMode }) => {
           <DialogTitle className="text-primary">Seleccionar Icono</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="extrusion" value={category} onValueChange={setCategory} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-900 border border-gray-800">
-            <TabsTrigger value="extrusion" className="data-[state=active]:bg-primary data-[state=active]:text-white">Extrusión</TabsTrigger>
-            <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-white">Todos</TabsTrigger>
+        <Tabs defaultValue="normatividad" value={category} onValueChange={setCategory} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-gray-900 border border-gray-800">
+            <TabsTrigger value="normatividad" className="data-[state=active]:bg-primary data-[state=active]:text-white">Normatividad</TabsTrigger>
+            <TabsTrigger value="extrusion" className="data-[state=active]:bg-secondary data-[state=active]:text-white">Extrusión</TabsTrigger>
+            <TabsTrigger value="all" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">Todos</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="relative my-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder={category === 'extrusion' ? "Buscar en Extrusión..." : "Buscar todos los iconos..."}
+            placeholder={category === 'normatividad' ? "Buscar normas e ISOs..." : category === 'extrusion' ? "Buscar en Extrusión..." : "Buscar todos los iconos..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-gray-900 border-gray-700 focus:border-primary text-white"

@@ -1,69 +1,65 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import GenericSection from './sections/GenericSection';
 
-const MainContent = ({
-  activeSection,
-  setActiveSection,
-  quotationData,
-  aiQuery,
-  setAiQuery,
-  sections,
-  allSections,
-  isEditorMode,
-  setIsEditorMode,
-  activeTheme,
-  onSectionContentUpdate,
-  onVideoUrlUpdate,
-  activeTabMap // Receive activeTabMap
-}) => {
-
-  const handleContentChange = (sectionId, newContent) => {
-    const newSections = sections.map(sec =>
-      sec.id === sectionId
-        ? { ...sec, content: { ...sec.content, ...newContent } }
-        : sec
-    );
-    onSectionContentUpdate(newSections);
-  };
+const MainContent = (props) => {
+  const {
+    activeSection,
+    setActiveSection,
+    quotationData,
+    aiQuery,
+    setAiQuery,
+    sections,
+    allSectionsData,
+    isEditorMode,
+    setIsEditorMode,
+    activeTheme,
+    isAdminAuthenticated,
+    onSectionContentUpdate,
+    onAtomicContentUpdate,
+    onVideoUrlUpdate,
+    activeTabMap
+  } = props;
 
   const handleSectionContentChange = (sectionId, newContent) => {
-    const newSections = sections.map(sec =>
-      sec.id === sectionId ? { ...sec, content: newContent } : sec
+    if (onAtomicContentUpdate) {
+      return onAtomicContentUpdate(sectionId, newContent);
+    }
+    const dataSource = allSectionsData || sections;
+    const newSections = dataSource.map(sec =>
+      sec.id === sectionId ? { ...sec, content: { ...(sec.content || {}), ...newContent } } : sec
     );
-    onSectionContentUpdate(newSections);
+    return onSectionContentUpdate(newSections);
   };
 
   const handleSectionDataChange = (sectionId, newSectionData) => {
-    const newSections = sections.map(sec =>
+    const dataSource = allSectionsData || sections;
+    const newSections = dataSource.map(sec =>
       sec.id === sectionId ? newSectionData : sec
     );
-    onSectionContentUpdate(newSections);
+    return onSectionContentUpdate(newSections);
   };
 
   return (
-    <main className="relative px-4"> {/* Moved px-4 here */}
+    <main className="relative px-4">
       {sections.map(section => {
         if (!section.isVisible) return null;
 
-        const Component = section.Component;
-        if (!Component) return null;
+        const Component = section.Component || GenericSection;
 
-        const sectionDataWithContent = {
-          ...(quotationData.sections_config || []).find(s => s.id === section.id),
-          ...section,
-        };
-
-        const props = {
-          sectionData: sectionDataWithContent,
+        const sectionProps = {
+          sectionData: section,
           quotationData,
           isEditorMode,
+          isAdminAuthenticated,
           setIsEditorMode,
           activeTheme,
           onContentChange: (newContent) => handleSectionContentChange(section.id, newContent),
           onDataChange: (newData) => handleSectionDataChange(section.id, newData),
-          activeTab: activeTabMap ? activeTabMap[section.id] : undefined, // Pass activeTab
-          ...(section.id === 'propuesta' && { sections: allSections }),
+          activeTab: activeTabMap ? activeTabMap[section.id] : undefined,
+          ...(section.id === 'propuesta' && { sections: allSectionsData }),
           ...(section.id === 'video' && { onVideoUrlUpdate }),
+          isStandalone: section.id !== 'master_plan'
         };
 
         return (
@@ -74,7 +70,7 @@ const MainContent = ({
               viewport={{ once: true, amount: 0.2 }}
               transition={{ duration: 0.5 }}
             >
-              <Component {...props} />
+              <Component {...sectionProps} />
             </motion.div>
           </section>
         );

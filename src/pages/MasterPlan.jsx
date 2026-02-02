@@ -1,0 +1,1458 @@
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExportTemplateEditor from '../components/ExportTemplateEditor';
+import { supabase } from "@/lib/customSupabaseClient";
+import PasswordPrompt from '@/components/PasswordPrompt';
+import { getActiveBucket } from "@/lib/bucketResolver";
+import SectionHeader from '@/components/SectionHeader';
+import { Camera, Video, Image as ImageIcon, X, Check, Maximize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { Slider } from "@/components/ui/slider";
+import { initialSections } from "@/data/initialMasterPlan";
+
+const STORAGE_KEY = "solimaq_masterplan_v1_autonomo";
+const DEFAULT_CLOUD_SLUG = "master-plan-concentrado";
+
+const STICKY_OFFSETS = {
+    header_compact: 64,
+    module_title: 56,
+};
+
+const n = (v) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+};
+
+const money = (v) =>
+    v.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+const fmt = money;
+
+const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+const cleanTitle = (text) => {
+    if (!text) return "";
+    let clean = text;
+    while (/^\d+[\.\-\)]?\s*/.test(clean)) {
+        clean = clean.replace(/^\d+[\.\-\)]?\s*/, "");
+    }
+    return clean.trim().toUpperCase();
+};
+
+export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isSubmenuMode = false, isAdmin: propIsAdmin, isEditorMode, isAdminAuthenticated: propIsAdminAuth, quotationData, isStandalone = true }) {
+    const { slug: paramsSlug } = useParams();
+    const baseSlug = propSlug || paramsSlug || DEFAULT_CLOUD_SLUG;
+    const CLOUD_SLUG = baseSlug.startsWith('mp-') ? baseSlug : `mp-${baseSlug}`;
+    const navigate = useNavigate();
+    const { toast } = useToast();
+
+    // State
+    const [horasDia, setHorasDia] = useState(16);
+    const [tipoCambio, setTipoCambio] = useState(18.5);
+    const [ivaPct, setIvaPct] = useState(16);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [uploadingId, setUploadingId] = useState(null);
+    const [selectedMedia, setSelectedMedia] = useState(null);
+    const [colsLocked, setColsLocked] = useState(() => localStorage.getItem("solimaq_masterplan_colsLocked") === "true");
+    const [isParamsModalOpen, setIsParamsModalOpen] = useState(false);
+    const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+
+    const [clientName, setClientName] = useState(() => quotationData?.client || "CLIENTE");
+    const [projectName, setProjectName] = useState(() => quotationData?.project || "PROYECTO");
+    const [projectDesc, setProjectDesc] = useState(() => "Resumen ejecutivo del proyecto industrial.");
+    const [projectDate, setProjectDate] = useState(() => new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }));
+    const [logoUrl, setLogoUrl] = useState(() => quotationData?.logo || "/solimaq_logo.png");
+
+    const [mpTitle, setMpTitle] = useState(() => localStorage.getItem("solimaq_mp_title") || "MASTER PLAN");
+    const [mpSubTitle, setMpSubTitle] = useState(() => localStorage.getItem("solimaq_mp_subtitle") || "SOLIMAQ CENTER");
+    const [heroVideoUrl, setHeroVideoUrl] = useState(() => localStorage.getItem("solimaq_mp_hero_video") || "");
+    const [isHeroVideoActive, setIsHeroVideoActive] = useState(false);
+    const [heroVideoIsIntegrated, setHeroVideoIsIntegrated] = useState(() => localStorage.getItem("solimaq_mp_hero_integrated") === "true");
+    const [heroVideoScale, setHeroVideoScale] = useState(() => Number(localStorage.getItem("solimaq_mp_hero_scale")) || 100);
+    const [heroVideoBorderRadius, setHeroVideoBorderRadius] = useState(() => Number(localStorage.getItem("solimaq_mp_hero_radius")) || 20);
+    const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+    const [lastCloudSync, setLastCloudSync] = useState(null);
+    const [tableFontSize, setTableFontSize] = useState(() => Number(localStorage.getItem("solimaq_mp_table_font_size")) || 14);
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [importedFileName, setImportedFileName] = useState(() => localStorage.getItem("solimaq_mp_imported_filename") || "");
+    const [globalUtilVal, setGlobalUtilVal] = useState(10);
+    const [isPriceEditMode, setIsPriceEditMode] = useState(false);
+    const [targetAmountModalOpen, setTargetAmountModalOpen] = useState(false);
+    const [targetAmountValue, setTargetAmountValue] = useState(0);
+    const [isFooterHovered, setIsFooterHovered] = useState(false);
+    const [animatedPriceVal, setAnimatedPriceVal] = useState(0);
+
+    const [pdfSettings, setPdfSettings] = useState(() => {
+        try {
+            const saved = localStorage.getItem('solimaq_pdf_template_v11');
+            return saved ? JSON.parse(saved) : {
+                primaryColor: '#9BD428',
+                secondaryColor: '#000000',
+                headerBg: '#9BD428',
+                headerText: '#000000',
+                titleText: 'CONCENTRADO',
+                logoPos: { x: 235, y: 0, width: 45, height: 25 },
+                headerBox: { x: 15, y: 0, width: 95, height: 15 },
+                metaPos: { x: 120, y: 3 },
+                colWidths: { item: 15, equipo: 45, desc: 85, foto: 35, qty: 15, unit: 32, total: 32 },
+                fontSize: 9,
+                rowHeight: 25,
+                showImages: true,
+                imgSize: 18,
+            };
+        } catch { return null; }
+    });
+
+    const logoRef = useRef(null);
+    const heroVideoInputRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const tableRefs = useRef({});
+    const headerRefs = useRef({});
+    const tableContainerRefs = useRef({});
+    const virtualHeaderRefs = useRef({});
+
+    const [colWidths, setColWidths] = useState(() => {
+        try {
+            const saved = localStorage.getItem("solimaq_masterplan_colWidths_v2");
+            return saved ? JSON.parse(saved) : {
+                item: 80, equipo: 250, descripcion: 350, media: 120, qty: 80, costo: 130, util: 80, unitario: 140, total: 160, action: 60
+            };
+        } catch { return { item: 80, equipo: 250, descripcion: 350, media: 120, qty: 80, costo: 130, util: 80, unitario: 140, total: 160, action: 60 }; }
+    });
+
+    const [sections, setSections] = useState(() => {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return initialSections;
+            const parsed = JSON.parse(raw);
+            return (Array.isArray(parsed) && parsed.length > 0) ? parsed : initialSections;
+        } catch { return initialSections; }
+    });
+
+    useEffect(() => {
+        if (propIsAdminAuth !== undefined) setIsAdminAuthenticated(propIsAdminAuth);
+    }, [propIsAdminAuth]);
+
+    useEffect(() => {
+        if (propIsAdmin !== undefined) setIsAdmin(propIsAdmin);
+        else setIsAdmin(Boolean(isEditorMode || isAdminAuthenticated));
+    }, [propIsAdmin, isEditorMode, isAdminAuthenticated]);
+
+    useEffect(() => {
+        if (quotationData) {
+            if (quotationData.client) setClientName(quotationData.client);
+            if (quotationData.project) setProjectName(quotationData.project);
+            if (quotationData.logo) setLogoUrl(quotationData.logo);
+        }
+    }, [quotationData?.client, quotationData?.project, quotationData?.logo]);
+
+    useEffect(() => {
+        if (!isHydrated) return;
+        localStorage.setItem("solimaq_mp_client", clientName);
+        localStorage.setItem("solimaq_mp_project", projectName);
+        localStorage.setItem("solimaq_mp_desc", projectDesc);
+        localStorage.setItem("solimaq_mp_date", projectDate);
+        localStorage.setItem("solimaq_mp_logo", logoUrl);
+        localStorage.setItem("solimaq_mp_title", mpTitle);
+        localStorage.setItem("solimaq_mp_subtitle", mpSubTitle);
+        localStorage.setItem("solimaq_mp_hero_video", heroVideoUrl);
+        localStorage.setItem("solimaq_mp_hero_integrated", heroVideoIsIntegrated);
+        localStorage.setItem("solimaq_mp_hero_scale", heroVideoScale);
+        localStorage.setItem("solimaq_mp_hero_radius", heroVideoBorderRadius);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sections));
+        localStorage.setItem("solimaq_masterplan_colsLocked", colsLocked);
+        localStorage.setItem("solimaq_masterplan_colWidths_v2", JSON.stringify(colWidths));
+        localStorage.setItem("solimaq_mp_table_font_size", tableFontSize);
+        if (pdfSettings) localStorage.setItem('solimaq_pdf_template_v11', JSON.stringify(pdfSettings));
+    }, [clientName, projectName, projectDesc, projectDate, mpTitle, mpSubTitle, heroVideoUrl, heroVideoIsIntegrated, heroVideoScale, heroVideoBorderRadius, sections, colsLocked, colWidths, tableFontSize, pdfSettings, isHydrated]);
+
+    useEffect(() => {
+        const handleScroll = () => setIsScrolled(window.scrollY > 100);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                setSelectedMedia(null);
+                setIsHeroVideoActive(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
+    useEffect(() => {
+        const handleGlobalExport = (e) => {
+            if (e.detail?.type === 'masterplan' || e.detail?.type === 'excel') {
+                if (e.detail?.type === 'excel') {
+                    handleExportExcel();
+                } else {
+                    // Logic: If on regular user view, direct download. If Admin, maybe editor?
+                    // User requested direct export from Global Center.
+                    generateDirectPDF();
+                }
+            }
+        };
+        window.addEventListener('EXPORT_QUOTATION', handleGlobalExport);
+        return () => window.removeEventListener('EXPORT_QUOTATION', handleGlobalExport);
+    }, [sections, clientName, projectName, pdfSettings, logoUrl]);
+
+    // Logic for Cloud Syncing and Data management...
+    const fetchCloudData = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('quotations')
+                .select('*')
+                .eq('slug', CLOUD_SLUG)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+            let finalData = data;
+
+            if (!finalData && parentSlug && parentSlug !== CLOUD_SLUG) {
+                const { data: pData } = await supabase.from('quotations').select('*').eq('slug', parentSlug).single();
+                if (pData) finalData = pData;
+            }
+
+            if (finalData) {
+                const config = finalData.sections_config || {};
+                const isProjectSpecificData = finalData.slug === CLOUD_SLUG;
+
+                if (isProjectSpecificData) {
+                    if (config.mpTitle) setMpTitle(config.mpTitle);
+                    if (config.mpSubTitle) setMpSubTitle(config.mpSubTitle);
+                    if (config.projectDesc) setProjectDesc(config.projectDesc);
+                }
+
+                if (quotationData) {
+                    if (quotationData.client) setClientName(quotationData.client);
+                    if (quotationData.project) setProjectName(quotationData.project);
+                }
+
+                if (finalData.video_url || config.heroVideoUrl) setHeroVideoUrl(finalData.video_url || config.heroVideoUrl);
+                if (config.heroVideoIsIntegrated !== undefined) setHeroVideoIsIntegrated(config.heroVideoIsIntegrated);
+                if (config.heroVideoScale) setHeroVideoScale(config.heroVideoScale);
+                if (config.pdfSettings) setPdfSettings(config.pdfSettings);
+                if (config.heroVideoBorderRadius) setHeroVideoBorderRadius(config.heroVideoBorderRadius);
+                if (config.tableFontSize) setTableFontSize(config.tableFontSize);
+
+                if (finalData.slug === CLOUD_SLUG) {
+                    const sectionsToSet = config.sections || (Array.isArray(config) ? config : null);
+                    if (sectionsToSet && sectionsToSet.length > 0) {
+                        const cleaned = sectionsToSet.map(s => ({ ...s, titulo: cleanTitle(s.titulo) }));
+                        setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: true })));
+                    }
+                }
+                setLastCloudSync(new Date());
+            }
+            setIsHydrated(true);
+        } catch (error) {
+            console.error("Cloud fetch error:", error);
+            setIsHydrated(true);
+        }
+    };
+
+    useEffect(() => { fetchCloudData(); }, [CLOUD_SLUG]);
+
+    const saveToCloud = async (overrideData = null) => {
+        setIsCloudSyncing(true);
+        try {
+            const sectionsToSave = (overrideData || sections).map(s => ({
+                ...s,
+                items: s.items.map(it => ({ ...it, ventaUSD: calcItem(it).ventaUnitFinal }))
+            }));
+
+            const configObject = {
+                sections: sectionsToSave,
+                mpTitle,
+                mpSubTitle,
+                projectDesc,
+                heroVideoUrl,
+                heroVideoIsIntegrated,
+                heroVideoScale,
+                heroVideoBorderRadius,
+                tableFontSize,
+                pdfSettings
+            };
+
+            const { error } = await supabase.from('quotations').upsert({
+                slug: CLOUD_SLUG,
+                sections_config: configObject,
+                video_url: heroVideoUrl,
+                last_update: new Date().toISOString()
+            }, { onConflict: 'slug' });
+
+            if (error) throw error;
+            setLastCloudSync(new Date());
+        } catch (error) {
+            console.error("Cloud save error:", error);
+            toast({ title: "Error de Sincronización", description: "No se pudo guardar en la nube.", variant: "destructive" });
+        } finally {
+            setIsCloudSyncing(false);
+        }
+    };
+
+    const calcItem = (it) => {
+        const cost = n(it.costoUSD);
+        const util = n(it.utilidad);
+        const quantity = n(it.qty);
+        const margin = util / 100;
+        const ventaUnit = margin >= 1 ? cost : cost / (1 - margin);
+        return {
+            ventaUnitFinal: ventaUnit,
+            totalVenta: ventaUnit * quantity
+        };
+    };
+
+    const sectionTotals = useMemo(() => {
+        return sections.map(s => {
+            const totalVenta = s.items.reduce((acc, it) => it.activo ? acc + calcItem(it).totalVenta : acc, 0);
+            return { sectionId: s.id, totalVenta };
+        });
+    }, [sections]);
+
+    const grandTotals = useMemo(() => {
+        const totalVenta = sectionTotals.reduce((acc, s) => acc + s.totalVenta, 0);
+        const mxnSinIvaVenta = totalVenta * tipoCambio;
+        const ivaVenta = mxnSinIvaVenta * (ivaPct / 100);
+        return { totalVenta, mxnSinIvaVenta, ivaVenta, totalVentaMXN: mxnSinIvaVenta + ivaVenta };
+    }, [sectionTotals, tipoCambio, ivaPct]);
+
+    // Handlers
+    const updateSection = (id, fields) => setSections(prev => prev.map(s => s.id === id ? { ...s, ...fields } : s));
+    const updateSectionTitle = (id, val) => updateSection(id, { titulo: val.toUpperCase() });
+    const toggleSection = (id) => updateSection(id, { collapsed: !sections.find(s => s.id === id).collapsed });
+
+    const toggleAllSections = (val) => setSections(prev => prev.map(s => ({ ...s, collapsed: val })));
+
+    const addSection = () => {
+        const newSec = { id: `sec_${uid()}`, collapsed: false, titulo: "NUEVO MÓDULO", tag: "BORRADOR", items: [{ id: uid(), activo: true, codigo: "1.1", equipo: "NUEVO EQUIPO", descripcion: "", qty: 1, costoUSD: 0, utilidad: 10 }] };
+        setSections([...sections, newSec]);
+    };
+
+    const removeSection = (id) => {
+        if (window.confirm("¿Eliminar este módulo completo?")) setSections(sections.filter(s => s.id !== id));
+    };
+
+    const updateItem = (sId, iId, fields) => {
+        setSections(sections.map(s => s.id === sId ? { ...s, items: s.items.map(it => it.id === iId ? { ...it, ...fields } : it) } : s));
+    };
+
+    const updateItemByTotalVenta = (sId, iId, targetTotal) => {
+        const s = sections.find(x => x.id === sId);
+        const it = s.items.find(x => x.id === iId);
+        const qty = n(it.qty) || 1;
+        const targetVentaUnit = targetTotal / qty;
+        const cost = n(it.costoUSD);
+        let newUtil = cost === 0 ? 0 : (1 - (cost / targetVentaUnit)) * 100;
+        updateItem(sId, iId, { utilidad: newUtil });
+    };
+
+    const addItem = (sId) => {
+        const s = sections.find(x => x.id === sId);
+        const lastCode = s.items.length > 0 ? s.items[s.items.length - 1].codigo : "1.0";
+        let nextCode = lastCode;
+        if (lastCode.includes(".")) {
+            const parts = lastCode.split(".");
+            nextCode = `${parts[0]}.${n(parts[1]) + 1}`;
+        }
+        updateSection(sId, { items: [...s.items, { id: uid(), activo: true, codigo: nextCode, equipo: "NUEVO EQUIPO", descripcion: "", qty: 1, costoUSD: 0, utilidad: globalUtilVal }] });
+    };
+
+    const removeItem = (sId, iId) => {
+        updateSection(sId, { items: sections.find(s => s.id === sId).items.filter(it => it.id !== iId) });
+    };
+
+    const justifyAllDescriptions = () => {
+        setSections(sections.map(s => ({
+            ...s,
+            items: s.items.map(it => ({ ...it, descAlign: "justify" }))
+        })));
+        toast({ title: "Justificación Completa", description: "Todas las descripciones han sido justificadas." });
+    };
+
+    const applyGlobalUtilization = () => {
+        setSections(sections.map(s => ({
+            ...s,
+            items: s.items.map(it => ({ ...it, utilidad: globalUtilVal }))
+        })));
+        toast({ title: "Utilidad aplicada", description: `Se aplicó ${globalUtilVal}% de utilidad a todo el proyecto.` });
+    };
+
+    const applyTargetAmount = () => {
+        const currentTotal = grandTotals.totalVenta;
+        const target = n(targetAmountValue);
+        if (currentTotal === 0 || target <= 0) return;
+        const factor = target / currentTotal;
+
+        setSections(sections.map(s => ({
+            ...s,
+            items: s.items.map(it => {
+                const r = calcItem(it);
+                const targetVentaUnit = r.ventaUnitFinal * factor;
+                const cost = n(it.costoUSD);
+                let newUtil = cost === 0 ? 0 : (1 - (cost / targetVentaUnit)) * 100;
+                return { ...it, utilidad: newUtil };
+            })
+        })));
+        setTargetAmountModalOpen(false);
+        toast({ title: "Ajuste de Monto Exitoso", description: `El proyecto se ajustó a un total de ${money(target)}` });
+    };
+
+    // Media Handlers
+    const handleModuleMediaUpload = async (sId, file) => {
+        if (!file) return;
+        setUploadingId(`module_${sId}`);
+        try {
+            const bucket = await getActiveBucket();
+            const fileName = `module_${sId}_${Date.now()}.${file.name.split('.').pop()}`;
+            const filePath = `masterplan/${fileName}`;
+            const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+            updateSection(sId, { moduleImage: publicUrl });
+            toast({ title: "Imagen de Módulo Cargada" });
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error al subir imagen", variant: "destructive" });
+        } finally {
+            setUploadingId(null);
+        }
+    };
+
+    const handleItemMediaUpload = async (sId, iId, file) => {
+        if (!file) return;
+        setUploadingId(iId);
+        try {
+            const bucket = await getActiveBucket();
+            const type = file.type.startsWith('video') ? 'video' : 'image';
+            const fileName = `item_${iId}_${Date.now()}.${file.name.split('.').pop()}`;
+            const filePath = `masterplan/${fileName}`;
+            const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+            updateItem(sId, iId, { media_url: publicUrl, media_type: type });
+            toast({ title: "Media de Item Cargada" });
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error al subir media", variant: "destructive" });
+        } finally {
+            setUploadingId(null);
+        }
+    };
+
+    const handleBulkMediaUpload = async (files) => {
+        if (!files.length) return;
+        setIsCloudSyncing(true);
+        let count = 0;
+        try {
+            const bucket = await getActiveBucket();
+            for (const file of files) {
+                const nameParts = file.name.split('.');
+                const code = nameParts[0];
+                const ext = nameParts.pop();
+                const type = file.type.startsWith('video') ? 'video' : 'image';
+
+                let targetSec = null;
+                let targetItem = null;
+
+                for (const s of sections) {
+                    const it = s.items.find(x => x.codigo === code);
+                    if (it) {
+                        targetSec = s.id;
+                        targetItem = it.id;
+                        break;
+                    }
+                }
+
+                if (targetItem) {
+                    const filePath = `masterplan/bulk_${code}_${Date.now()}.${ext}`;
+                    await supabase.storage.from(bucket).upload(filePath, file);
+                    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+                    updateItem(targetSec, targetItem, { media_url: publicUrl, media_type: type });
+                    count++;
+                }
+            }
+            toast({ title: "Carga Masiva Exitosa", description: `Se actualizaron ${count} items.` });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsCloudSyncing(false);
+        }
+    };
+
+    // Excel Handlers
+    const handleImportExcel = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setImportedFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws);
+
+            const newSections = [];
+            let currentSec = null;
+
+            data.forEach((row, idx) => {
+                if (row.MODULO || row.Modulo || row.Módulo) {
+                    const title = row.MODULO || row.Modulo || row.Módulo;
+                    currentSec = {
+                        id: `sec_${uid()}`,
+                        collapsed: false,
+                        titulo: cleanTitle(title),
+                        tag: row.TAG || row.Tag || "IMPORTADO",
+                        items: []
+                    };
+                    newSections.push(currentSec);
+                }
+
+                if (currentSec && (row.EQUIPO || row.Equipo)) {
+                    currentSec.items.push({
+                        id: uid(),
+                        activo: true,
+                        codigo: String(row.ITEM || row.Item || row.CÓDIGO || row.Código || ""),
+                        equipo: String(row.EQUIPO || row.Equipo || ""),
+                        descripcion: String(row.DESCRIPCION || row.Descripción || row.DESCRIPCIÓN || ""),
+                        qty: n(row.QTY || row.Qty || row.CANTIDAD || row.Cantidad || 1),
+                        costoUSD: n(row.COSTO || row.Costo || 0),
+                        utilidad: n(row.UTIL || row.Util || globalUtilVal),
+                        media_url: row.MEDIA || row.Media || null,
+                        media_type: 'image'
+                    });
+                }
+            });
+
+            if (newSections.length > 0) {
+                setSections(newSections);
+                toast({ title: "Excel Importado", description: `Se cargaron ${newSections.length} módulos.` });
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const handleExportExcel = () => {
+        const data = [];
+        sections.forEach(s => {
+            data.push({ MODULO: s.titulo, TAG: s.tag });
+            s.items.forEach(it => {
+                const r = calcItem(it);
+                data.push({
+                    ITEM: it.codigo,
+                    EQUIPO: it.equipo,
+                    DESCRIPCION: it.descripcion,
+                    QTY: it.qty,
+                    COSTO: it.costoUSD,
+                    UTIL: it.utilidad,
+                    UNITARIO: r.ventaUnitFinal,
+                    TOTAL: r.totalVenta
+                });
+            });
+            data.push({});
+        });
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Master Plan");
+        XLSX.writeFile(wb, `MasterPlan_SOLIMAQ_${projectName}.xlsx`);
+    };
+
+    const handleExportSectionExcel = (s) => {
+        const data = s.items.map(it => ({
+            ITEM: it.codigo,
+            EQUIPO: it.equipo,
+            DESCRIPCION: it.descripcion,
+            QTY: it.qty,
+            COSTO: it.costoUSD,
+            UTIL: it.utilidad
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, s.titulo.substring(0, 30));
+        XLSX.writeFile(wb, `Modulo_${s.titulo.replace(/\s+/g, '_')}.xlsx`);
+    };
+
+    const handleImportSectionExcel = (sId, file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(ws);
+            const items = data.map(row => ({
+                id: uid(),
+                activo: true,
+                codigo: String(row.ITEM || row.Item || ""),
+                equipo: String(row.EQUIPO || row.Equipo || ""),
+                descripcion: String(row.DESCRIPCION || row.Descripción || ""),
+                qty: n(row.QTY || row.Qty || 1),
+                costoUSD: n(row.COSTO || row.Costo || 0),
+                utilidad: n(row.UTIL || row.Util || globalUtilVal)
+            }));
+            updateSection(sId, { items });
+            toast({ title: "Módulo Actualizado" });
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const generateDirectPDF = () => {
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
+
+        const logoImg = new Image();
+        logoImg.src = logoUrl;
+        logoImg.crossOrigin = "Anonymous";
+
+        const start = () => {
+            const topMargin = 8;
+            const drawHeader = () => {
+                doc.setFillColor(headerBg);
+                doc.rect(headerBox.x, headerBox.y + topMargin, headerBox.width, headerBox.height, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(22);
+                doc.setTextColor(headerText);
+                doc.text(titleText, headerBox.x + (headerBox.width / 2), headerBox.y + topMargin + (headerBox.height / 2) + 4, { align: 'center' });
+
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", metaPos.x, metaPos.y + topMargin);
+                doc.setFont("helvetica", "normal");
+                doc.text(clientName.toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", metaPos.x, metaPos.y + topMargin + 5);
+                doc.setFont("helvetica", "normal");
+                doc.text(projectName.toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", metaPos.x, metaPos.y + topMargin + 10);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), metaPos.x + 23, metaPos.y + topMargin + 10);
+
+                try {
+                    doc.addImage(logoImg, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
+                } catch (e) { console.error("Logo PDF Draw Error", e); }
+            };
+
+            let tableData = [];
+            let globalIdx = 1;
+
+            sections.forEach((s, sIdx) => {
+                const activeItems = s.items.filter(it => it.activo);
+                if (activeItems.length === 0) return;
+
+                tableData.push([
+                    { content: `MÓDULO ${sIdx + 1}: ${s.titulo}`, colSpan: 7, styles: { fillColor: [120, 120, 120], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 } }
+                ]);
+
+                let modSum = 0;
+                activeItems.forEach(it => {
+                    const r = calcItem(it);
+                    modSum += r.totalVenta;
+                    tableData.push([
+                        { content: globalIdx++, styles: { textColor: pdfSettings.primaryColor, fontStyle: 'bold' } },
+                        it.equipo.toUpperCase(),
+                        it.descripcion.substring(0, 350),
+                        { content: "", image: it.media_url && it.media_type !== 'video' ? it.media_url : null },
+                        it.qty,
+                        money(r.ventaUnitFinal),
+                        money(r.totalVenta)
+                    ]);
+                });
+
+                tableData.push([
+                    { content: `SUBTOTAL MÓDULO ${sIdx + 1}`, colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fontSize: fontSize + 2, textColor: [60, 60, 60] } },
+                    { content: money(modSum), styles: { halign: 'right', fontStyle: 'bold', fontSize: fontSize + 2, textColor: [60, 60, 60] } }
+                ]);
+            });
+
+            doc.autoTable({
+                startY: 40,
+                head: [['ITEM', 'EQUIPO', 'DESCRIPCIÓN', 'FOTO', 'QTY', 'UNITARIO', 'TOTAL']],
+                body: tableData,
+                theme: 'plain',
+                headStyles: { fillColor: pdfSettings.primaryColor, textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', minCellHeight: 12 },
+                styles: { fontSize, cellPadding: 2, valign: 'middle', lineWidth: 0.1, minCellHeight: rowHeight },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: colWidths.item },
+                    1: { fontStyle: 'bold', cellWidth: colWidths.equipo },
+                    2: { cellWidth: colWidths.desc },
+                    3: { halign: 'center', cellWidth: colWidths.foto },
+                    4: { halign: 'center', cellWidth: colWidths.qty },
+                    5: { halign: 'right', cellWidth: colWidths.unit },
+                    6: { halign: 'right', cellWidth: colWidths.total }
+                },
+                rowPageBreak: 'avoid',
+                margin: { top: 40, left: 15, right: 15, bottom: 20 },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    doc.setFontSize(7);
+                    doc.setTextColor(180, 180, 180);
+                    doc.text(`Página ${data.pageNumber} | www.solimaq.site`, 282, 202, { align: 'right' });
+                },
+                didDrawCell: (data) => {
+                    if (data.section === 'body' && data.column.index === 3) {
+                        const img = tableData[data.row.index]?.[3]?.image;
+                        if (img) try { doc.addImage(img, 'JPEG', data.cell.x + (data.cell.width - imgSize) / 2, data.cell.y + 2, imgSize, imgSize, undefined, 'FAST'); } catch (e) { }
+                    }
+                }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 8;
+            if (finalY < 185) {
+                const totalBoxWidth = pdfSettings.colWidths.total + pdfSettings.colWidths.unit + 30;
+                const tableRightPos = 282;
+
+                doc.setFillColor(0, 0, 0);
+                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 14, 'F');
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(12);
+                doc.text("TOTAL GENERAL", tableRightPos - totalBoxWidth + 5, finalY + 9);
+
+                doc.setFontSize(16);
+                doc.text(money(grandTotals.totalVenta), tableRightPos - 5, finalY + 9, { align: 'right' });
+            }
+
+            doc.save(`SOLIMAQ_MASTERPLAN_${projectName.replace(/\s+/g, '_')}.pdf`);
+        };
+
+        if (logoImg.complete) start();
+        else {
+            logoImg.onload = start;
+            logoImg.onerror = () => start();
+        }
+    };
+
+    const handleExportPDF = () => setIsTemplateEditorOpen(true);
+
+    const handleSavePdfSettings = (newSettings, newClient, newProject, newLogo) => {
+        setPdfSettings(newSettings);
+        setClientName(newClient);
+        setProjectName(newProject);
+        setLogoUrl(newLogo);
+        if (isAdmin) saveToCloud();
+        toast({ title: "Plantilla Guardada" });
+    };
+
+    const syncScroll = (id, e) => {
+        if (virtualHeaderRefs.current[id]) {
+            virtualHeaderRefs.current[id].scrollLeft = e.target.scrollLeft;
+        }
+    };
+
+    const startResize = (colId, e) => {
+        const startX = e.pageX;
+        const startWidth = colWidths[colId];
+        const onMouseMove = (moveEvent) => {
+            const delta = moveEvent.pageX - startX;
+            setColWidths(prev => ({ ...prev, [colId]: Math.max(50, startWidth + delta) }));
+        };
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
+
+    useEffect(() => {
+        if (!isFooterHovered) return;
+        const target = grandTotals.totalVenta;
+        let start = target * 0.8;
+        const duration = 1500;
+        const startTime = Date.now();
+        const anim = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            setAnimatedPriceVal(start + (target - start) * easeOut);
+            if (progress < 1) requestAnimationFrame(anim);
+        };
+        requestAnimationFrame(anim);
+    }, [isFooterHovered, grandTotals.totalVenta]);
+
+    const headerStyles = isScrolled ? "bg-black/90 backdrop-blur-2xl border-b border-white/5 py-4 shadow-2xl" : "bg-transparent py-10";
+
+    return (
+        <div className="min-h-screen bg-[#020202] text-white font-sans selection:bg-primary selection:text-black">
+            {/* 1. Dynamic Header */}
+            {isStandalone && (
+                <header className={`fixed top-0 left-0 right-0 z-[200] transition-all duration-500 ${headerStyles}`}>
+                    <div className="max-w-[1800px] mx-auto px-6 md:px-12 flex items-center justify-between">
+                        <div className="flex items-center gap-8 group cursor-pointer" onClick={() => navigate('/')}>
+                            <div className="relative overflow-hidden rounded-2xl bg-white/5 p-2 border border-white/10 group-hover:border-primary/50 transition-all duration-500">
+                                <img src={logoUrl} alt="Logo" className="h-10 md:h-14 w-auto object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <div className="flex flex-col">
+                                <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v3.72</span>
+                                </h1>
+                                <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
+                                    {mpSubTitle}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            {isAdmin && (
+                                <div className="hidden xl:flex items-center bg-zinc-900/50 border border-white/5 rounded-2xl p-1.5 backdrop-blur-md">
+                                    <button
+                                        onClick={() => saveToCloud()}
+                                        disabled={isCloudSyncing}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${isCloudSyncing ? "bg-zinc-800 text-zinc-500" : "bg-primary text-black hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(155,212,40,0.4)]"}`}
+                                    >
+                                        {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Shield size={12} />}
+                                        {isCloudSyncing ? "GUARDANDO..." : "SINCRONIZAR"}
+                                    </button>
+                                    <button onClick={() => setIsTemplateEditorOpen(true)} className="p-2.5 text-gray-400 hover:text-white transition-colors" title="Ajustar Plantilla"><Settings size={18} /></button>
+                                </div>
+                            )}
+                            <button
+                                onClick={() => {
+                                    if (isAdminAuthenticated) {
+                                        setIsAdmin(!isAdmin);
+                                    } else {
+                                        setShowPasswordPrompt(true);
+                                    }
+                                }}
+                                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border ${isAdmin ? 'bg-primary/20 border-primary text-primary shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]' : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30 hover:text-white'}`}
+                            >
+                                {isAdmin ? <Unlock size={20} /> : <Lock size={20} />}
+                            </button>
+                        </div>
+                    </div>
+                </header>
+            )}
+
+            {/* 2. Hero Section */}
+            {isStandalone && (
+                <div className="relative pt-40 pb-20 px-6 md:px-12 max-w-[1800px] mx-auto overflow-hidden">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center relative z-10">
+                        <div className="lg:col-span-7 space-y-10">
+                            <div className="inline-flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full">
+                                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Visor Industrial</span>
+                            </div>
+                            <h2 className="text-7xl md:text-[10rem] font-black text-white leading-[0.8] tracking-tighter uppercase italic">
+                                MASTER <br />
+                                <span className="text-primary not-italic">PLAN</span>
+                            </h2>
+                            <div className="max-w-xl space-y-6">
+                                <p className="text-gray-400 text-lg leading-relaxed font-medium">
+                                    {projectDesc}
+                                </p>
+                                <div className="flex flex-wrap gap-8 pt-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Cliente</span>
+                                        <span className="text-white font-bold">{clientName}</span>
+                                    </div>
+                                    <div className="w-[1px] h-10 bg-white/10" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Inversión Estimada</span>
+                                        <span className="text-primary font-black text-xl tracking-tight">{money(grandTotals.totalVenta)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-5 relative group">
+                            <div className="relative aspect-video rounded-[3rem] overflow-hidden border border-white/10 bg-zinc-900/50 backdrop-blur-3xl shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]">
+                                {heroVideoUrl ? (
+                                    <div className="absolute inset-0">
+                                        {heroVideoIsIntegrated ? (
+                                            <video
+                                                src={heroVideoUrl}
+                                                autoPlay
+                                                loop
+                                                muted
+                                                playsInline
+                                                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+                                                style={{ borderRadius: `${heroVideoBorderRadius}px`, transform: `scale(${heroVideoScale / 100})` }}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                                                <Play size={48} className="text-primary opacity-20 group-hover:opacity-100 group-hover:scale-125 transition-all duration-500" />
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() => setIsHeroVideoActive(true)}
+                                            className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-500 backdrop-blur-sm"
+                                        >
+                                            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-black shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500">
+                                                <Play size={32} fill="currentColor" />
+                                            </div>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 gap-4">
+                                        <Video size={64} className="opacity-10" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest opacity-20">Sin Video del Proyecto</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="absolute -inset-20 bg-primary/20 blur-[120px] rounded-full opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none" />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 3. Main Project Canvas */}
+            <div className={`mx-auto pb-40 ${isStandalone ? 'max-w-[1800px] px-6 md:px-12 pt-10' : 'max-w-7xl px-4 py-24 border-t border-white/5'}`}>
+                {!isStandalone && (
+                    <div className="text-center mb-16 pt-8 relative">
+                        <h1 className="text-5xl sm:text-8xl font-black tracking-tighter mb-6 uppercase">
+                            MASTER <span className="text-primary">PLAN</span>
+                        </h1>
+                        <p className="text-gray-400 text-lg max-w-2xl mx-auto font-medium leading-relaxed mb-8">
+                            Aquí puedes ver el desglose de la inversión. Marca o desmarca los componentes para ajustar el costo total.
+                        </p>
+
+                        {/* Integrated View Controls */}
+                        <div className="flex items-center gap-3 justify-center flex-wrap">
+                            <button
+                                onClick={handleExportPDF}
+                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                            >
+                                <Download size={14} className="text-primary group-hover:scale-110 transition-transform" />
+                                EXPORTAR PDF
+                            </button>
+
+                            {(isAdminAuthenticated || isAdmin) && (
+                                <>
+                                    <button
+                                        onClick={() => setIsTemplateEditorOpen(true)}
+                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Settings size={14} className="text-primary group-hover:rotate-90 transition-transform" />
+                                        AJUSTAR PLANTILLA
+                                    </button>
+
+                                    <button
+                                        onClick={handleExportExcel}
+                                        className="px-6 py-3 bg-zinc-900 border border-green-500/30 text-green-500 text-[10px] font-black tracking-widest uppercase hover:bg-green-500/10 transition-all flex items-center gap-2"
+                                    >
+                                        <FileSpreadsheet size={14} />
+                                        EXPORTAR EXCEL
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            const inp = document.createElement('input');
+                                            inp.type = 'file';
+                                            inp.accept = '.xlsx, .xls';
+                                            inp.onchange = handleImportExcel;
+                                            inp.click();
+                                        }}
+                                        className="px-6 py-3 bg-zinc-900 border border-blue-500/30 text-blue-400 text-[10px] font-black tracking-widest uppercase hover:bg-blue-500/10 transition-all flex items-center gap-2"
+                                    >
+                                        <Upload size={14} />
+                                        IMPORTAR EXCEL
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setTargetAmountValue(grandTotals.totalVenta.toFixed(2));
+                                            setTargetAmountModalOpen(true);
+                                        }}
+                                        className="px-6 py-3 bg-zinc-900 border border-primary/30 text-white text-[10px] font-black tracking-widest uppercase hover:bg-primary/20 transition-all flex items-center gap-2"
+                                    >
+                                        <ChevronsDown size={14} className="text-primary" />
+                                        AJUSTAR MONTO
+                                    </button>
+
+                                    <button
+                                        onClick={justifyAllDescriptions}
+                                        className="px-6 py-3 bg-zinc-900 border border-primary/20 text-primary text-[10px] font-black tracking-widest uppercase hover:bg-primary/10 transition-all flex items-center gap-2"
+                                    >
+                                        <AlignJustify size={14} />
+                                        JUSTIFICAR TODO
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            const inp = document.createElement('input');
+                                            inp.type = 'file';
+                                            inp.multiple = true;
+                                            inp.accept = 'image/*,video/*';
+                                            inp.onchange = (e) => handleBulkMediaUpload(e.target.files);
+                                            inp.click();
+                                        }}
+                                        disabled={isCloudSyncing}
+                                        className={`px-6 py-3 bg-zinc-900 border text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 ${isCloudSyncing ? 'text-zinc-500 border-zinc-700' : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/10'}`}
+                                    >
+                                        {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Camera size={14} />}
+                                        CARGA FOTOS
+                                    </button>
+
+                                    <button
+                                        onClick={() => saveToCloud()}
+                                        disabled={isCloudSyncing}
+                                        className={`px-8 py-3 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase transition-all flex items-center gap-2 hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_0_20px_rgba(155,212,40,0.3)]`}
+                                    >
+                                        {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Shield size={14} />}
+                                        {isCloudSyncing ? "GUARDANDO..." : "SINCRONIZAR"}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+                <div className={`sticky z-[160] transition-all duration-500 ${isScrolled ? 'top-[88px] opacity-100' : 'opacity-0 pointer-events-none translate-y-4'}`}>
+                    <div className="bg-zinc-900/40 backdrop-blur-2xl border border-white/5 rounded-2xl p-2 flex items-center justify-between shadow-2xl">
+                        <div className="flex items-center gap-6 px-4">
+                            <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">Resumen</span>
+                                <span className="text-sm font-black text-white">{money(grandTotals.totalVenta)} <span className="text-gray-600 mx-2">|</span> {sections.length} Módulos</span>
+                            </div>
+                        </div>
+
+                        {isAdmin && (
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setColsLocked(!colsLocked)}
+                                    className={`px-4 py-2 rounded-xl border text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 ${colsLocked ? 'border-primary/50 bg-primary/10 text-primary' : 'border-white/10 bg-white/5 text-white/40 hover:bg-white/10'}`}
+                                >
+                                    {colsLocked ? <Lock size={12} /> : <Unlock size={12} />}
+                                    {colsLocked ? "Celdas" : "Libre"}
+                                </button>
+                                <button
+                                    onClick={() => setIsPriceEditMode(!isPriceEditMode)}
+                                    className={`px-4 py-2 rounded-xl border text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 ${isPriceEditMode ? 'border-green-500 bg-green-500/10 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'}`}
+                                >
+                                    <FileSpreadsheet size={12} />
+                                    {isPriceEditMode ? "Fijar Precios" : "Precio Libre"}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setTargetAmountValue(grandTotals.totalVenta.toFixed(2));
+                                        setTargetAmountModalOpen(true);
+                                    }}
+                                    className="px-4 py-2 rounded-xl border border-primary/50 bg-primary/20 text-white text-[10px] font-black tracking-widest uppercase hover:bg-primary/30 transition-all flex items-center gap-2"
+                                >
+                                    <ChevronsDown size={14} className="text-primary" />
+                                    Monto
+                                </button>
+                                <button
+                                    onClick={justifyAllDescriptions}
+                                    className="px-4 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-[10px] font-black tracking-widest uppercase hover:bg-primary/20 transition-all flex items-center gap-2"
+                                    title="Justificar descripciones"
+                                >
+                                    <AlignJustify size={14} />
+                                    Justificar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const inp = document.createElement('input');
+                                        inp.type = 'file';
+                                        inp.multiple = true;
+                                        inp.accept = 'image/*,video/*';
+                                        inp.onchange = (e) => handleBulkMediaUpload(e.target.files);
+                                        inp.click();
+                                    }}
+                                    disabled={isCloudSyncing}
+                                    className={`px-4 py-2 rounded-xl border text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 ${isCloudSyncing ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'border-purple-500/50 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'}`}
+                                >
+                                    {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+                                    {isCloudSyncing ? "Subiendo..." : "Carga Masiva Fotos"}
+                                </button>
+                                <button
+                                    onClick={() => saveToCloud()}
+                                    disabled={isCloudSyncing}
+                                    className={`px-4 py-2 rounded-xl border text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 ${isCloudSyncing ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'border-green-500/50 bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}
+                                >
+                                    {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Shield size={12} />}
+                                    {isCloudSyncing ? "..." : "Sincronizar"}
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pr-2 ml-auto">
+                            <button onClick={handleExportPDF} className="px-6 py-2 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase text-center flex items-center justify-center hover:scale-105 transition-all">Exportar PDF</button>
+                            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 gap-1">
+                                <button onClick={() => toggleAllSections(false)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all"><Maximize2 size={12} /></button>
+                                <button onClick={() => toggleAllSections(true)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all"><AlignJustify size={12} /></button>
+                            </div>
+                            {isAdmin && <button onClick={addSection} className="px-6 py-2 bg-white/5 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-white/10">+ Módulo</button>}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-12 mt-12">
+                    {sections.length === 0 && (
+                        <div className="flex flex-col items-center justify-center p-20 bg-zinc-950/40 border border-white/5 rounded-[2rem] border-dashed text-center">
+                            <Shield className="w-12 h-12 text-gray-600 mb-6" />
+                            <h2 className="text-2xl font-black text-white uppercase mb-2">Plan Maestro Vacío</h2>
+                            <button onClick={() => { setSections(initialSections); saveToCloud(initialSections); }} className="px-6 py-3 bg-primary text-black font-black rounded-xl uppercase tracking-widest text-xs hover:scale-105 transition-all">Restaurar Predeterminado</button>
+                        </div>
+                    )}
+
+                    {sections.map((s, sIdx) => {
+                        const visibleCols = isAdmin
+                            ? ['item', 'equipo', 'descripcion', 'media', 'qty', 'costo', 'util', 'unitario', 'total', 'action']
+                            : ['item', 'equipo', 'descripcion', 'media', 'qty', 'unitario', 'total'];
+
+                        const initialColWidths = {
+                            item: 80, equipo: 400, descripcion: 600, media: 120, qty: 80,
+                            costo: 120, util: 80, unitario: 120, total: 150, action: 80
+                        };
+
+                        const totalTableWidth = visibleCols.reduce((acc, colId) => {
+                            return acc + (colWidths[colId] || initialColWidths[colId] || 100);
+                        }, 0);
+
+                        return (
+                            <div key={s.id} className={`relative bg-zinc-950/40 border border-white/5 rounded-[2rem] group/section transition-all duration-500 hover:ring-1 hover:ring-primary/40 ${!s.collapsed ? 'ring-1 ring-primary/20 scale-[1.01]' : ''}`}>
+
+                                {/* Module Title Bar */}
+                                <div className={`sticky z-[150] bg-black/95 border-b border-white/10 backdrop-blur-xl transition-all duration-300 ${s.collapsed ? 'rounded-[2rem]' : 'rounded-t-[2rem]'}`} style={{ top: isScrolled ? '152px' : '0px' }}>
+                                    <div className="min-h-[56px] py-3 px-6 flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => toggleSection(s.id)}
+                                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${s.collapsed ? 'bg-zinc-900 text-gray-500 hover:text-primary' : 'bg-primary text-black shadow-lg hover:scale-110'}`}
+                                            >
+                                                {s.collapsed ? <ChevronRight size={20} /> : <ChevronDown size={20} />}
+                                            </button>
+                                            <div className="flex flex-col">
+                                                {isAdmin ? (
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xl font-black text-primary">{sIdx + 1}.</span>
+                                                        <input
+                                                            value={s.titulo}
+                                                            onChange={(e) => updateSectionTitle(s.id, e.target.value)}
+                                                            className="bg-transparent border-b border-primary/20 text-xl font-black text-white uppercase tracking-tight focus:outline-none focus:border-primary w-[500px]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                                                        <span className="text-primary">{sIdx + 1}.</span>
+                                                        {s.titulo}
+                                                    </h3>
+                                                )}
+                                                <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded uppercase tracking-widest w-fit">{s.tag}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-6">
+                                            {s.collapsed && sectionTotals.find(x => x.sectionId === s.id) && (
+                                                <div className="flex flex-col items-end mr-2 shrink-0">
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1 opacity-50">Subtotal Módulo</span>
+                                                    <span className="text-2xl font-black text-primary tracking-tighter">
+                                                        {money(sectionTotals.find(x => x.sectionId === s.id).totalVenta)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {isAdmin && !s.collapsed && (
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleExportSectionExcel(s)} className="p-2 bg-green-500/10 border border-green-500/30 text-green-500 rounded-lg hover:bg-green-500/20"><Download size={16} /></button>
+                                                    <button onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx, .xls'; inp.onchange = (e) => handleImportSectionExcel(s.id, e.target.files[0]); inp.click(); }} className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-lg hover:bg-blue-500/20"><FileSpreadsheet size={16} /></button>
+                                                    <button onClick={() => removeSection(s.id)} className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20">Eliminar</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Table Header Section */}
+                                    {!s.collapsed && (
+                                        <div ref={el => virtualHeaderRefs.current[s.id] = el} className="overflow-hidden bg-primary border-t border-black/10">
+                                            <div style={{ width: totalTableWidth, minWidth: totalTableWidth }} className="flex h-10">
+                                                {visibleCols.map(colId => {
+                                                    const labels = { item: "Item", equipo: "Equipo", descripcion: "Descripción", media: "MEDIA", qty: "Qty", costo: "Costo", util: "Util %", unitario: "Unit USD", total: "Total USD", action: "Acc" };
+                                                    const aligns = { media: "center", costo: "right", util: "center", unitario: "right", total: "right", action: "center" };
+                                                    const w = colWidths[colId] || initialColWidths[colId] || 100;
+                                                    return (
+                                                        <div key={colId} style={{ width: w, minWidth: w }} className={`flex-shrink-0 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-black border-r border-black/10 relative group/cell ${aligns[colId] === "right" ? "justify-end text-right" : aligns[colId] === "center" ? "justify-center text-center" : "justify-start text-left"}`}>
+                                                            <span className="truncate">{labels[colId]}</span>
+                                                            {!colsLocked && <div onMouseDown={(e) => startResize(colId, e)} className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-black/20 z-10" />}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {!s.collapsed && (
+                                    <div className="flex flex-col">
+                                        {(s.moduleImage || s.summaryDesc) && (
+                                            <div className="px-6 py-6 flex gap-8 border-b border-white/5 bg-gradient-to-b from-white/[0.01] to-transparent">
+                                                {s.moduleImage && (
+                                                    <div className="w-64 h-40 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex-shrink-0 group/modimg relative">
+                                                        <img src={s.moduleImage} className="w-full h-full object-cover group-hover/modimg:scale-105 transition-all duration-500" />
+                                                        {isAdmin && <button onClick={() => updateSection(s.id, { moduleImage: null })} className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover/modimg:opacity-100"><X size={12} /></button>}
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 space-y-4">
+                                                    {isAdmin ? (
+                                                        <textarea value={s.summaryDesc || ""} onChange={(e) => updateSection(s.id, { summaryDesc: e.target.value })} placeholder="Descripción del módulo..." className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs text-gray-400 font-medium outline-none focus:border-primary/30 h-32 resize-none" />
+                                                    ) : (
+                                                        s.summaryDesc && <p className="text-xs text-gray-400 font-medium leading-relaxed max-w-2xl">{s.summaryDesc}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div ref={el => tableContainerRefs.current[s.id] = el} onScroll={(e) => syncScroll(s.id, e)} className="overflow-x-auto custom-scrollbar overflow-y-visible">
+                                            <table className="table-fixed border-collapse" style={{ width: totalTableWidth, minWidth: totalTableWidth }}>
+                                                <colgroup>
+                                                    {visibleCols.map(colId => <col key={colId} style={{ width: colWidths[colId] || initialColWidths[colId] || 100 }} />)}
+                                                </colgroup>
+                                                <tbody style={{ fontSize: `${tableFontSize}px` }}>
+                                                    {s.items.map(it => {
+                                                        const r = calcItem(it);
+                                                        return (
+                                                            <tr key={it.id} className={`border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors ${!it.activo && 'opacity-30'}`}>
+                                                                {visibleCols.map(colId => {
+                                                                    const w = colWidths[colId] || initialColWidths[colId] || 100;
+                                                                    const cellStyle = { width: w, minWidth: w };
+
+                                                                    if (colId === 'item') return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
+                                                                            <div className="flex flex-col items-center gap-2">
+                                                                                <button onClick={() => updateItem(s.id, it.id, { activo: !it.activo })} className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${it.activo ? 'bg-primary border-primary text-black' : 'bg-transparent border-white/20 text-white/10'}`}>
+                                                                                    {it.activo && <Check size={14} strokeWidth={4} />}
+                                                                                </button>
+                                                                                {isAdmin ? <input value={it.codigo} onChange={(e) => updateItem(s.id, it.id, { codigo: e.target.value })} className="bg-transparent border-b border-white/5 text-[11px] font-mono text-gray-400 w-full text-center focus:border-primary/50 outline-none" /> : <span className="text-[11px] font-mono text-gray-400">{it.codigo}</span>}
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'equipo') return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
+                                                                            {isAdmin ? <textarea value={it.equipo} onChange={(e) => updateItem(s.id, it.id, { equipo: e.target.value })} className="bg-transparent text-sm font-black text-white w-full border-b border-white/5 outline-none focus:border-primary/50 resize-none overflow-hidden" rows={1} style={{ fieldSizing: "content" }} /> : <span className={`text-sm font-black text-white uppercase tracking-tight ${!it.activo ? 'line-through text-white/40' : ''}`}>{it.equipo}</span>}
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'descripcion') return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02] relative group/desc">
+                                                                            {isAdmin ? (
+                                                                                <div className="flex flex-col gap-2">
+                                                                                    <textarea value={it.descripcion} onChange={(e) => updateItem(s.id, it.id, { descripcion: e.target.value })} className="bg-transparent text-gray-500 w-full resize-none border-none outline-none focus:text-gray-300 transition-all" rows={1} style={{ fieldSizing: "content", textAlign: it.descAlign || "left", fontSize: `${it.descFontSize || tableFontSize}px` }} />
+                                                                                    <div className="flex items-center gap-1 opacity-0 group-hover/desc:opacity-100 transition-opacity bg-black/60 backdrop-blur-md p-1 rounded-lg border border-white/10 w-fit self-end">
+                                                                                        <button onClick={() => updateItem(s.id, it.id, { descAlign: "left" })} className={`p-1 rounded ${it.descAlign === "left" || !it.descAlign ? "text-primary" : "text-gray-500"}`}><AlignLeft size={10} /></button>
+                                                                                        <button onClick={() => updateItem(s.id, it.id, { descAlign: "center" })} className={`p-1 rounded ${it.descAlign === "center" ? "text-primary" : "text-gray-500"}`}><AlignCenter size={10} /></button>
+                                                                                        <button onClick={() => updateItem(s.id, it.id, { descAlign: "right" })} className={`p-1 rounded ${it.descAlign === "right" ? "text-primary" : "text-gray-500"}`}><AlignRight size={10} /></button>
+                                                                                        <button onClick={() => updateItem(s.id, it.id, { descAlign: "justify" })} className={`p-1 rounded ${it.descAlign === "justify" ? "text-primary" : "text-gray-500"}`}><AlignJustify size={10} /></button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <p className="text-gray-500 font-medium leading-relaxed" style={{ textAlign: it.descAlign || "left", fontSize: `${it.descFontSize || tableFontSize}px` }}>{it.descripcion}</p>
+                                                                            )}
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'media') return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
+                                                                            <div className="flex flex-col items-center justify-center gap-2 group/media relative">
+                                                                                {it.media_url ? (
+                                                                                    <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/10 group-hover:border-primary/50 cursor-pointer" onClick={() => setSelectedMedia({ url: it.media_url, type: it.media_type })}>
+                                                                                        {it.media_type === 'video' ? <video src={it.media_url} className="w-full h-full object-cover" /> : <img src={it.media_url} alt="" className="w-full h-full object-cover" />}
+                                                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/media:opacity-100"><Maximize2 size={16} className="text-white" /></div>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="flex items-center justify-center">{isAdmin ? <div className="flex gap-1"><label className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-500 hover:text-primary cursor-pointer">{uploadingId === it.id ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}<input type="file" className="hidden" accept="image/*" onChange={(e) => handleItemMediaUpload(s.id, it.id, e.target.files[0])} /></label></div> : <ImageIcon size={16} className="text-white/5" />}</div>
+                                                                                )}
+                                                                                {isAdmin && it.media_url && <button onClick={() => updateItem(s.id, it.id, { media_url: null, media_type: null })} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/media:opacity-100 scale-75 hover:scale-100"><X size={10} /></button>}
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'qty') return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
+                                                                            {isAdmin ? <input type="number" value={it.qty} onChange={(e) => updateItem(s.id, it.id, { qty: n(e.target.value) })} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs font-mono text-white w-full focus:border-primary/50 outline-none" /> : <span className="text-xs font-mono text-gray-300">{it.qty}</span>}
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'costo' && isAdmin) return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 text-right border-r border-white/[0.02]">
+                                                                            <input type="number" value={it.costoUSD} onChange={(e) => updateItem(s.id, it.id, { costoUSD: n(e.target.value) })} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs font-mono text-white w-full text-right focus:border-primary/50 outline-none" />
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'util' && isAdmin) return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 text-center border-r border-white/[0.02]">
+                                                                            <input type="number" value={it.utilidad} onChange={(e) => updateItem(s.id, it.id, { utilidad: n(e.target.value) })} className="bg-primary/5 border border-primary/20 rounded px-2 py-1 text-xs font-mono text-primary w-full text-center focus:border-primary/50 outline-none" />
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'unitario') return (
+                                                                        <td key={colId} style={cellStyle} className={`p-4 text-right text-xs font-mono border-r border-white/[0.02] ${!it.activo ? 'line-through text-gray-600' : 'text-gray-400'}`}>{money(r.ventaUnitFinal)}</td>
+                                                                    );
+                                                                    if (colId === 'total') return (
+                                                                        <td key={colId} style={cellStyle} className={`p-4 text-right text-sm font-black tracking-tight border-r border-white/[0.02] ${!it.activo ? 'line-through text-primary/30' : 'text-primary'}`}>
+                                                                            {isAdmin && isPriceEditMode ? (
+                                                                                <input type="number" defaultValue={r.totalVenta.toFixed(2)} onBlur={(e) => updateItemByTotalVenta(s.id, it.id, n(e.target.value))} className="bg-primary/10 border border-primary/30 rounded px-2 py-1 text-xs font-mono text-primary w-full text-right focus:border-primary/50 outline-none" />
+                                                                            ) : (money(r.totalVenta))}
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'action' && isAdmin) return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 text-center border-l border-white/[0.02]"><button onClick={() => removeItem(s.id, it.id)} className="text-red-500 opacity-20 hover:opacity-100 transition-opacity"><X size={14} /></button></td>
+                                                                    );
+                                                                    return null;
+                                                                })}
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                    {isAdmin && <tr><td colSpan={visibleCols.length} className="p-4"><button onClick={() => addItem(s.id)} className="w-full py-3 border border-dashed border-white/10 rounded-xl text-gray-500 hover:text-primary hover:border-primary transition-all text-xs font-bold uppercase tracking-widest">+ Agregar Fila</button></td></tr>}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr className="bg-white/[0.05] font-black border-t border-white/5">
+                                                        <td colSpan={visibleCols.length - 1} className="p-6 text-right text-[10px] text-gray-500 uppercase tracking-[0.2em]">Subtotal Módulo</td>
+                                                        <td className="p-6 text-right text-xl text-primary tracking-tighter border-l border-white/5">{money(sectionTotals.find(x => x.sectionId === s.id)?.totalVenta || 0)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Footer Totals */}
+                {isStandalone && (
+                    <>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-20 p-8 bg-zinc-950/40 border border-white/5 rounded-[2.5rem] backdrop-blur-xl group/footer relative overflow-hidden">
+                            <div className="space-y-6 flex flex-col justify-center">
+                                <div>
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-1 opacity-40">Resumen de Proyecto</span>
+                                    <div className="h-[2px] w-12 bg-primary/30 rounded-full" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 text-[11px] font-bold uppercase tracking-widest opacity-60">
+                                    <div>MXN s/IVA: <span className="text-white ml-2">{grandTotals.mxnSinIvaVenta.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></div>
+                                    <div>IVA {ivaPct}%: <span className="text-white ml-2">{grandTotals.ivaVenta.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></div>
+                                </div>
+                            </div>
+
+                            <div
+                                onMouseEnter={() => setIsFooterHovered(true)}
+                                onMouseLeave={() => setIsFooterHovered(false)}
+                                className={`p-8 rounded-[2.5rem] flex flex-col justify-center items-end relative overflow-hidden transition-all duration-700 cursor-default shadow-2xl ${isFooterHovered ? 'bg-primary scale-[1.02] shadow-primary/30' : 'bg-primary'}`}
+                            >
+                                <span className={`relative z-10 font-black uppercase tracking-[0.4em] transition-all duration-500 mb-2 ${isFooterHovered ? 'text-[14px] text-black' : 'text-[11px] opacity-70 text-black'}`}>Precio de Venta USD</span>
+                                <h2 className="relative z-10 text-6xl md:text-7xl font-black tracking-tighter text-black tabular-nums transition-transform duration-300">
+                                    {money(isFooterHovered ? animatedPriceVal : grandTotals.totalVenta)}
+                                </h2>
+                                <div className="relative z-10 mt-6 flex flex-col items-end gap-1 font-black uppercase tracking-widest text-black/80 text-[11px]">
+                                    ≈ {(grandTotals.mxnSinIvaVenta + grandTotals.ivaVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })} MXN <span className="text-[9px] opacity-60">(IVA Incluido)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer Brand */}
+                        <div className="mt-20 text-center opacity-30">
+                            <img src="/solimaq_logo.png" alt="Footer Logo" className="h-8 object-contain mx-auto grayscale brightness-200 mb-4" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.4em]">Solimaq Center · Industrial Planning Solutions · 2024</p>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* Overlays (Modals, Lightboxes, Video) */}
+            <AnimatePresence>
+                {selectedMedia && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.1, opacity: 0 }} className="relative max-w-7xl w-full h-full flex items-center justify-center">
+                            {selectedMedia.type === 'video' ? <video src={selectedMedia.url} controls autoPlay className="max-w-full max-h-full rounded-2xl" /> : <img src={selectedMedia.url} className="max-w-full max-h-full object-contain rounded-2xl" />}
+                            <button onClick={() => setSelectedMedia(null)} className="absolute top-4 right-4 p-4 rounded-full bg-white/10 text-white hover:bg-red-500 transition-all backdrop-blur-md"><X size={24} /></button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {isHeroVideoActive && (
+                <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center p-10">
+                    <video src={heroVideoUrl} autoPlay controls className="max-w-full max-h-full rounded-3xl" />
+                    <button onClick={() => setIsHeroVideoActive(false)} className="absolute top-10 right-10 p-4 bg-white/10 text-white rounded-full hover:bg-red-500 transition-all"><X size={32} /></button>
+                </div>
+            )}
+
+            {isParamsModalOpen && (
+                <Dialog open={isParamsModalOpen} onOpenChange={setIsParamsModalOpen}>
+                    <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 text-white">
+                        <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-widest text-primary">⚙️ Parámetros Globales</DialogTitle></DialogHeader>
+                        <div className="space-y-8 py-4">
+                            <div className="grid grid-cols-2 gap-8">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Horas/Día</label>
+                                    <input type="number" value={horasDia} onChange={e => setHorasDia(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo de Cambio</label>
+                                    <input type="number" value={tipoCambio} onChange={e => setTipoCambio(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
+                                </div>
+                            </div>
+                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Utilidad Global (%)</label><span className="text-primary font-black">{globalUtilVal}%</span></div>
+                                <Slider value={[globalUtilVal]} max={100} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
+                                <button onClick={applyGlobalUtilization} className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all">Aplicar Utilidad a Todo</button>
+                            </div>
+                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Importar Estructura (Excel)</label>
+                                <button onClick={() => fileInputRef.current.click()} className="w-full py-4 bg-primary/10 border border-primary/30 border-dashed rounded-xl flex items-center justify-center gap-3 text-primary font-black uppercase tracking-widest hover:bg-primary/20 transition-all text-[11px]">
+                                    <Upload size={18} /> {importedFileName || "Subir Archivo .xlsx"}
+                                </button>
+                                <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleImportExcel} />
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {targetAmountModalOpen && (
+                <Dialog open={targetAmountModalOpen} onOpenChange={setTargetAmountModalOpen}>
+                    <DialogContent className="max-w-md bg-zinc-950 border-white/10 text-white">
+                        <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Ajustar Monto de Venta</DialogTitle></DialogHeader>
+                        <div className="py-6 space-y-6">
+                            <p className="text-xs text-gray-400">Ingresa el monto total objetivo. El sistema redistribuirá las utilidades proporcionalmente.</p>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Monto Total USD</label>
+                                <input type="number" value={targetAmountValue} onChange={e => setTargetAmountValue(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-2xl font-black text-primary outline-none focus:bg-white/10 transition-all" />
+                            </div>
+                            <button onClick={applyTargetAmount} className="w-full py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all">Ejecutar Ajuste Especial</button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            <ExportTemplateEditor
+                isOpen={isTemplateEditorOpen}
+                onClose={() => setIsTemplateEditorOpen(false)}
+                sections={sections}
+                grandTotals={grandTotals}
+                clientName={clientName}
+                projectName={projectName}
+                money={money}
+                calcItem={calcItem}
+                initialSettings={pdfSettings}
+                onSave={handleSavePdfSettings}
+                logoUrl={logoUrl}
+            />
+
+            {showPasswordPrompt && (
+                <PasswordPrompt
+                    onCorrectPassword={(pw) => {
+                        setIsAdminAuthenticated(true);
+                        setIsAdmin(true);
+                        setShowPasswordPrompt(false);
+                    }}
+                    onCancel={() => setShowPasswordPrompt(false)}
+                />
+            )}
+        </div>
+    );
+}
+

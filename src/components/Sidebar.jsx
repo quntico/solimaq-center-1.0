@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronsLeft, ChevronsRight, Settings, Shield, LogOut, Edit, Calculator, Printer } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, Settings, Shield, LogOut, Edit, Calculator, Printer, Target } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -127,17 +127,17 @@ const Sidebar = ({
           animate={isCollapsed ? 'collapsed' : 'expanded'}
           variants={sidebarVariants}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="bg-black border-r border-gray-800 flex flex-col h-full text-white relative z-20"
+          className="bg-gradient-to-b from-white/10 to-black/60 backdrop-blur-3xl border-r border-white/20 flex flex-col h-full text-white relative z-20 shadow-[0_0_50px_rgba(0,0,0,0.8),inset_-1px_0_0_rgba(255,255,255,0.1)] ring-1 ring-white/10"
         >
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="p-4 flex items-center justify-between border-b border-gray-800">
-              {!isCollapsed && <span className="font-bold text-lg">{t('sidebar.menu')}</span>}
+            <div className="p-4 flex items-center justify-between border-b border-white/5">
+              {!isCollapsed && <span className="font-bold text-lg tracking-tight">{t('sidebar.menu')}</span>}
               <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1 rounded-full hover:bg-gray-800 transition-colors">
                 {isCollapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
               </button>
             </div>
 
-            <nav className="mt-4 pb-80">
+            <nav className="mt-4 pb-12">
               <Droppable droppableId="sections">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef}>
@@ -190,7 +190,7 @@ const Sidebar = ({
           </div>
 
           {isAdminView && (
-            <div className="p-4 border-t border-gray-800 space-y-2 bg-black absolute bottom-0 w-full z-30">
+            <div className="p-4 border-t border-white/5 space-y-2 bg-black/40 backdrop-blur-xl z-30">
               {isAdminAuthenticated && (
                 <>
                   <button
@@ -225,6 +225,19 @@ const Sidebar = ({
               </button>
             </div>
           )}
+
+          {/* Botón de Toggle Flotante (Flecha) */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-50 p-1.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white shadow-xl transition-all hover:scale-110 active:scale-90 group"
+            title={isCollapsed ? "Expandir menú" : "Contraer menú"}
+          >
+            {isCollapsed ? (
+              <ChevronsRight size={18} className="transition-transform group-hover:translate-x-0.5" />
+            ) : (
+              <ChevronsLeft size={18} className="transition-transform group-hover:-translate-x-0.5" />
+            )}
+          </button>
         </motion.div>
       </DragDropContext>
 

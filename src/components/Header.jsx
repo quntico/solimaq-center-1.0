@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Menu, Loader2 } from 'lucide-react';
+import { Search, Menu, Loader2, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -19,6 +19,7 @@ const Header = ({
   activeSection,
   onSectionSelect,
   onHomeClick,
+  onExportClick,
   isAdminAuthenticated,
   onAdminLogin,
   onAdminLogout,
@@ -111,11 +112,12 @@ const Header = ({
                 </div>
                 {/* Version LED Indicator */}
                 <div
-                  className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-full cursor-pointer transition-colors hover:bg-gray-800"
+                  className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/80 border border-gray-800 rounded-full cursor-default transition-colors hover:bg-gray-800"
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     if (onAdminLogin) onAdminLogin();
                   }}
+                  onClick={(e) => e.stopPropagation()}
                   title="Doble clic para modo admin"
                 >
                   <div className={cn(
@@ -123,7 +125,7 @@ const Header = ({
                     isLoadingData ? "bg-yellow-400 animate-spin" : "bg-green-500 animate-pulse"
                   )} />
                   <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
-                    {isLoadingData ? "SYNCING..." : "VER 3.30"}
+                    {isLoadingData ? "SYNCING..." : "VER 3.72"}
                   </span>
                   {isLoadingData && <Loader2 className="w-2.5 h-2.5 text-yellow-500 animate-spin ml-1" />}
                 </div>
@@ -143,6 +145,15 @@ const Header = ({
 
           {/* Right section: Language selector and Search button */}
           <div className="flex-1 flex items-center justify-end gap-1 sm:gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onExportClick}
+              className="text-primary hover:text-primary/80 hover:bg-primary/10 transition-all flex"
+              title="Exportables (PDF/Excel)"
+            >
+              <FileDown className="h-5 w-5" />
+            </Button>
             <div className="scale-90 sm:scale-100 origin-right">
               <LanguageSelector />
             </div>
@@ -165,7 +176,7 @@ const Header = ({
           isEditorMode={isEditorMode}
           isAdminView={isAdminView}
         />
-      </header>
+      </header >
 
       <MobileMenu
         isOpen={isMobileMenuOpen}

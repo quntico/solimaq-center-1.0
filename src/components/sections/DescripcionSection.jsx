@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { motion } from 'framer-motion';
-import { UploadCloud, Save, X, Loader2, AlignLeft, AlignJustify } from 'lucide-react';
+import { UploadCloud, Save, X, Loader2, AlignLeft, AlignCenter, AlignJustify } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver';
@@ -53,8 +53,20 @@ const EditableText = ({
     setIsEditing(false);
   };
 
+  const getAlignmentClass = (align) => {
+    switch (align) {
+      case 'center': return 'text-center';
+      case 'justify': return 'text-justify';
+      default: return 'text-left';
+    }
+  };
+
   const toggleAlign = () => {
-    setCurrentAlign(prev => prev === 'left' ? 'justify' : 'left');
+    setCurrentAlign(prev => {
+      if (prev === 'left') return 'center';
+      if (prev === 'center') return 'justify';
+      return 'left';
+    });
   };
 
   const handleCancel = () => {
@@ -66,7 +78,7 @@ const EditableText = ({
 
   if (!isEditorMode) {
     return <p
-      className={alignment === 'justify' ? 'text-justify' : 'text-left'}
+      className={getAlignmentClass(alignment)}
       dangerouslySetInnerHTML={{
         __html: formatTextForDisplay(applyFormatting(value))
       }}
@@ -79,19 +91,21 @@ const EditableText = ({
         ref={textareaRef}
         value={text}
         onChange={e => setText(e.target.value)}
-        className={`w-full bg-gray-800 border border-primary rounded-md p-2 text-white resize-none focus:outline-none ${currentAlign === 'justify' ? 'text-justify' : 'text-left'}`}
+        className={`w-full bg-gray-800 border border-primary rounded-md p-2 text-white resize-none focus:outline-none ${getAlignmentClass(currentAlign)}`}
         rows={4}
       />
       <div className="absolute top-2 right-2 flex gap-2">
-        <button onClick={toggleAlign} className="p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600" title="Alinear texto">
-          {currentAlign === 'justify' ? <AlignJustify size={16} /> : <AlignLeft size={16} />}
+        <button onClick={toggleAlign} className="p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600" title="Cambiar alineación">
+          {currentAlign === 'left' && <AlignLeft size={16} />}
+          {currentAlign === 'center' && <AlignCenter size={16} />}
+          {currentAlign === 'justify' && <AlignJustify size={16} />}
         </button>
         <button onClick={handleSave} className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600"><Save size={16} /></button>
         <button onClick={handleCancel} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600"><X size={16} /></button>
       </div>
     </div> : <p
       onClick={() => setIsEditing(true)}
-      className={`cursor-pointer p-2 border border-transparent group-hover:border-primary/50 rounded-md transition-all ${alignment === 'justify' ? 'text-justify' : 'text-left'}`}
+      className={`cursor-pointer p-2 border border-transparent group-hover:border-primary/50 rounded-md transition-all ${getAlignmentClass(alignment)}`}
       dangerouslySetInnerHTML={{
         __html: formatTextForDisplay(applyFormatting(value))
       }}
@@ -113,6 +127,10 @@ const DescripcionSection = ({
   const [isUploading, setIsUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+
+  const handleCloseImageModal = useCallback(() => {
+    setIsImageModalOpen(false);
+  }, []);
 
   const defaultContent = {
     p1: `La línea ${quotationData.project} es una solución de producción continua que integra cuatro áreas fundamentales: mezclado, formado, enfriamiento y empaquetado. Cada área ha sido diseñada para trabajar en sincronía perfecta, garantizando una producción fluida y eficiente de barras de cereal de alta calidad.`,
@@ -303,7 +321,7 @@ const DescripcionSection = ({
       src={content.image}
       alt={`Línea de producción ${quotationData.project}`}
       isOpen={isImageModalOpen}
-      onClose={() => setIsImageModalOpen(false)}
+      onClose={handleCloseImageModal}
     />
   </div>;
 };

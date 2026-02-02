@@ -63,6 +63,8 @@ const SidebarItem = ({
   // Prioritize saved label from DB/State first (so user rename works).
   // If no saved label, try translation.
   // Fallback to ID.
+  const translationKey = `sections.${section.id.split('_copy')[0]}`;
+  const translatedLabel = t(translationKey);
   const displayLabel = section.label || (translatedLabel !== translationKey ? translatedLabel : section.id);
 
   useEffect(() => {

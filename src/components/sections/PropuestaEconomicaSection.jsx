@@ -249,6 +249,7 @@ const ItemEditorPanel = ({ item, group, onUpdate, onDelete, currency }) => {
 const PropuestaEconomicaSection = ({
   sectionData = {},
   isEditorMode = false,
+  isAdminAuthenticated = false,
   onContentChange,
   quotationData
 }) => {
@@ -259,7 +260,7 @@ const PropuestaEconomicaSection = ({
   const [activeSelection, setActiveSelection] = useState({ type: 'general', id: 'general' });
   const [localAdminMode, setLocalAdminMode] = useState(false);
 
-  const isModeAdmin = isEditorMode || localAdminMode;
+  const isModeAdmin = isEditorMode || localAdminMode || isAdminAuthenticated;
 
   // Initialize state with defaults + props
   const [content, setContent] = useState(() => ({
@@ -761,6 +762,16 @@ const PropuestaEconomicaSection = ({
 
     return <div className="flex items-center justify-center h-full text-gray-500">Selecciona un elemento para editar</div>;
   };
+
+  useEffect(() => {
+    const handleGlobalExport = (e) => {
+      if (e.detail?.type === 'propuesta') {
+        generatePDF();
+      }
+    };
+    window.addEventListener('EXPORT_QUOTATION', handleGlobalExport);
+    return () => window.removeEventListener('EXPORT_QUOTATION', handleGlobalExport);
+  }, [content, quotationData]);
 
   return (
     <div className="w-full bg-black text-white min-h-screen p-6 sm:p-12 font-sans relative">

@@ -1,5 +1,6 @@
 import * as LucideIcons from 'lucide-react';
 import { customIcons } from '@/components/icons/CustomExtrusionIcons';
+import { normatividadIcons } from '@/components/icons/NormatividadIcons';
 
 // Combine Lucide icons and Custom icons
 export const iconMap = {
@@ -11,8 +12,25 @@ export const iconMap = {
       key[0] === key[0].toUpperCase()
     )
   ),
-  ...customIcons
+  ...customIcons,
+  ...normatividadIcons
 };
+
+export const normatividadSlugs = [
+  'ElectricalSafety',
+  'MachineSafety',
+  'MaterialHandling',
+  'HeightWork',
+  'PPESafety',
+  'ISO9001',
+  'ISO14001',
+  'CEMark',
+  'ULMark',
+  'IP65Protection',
+  'ShieldCheck',
+  'Lock',
+  'AlertTriangle'
+];
 
 const industrialKeywords = [
   'factory', 'industry', 'building', 'warehouse',

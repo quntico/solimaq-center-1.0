@@ -75,7 +75,7 @@ const AdminLayout = () => {
     };
 
     fetchAllData();
-  }, [t]);
+  }, []); // Only run once on mount
 
   if (appIsLoading) {
     return <LoadingScreen message={t('adminLayout.loadingConfig')} />;

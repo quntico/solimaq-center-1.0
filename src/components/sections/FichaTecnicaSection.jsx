@@ -56,7 +56,7 @@ const defaultContentSingle = {
   ],
 };
 
-const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onContentChange, activeTab: externalActiveTab }) => {
+const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdminAuthenticated, onContentChange, activeTab: externalActiveTab }) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState(0);
@@ -77,7 +77,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
   const [expandedFichas, setExpandedFichas] = useState({});
   const [localAdminMode, setLocalAdminMode] = useState(false);
 
-  const isModeAdmin = isEditorMode || localAdminMode;
+  const isModeAdmin = isEditorMode || localAdminMode || isAdminAuthenticated;
 
   const migratedContent = (() => {
     const originalContent = sectionData?.content;
@@ -102,6 +102,17 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, onConte
       // But for now, let's keep the initial load logic.
     }
   }, [sectionData]);
+
+  // Add EXPORT_QUOTATION listeners
+  useEffect(() => {
+    const handleGlobalExport = (e) => {
+      if (e.detail?.type === 'fichas') {
+        handleExportPDF();
+      }
+    };
+    window.addEventListener('EXPORT_QUOTATION', handleGlobalExport);
+    return () => window.removeEventListener('EXPORT_QUOTATION', handleGlobalExport);
+  }, [content, quotationData]);
 
   useEffect(() => {
     if (activeTab >= content.length) {

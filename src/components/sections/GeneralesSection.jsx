@@ -3,44 +3,85 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import SectionHeader from '@/components/SectionHeader';
-import { Edit, Save, X, Loader2, Zap, ArrowRight, ChevronsRight, Atom, Gauge, Box } from 'lucide-react';
+import { Edit, Save, X, Loader2, Zap, ArrowRight, ChevronsRight, Atom, Gauge, Box, AlignLeft, AlignCenter, AlignJustify } from 'lucide-react';
 import IconPicker from '@/components/IconPicker';
 import { iconMap } from '@/lib/iconMap';
 
-const EditableText = ({ value, onSave, isEditorMode, className = '', tag: Tag = 'p' }) => {
+const EditableText = ({ value, alignment = 'left', onSave, isEditorMode, className = '', tag: Tag = 'p' }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(value);
+  const [currentAlign, setCurrentAlign] = useState(alignment);
   const [isSaving, setIsSaving] = useState(false);
+
+  React.useEffect(() => {
+    setText(value);
+    setCurrentAlign(alignment);
+  }, [value, alignment]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    await onSave(text);
+    await onSave(text, currentAlign);
     setIsSaving(false);
     setIsEditing(false);
   };
 
+  const getAlignmentClass = (align) => {
+    switch (align) {
+      case 'center': return 'text-center';
+      case 'justify': return 'text-justify';
+      default: return 'text-left';
+    }
+  };
+
   if (!isEditorMode) {
-    return <Tag className={className}>{value}</Tag>;
+    return <Tag className={`${className} ${getAlignmentClass(alignment)}`}>{value}</Tag>;
   }
 
   return (
     <div className="relative group">
       {isEditing ? (
-        <div className="flex items-center gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="w-full bg-gray-900 border border-primary rounded-md p-2 text-white focus:outline-none"
-          />
-          <button onClick={handleSave} className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:bg-gray-500" disabled={isSaving}>
-            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          </button>
-          <button onClick={() => setIsEditing(false)} className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700">
-            <X size={14} />
-          </button>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-2 bg-gray-800 p-1 rounded-md w-fit">
+            <button
+              onClick={() => setCurrentAlign('left')}
+              className={`p-1 rounded ${currentAlign === 'left' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <AlignLeft size={14} />
+            </button>
+            <button
+              onClick={() => setCurrentAlign('center')}
+              className={`p-1 rounded ${currentAlign === 'center' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <AlignCenter size={14} />
+            </button>
+            <button
+              onClick={() => setCurrentAlign('justify')}
+              className={`p-1 rounded ${currentAlign === 'justify' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <AlignJustify size={14} />
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className={`w-full bg-gray-900 border border-primary rounded-md p-2 text-white focus:outline-none min-h-[60px] ${getAlignmentClass(currentAlign)}`}
+            />
+            <div className="flex flex-col gap-2">
+              <button onClick={handleSave} className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:bg-gray-500" disabled={isSaving}>
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              </button>
+              <button onClick={() => setIsEditing(false)} className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700">
+                <X size={14} />
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
-        <Tag onClick={() => setIsEditing(true)} className={`${className} cursor-pointer p-1 border border-transparent group-hover:border-primary/30 rounded-md transition-all relative`}>
+        <Tag
+          onClick={() => setIsEditing(true)}
+          className={`${className} ${getAlignmentClass(alignment)} cursor-pointer p-1 border border-transparent group-hover:border-primary/30 rounded-md transition-all relative whitespace-pre-wrap`}
+        >
           <Edit className="absolute top-1 right-1 w-3 h-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
           {value}
         </Tag>
@@ -111,15 +152,16 @@ const EditableList = ({ items, onSave, isEditorMode }) => {
 };
 
 
-const SpecCard = ({ iconName, title, value, onSave, onIconChange, isEditorMode }) => {
+const SpecCard = ({ iconName, title, titleAlignment, value, alignment, onSave, onIconChange, isEditorMode }) => {
   const Icon = iconMap[iconName] || iconMap['Zap'];
+  const isCentered = titleAlignment === 'center';
 
   return (
     <motion.div
       variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
-      className="bg-gray-900/50 p-6 rounded-xl border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300"
+      className="bg-gray-900/50 p-6 rounded-xl border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300 h-full flex flex-col"
     >
-      <div className="flex items-center gap-3 mb-2">
+      <div className={`flex ${isCentered ? 'flex-col items-center text-center' : 'items-center gap-3'} mb-4`}>
         <div className="relative">
           {isEditorMode ? (
             <IconPicker value={iconName} onChange={onIconChange} isEditorMode={isEditorMode}>
@@ -131,12 +173,22 @@ const SpecCard = ({ iconName, title, value, onSave, onIconChange, isEditorMode }
             <Icon className="w-6 h-6 text-primary" />
           )}
         </div>
-        <h3 className="text-lg font-bold text-primary">
-          <EditableText value={title} onSave={(v) => onSave('title', v)} isEditorMode={isEditorMode} tag="span" />
-        </h3>
+        <EditableText
+          tag="h3"
+          className={`text-lg font-bold text-primary ${isCentered ? 'mt-2' : ''}`}
+          value={title}
+          alignment={titleAlignment}
+          onSave={(v, a) => onSave('title', v, a)}
+          isEditorMode={isEditorMode}
+        />
       </div>
-      <div className="text-gray-400">
-        <EditableText value={value} onSave={(v) => onSave('value', v)} isEditorMode={isEditorMode} />
+      <div className="text-gray-400 mt-auto">
+        <EditableText
+          value={value}
+          alignment={alignment}
+          onSave={(v, a) => onSave('value', v, a)}
+          isEditorMode={isEditorMode}
+        />
       </div>
     </motion.div>
   );
@@ -191,15 +243,44 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
     toast({ title: 'Contenido guardado ☁️' });
   };
 
-  const handleSpecCardSave = (index, field, value) => {
+  const handleSaveWithAlign = (key, value, alignment) => {
+    const newContent = {
+      ...content,
+      [key]: value,
+      [`${key}_align`]: alignment
+    };
+    onContentChange(newContent);
+    toast({ title: 'Contenido guardado ☁️' });
+  };
+
+  const handleSaveNested = (parentKey, field, value, alignment) => {
+    const newContent = {
+      ...content,
+      [parentKey]: {
+        ...content[parentKey],
+        [field]: value,
+        [`${field}_align`]: alignment
+      }
+    };
+    onContentChange(newContent);
+    toast({ title: 'Contenido guardado ☁️' });
+  };
+
+  const handleSpecCardSave = (index, field, value, alignment) => {
     const newSpecs = [...content.specs];
     newSpecs[index][field] = value;
+    if (alignment) {
+      newSpecs[index][`${field}_align`] = alignment;
+    }
     handleSave('specs', newSpecs);
   };
 
-  const handleFeatureSave = (index, field, value) => {
+  const handleFeatureSave = (index, field, value, alignment) => {
     const newFeatures = [...content.features];
     newFeatures[index][field] = value;
+    if (alignment) {
+      newFeatures[index][`${field}_align`] = alignment;
+    }
     handleSave('features', newFeatures);
   };
 
@@ -224,7 +305,13 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
           transition={{ duration: 0.8 }}
         >
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            <EditableText value={content.specsTitle} onSave={(v) => handleSave('specsTitle', v)} isEditorMode={isEditorMode} tag="span" />
+            <EditableText
+              value={content.specsTitle}
+              alignment={content.specsTitle_align}
+              onSave={(v, a) => handleSaveWithAlign('specsTitle', v, a)}
+              isEditorMode={isEditorMode}
+              tag="span"
+            />
           </h2>
           <motion.div
             className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12"
@@ -241,21 +328,51 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
                 key={spec.id}
                 iconName={spec.icon}
                 title={spec.title}
+                titleAlignment={spec.title_align}
                 value={spec.value}
+                alignment={spec.value_align}
                 isEditorMode={isEditorMode}
-                onSave={(field, value) => handleSpecCardSave(index, field, value)}
+                onSave={(field, value, alignment) => handleSpecCardSave(index, field, value, alignment)}
                 onIconChange={(newIcon) => handleSpecCardSave(index, 'icon', newIcon)}
               />
             ))}
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-gray-400">
             <div className="bg-gray-900/50 p-6 rounded-lg border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300">
-              <h4 className="font-bold text-primary mb-2"><EditableText value={content.materiaPrima.title} onSave={(v) => handleSave('materiaPrima', { ...content.materiaPrima, title: v })} isEditorMode={isEditorMode} tag="span" /></h4>
-              <p><EditableText value={content.materiaPrima.value} onSave={(v) => handleSave('materiaPrima', { ...content.materiaPrima, value: v })} isEditorMode={isEditorMode} /></p>
+              <EditableText
+                tag="h4"
+                className="font-bold text-primary mb-2"
+                value={content.materiaPrima.title}
+                alignment={content.materiaPrima.title_align}
+                onSave={(v, a) => handleSaveNested('materiaPrima', 'title', v, a)}
+                isEditorMode={isEditorMode}
+              />
+              <p>
+                <EditableText
+                  value={content.materiaPrima.value}
+                  alignment={content.materiaPrima.value_align}
+                  onSave={(v, a) => handleSaveNested('materiaPrima', 'value', v, a)}
+                  isEditorMode={isEditorMode}
+                />
+              </p>
             </div>
             <div className="bg-gray-900/50 p-6 rounded-lg border border-primary/50 shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all duration-300">
-              <h4 className="font-bold text-primary mb-2"><EditableText value={content.specProducto.title} onSave={(v) => handleSave('specProducto', { ...content.specProducto, title: v })} isEditorMode={isEditorMode} tag="span" /></h4>
-              <p><EditableText value={content.specProducto.value} onSave={(v) => handleSave('specProducto', { ...content.specProducto, value: v })} isEditorMode={isEditorMode} /></p>
+              <EditableText
+                tag="h4"
+                className="font-bold text-primary mb-2"
+                value={content.specProducto.title}
+                alignment={content.specProducto.title_align}
+                onSave={(v, a) => handleSaveNested('specProducto', 'title', v, a)}
+                isEditorMode={isEditorMode}
+              />
+              <p>
+                <EditableText
+                  value={content.specProducto.value}
+                  alignment={content.specProducto.value_align}
+                  onSave={(v, a) => handleSaveNested('specProducto', 'value', v, a)}
+                  isEditorMode={isEditorMode}
+                />
+              </p>
             </div>
           </div>
         </motion.div>
@@ -269,11 +386,22 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
         >
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              <EditableText value={content.featuresTitle} onSave={(v) => handleSave('featuresTitle', v)} isEditorMode={isEditorMode} tag="span" />
+              <EditableText
+                value={content.featuresTitle}
+                alignment={content.featuresTitle_align}
+                onSave={(v, a) => handleSaveWithAlign('featuresTitle', v, a)}
+                isEditorMode={isEditorMode}
+                tag="span"
+              />
             </h2>
-            <p className="max-w-2xl mx-auto text-gray-400">
-              <EditableText value={content.featuresSubtitle} onSave={(v) => handleSave('featuresSubtitle', v)} isEditorMode={isEditorMode} />
-            </p>
+            <div className="max-w-2xl mx-auto text-gray-400">
+              <EditableText
+                value={content.featuresSubtitle}
+                alignment={content.featuresSubtitle_align}
+                onSave={(v, a) => handleSaveWithAlign('featuresSubtitle', v, a)}
+                isEditorMode={isEditorMode}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {content.features.map((feature, index) => (
@@ -287,7 +415,13 @@ const GeneralesSection = ({ sectionData, isEditorMode, onContentChange }) => {
               >
                 <h3 className="text-2xl font-bold text-primary mb-4">
                   <span className="text-primary">0{feature.id} - </span>
-                  <EditableText value={feature.title} onSave={(v) => handleFeatureSave(index, 'title', v)} isEditorMode={isEditorMode} tag="span" />
+                  <EditableText
+                    value={feature.title}
+                    alignment={feature.title_align}
+                    onSave={(v, a) => handleFeatureSave(index, 'title', v, a)}
+                    isEditorMode={isEditorMode}
+                    tag="span"
+                  />
                 </h3>
                 <div className="text-gray-300">
                   <EditableList items={feature.items} onSave={(v) => handleFeatureSave(index, 'items', v)} isEditorMode={isEditorMode} />

@@ -1,46 +1,85 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, Factory, Ship, Edit, Save, X, Loader2 } from 'lucide-react';
+import { DollarSign, Factory, Ship, Edit, Save, X, Loader2, AlignLeft, AlignCenter, AlignJustify } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import SectionHeader from '@/components/SectionHeader';
 import { Slider } from '@/components/ui/slider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 
-const EditableText = ({ value, onSave, isEditorMode, className = '', tag: Tag = 'p' }) => {
+const EditableText = ({ value, alignment = 'left', onSave, isEditorMode, className = '', tag: Tag = 'p' }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(value);
+  const [currentAlign, setCurrentAlign] = useState(alignment);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setText(value);
+    setCurrentAlign(alignment);
+  }, [value, alignment]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    await onSave(text);
+    await onSave(text, currentAlign);
     setIsSaving(false);
     setIsEditing(false);
   };
 
+  const getAlignmentClass = (align) => {
+    switch (align) {
+      case 'center': return 'text-center';
+      case 'justify': return 'text-justify';
+      default: return 'text-left';
+    }
+  };
+
   if (!isEditorMode) {
-    return <Tag className={className}>{value}</Tag>;
+    return <Tag className={`${className} ${getAlignmentClass(alignment)}`}>{value}</Tag>;
   }
 
   return (
     <div className="relative group">
       {isEditing ? (
-        <div className="flex items-center gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="w-full bg-gray-900 border border-primary rounded-md p-2 text-white focus:outline-none"
-          />
-          <button onClick={handleSave} className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:bg-gray-500" disabled={isSaving}>
-            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          </button>
-          <button onClick={() => setIsEditing(false)} className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700">
-            <X size={14} />
-          </button>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-2 bg-gray-800 p-1 rounded-md w-fit">
+            <button
+              onClick={() => setCurrentAlign('left')}
+              className={`p-1 rounded ${currentAlign === 'left' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <AlignLeft size={14} />
+            </button>
+            <button
+              onClick={() => setCurrentAlign('center')}
+              className={`p-1 rounded ${currentAlign === 'center' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <AlignCenter size={14} />
+            </button>
+            <button
+              onClick={() => setCurrentAlign('justify')}
+              className={`p-1 rounded ${currentAlign === 'justify' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <AlignJustify size={14} />
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className={`w-full bg-gray-900 border border-primary rounded-md p-2 text-white focus:outline-none ${getAlignmentClass(currentAlign)}`}
+            />
+            <button onClick={handleSave} className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:bg-gray-500" disabled={isSaving}>
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            </button>
+            <button onClick={() => setIsEditing(false)} className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700">
+              <X size={14} />
+            </button>
+          </div>
         </div>
       ) : (
-        <Tag onClick={() => setIsEditing(true)} className={`${className} cursor-pointer p-1 border border-transparent group-hover:border-primary/30 rounded-md transition-all relative`}>
+        <Tag
+          onClick={() => setIsEditing(true)}
+          className={`${className} ${getAlignmentClass(alignment)} cursor-pointer p-1 border border-transparent group-hover:border-primary/30 rounded-md transition-all relative`}
+        >
           <Edit className="absolute -top-1 -right-1 w-3 h-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
           {value}
         </Tag>
@@ -52,7 +91,7 @@ const EditableText = ({ value, onSave, isEditorMode, className = '', tag: Tag = 
 const PaymentCard = ({ term, isEditorMode, onUpdate, onSave }) => {
   const [localPercentage, setLocalPercentage] = useState(term.percentage);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  
+
   useEffect(() => {
     setLocalPercentage(term.percentage);
   }, [term.percentage]);
@@ -61,7 +100,7 @@ const PaymentCard = ({ term, isEditorMode, onUpdate, onSave }) => {
     setLocalPercentage(newPercentage[0]);
     onUpdate(term.id, newPercentage[0]);
   };
-  
+
   const handleSaveAll = () => {
     onSave();
     setPopoverOpen(false);
@@ -76,14 +115,19 @@ const PaymentCard = ({ term, isEditorMode, onUpdate, onSave }) => {
   return (
     <motion.div
       variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
-      className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800/80 flex flex-col items-center text-center"
+      className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800/80 flex flex-col items-center"
     >
       <div className="p-4 bg-primary/10 rounded-full mb-6">
         <Icon className="w-10 h-10 text-primary" />
       </div>
-      <h3 className="text-xl font-bold text-white mb-3">
-        <EditableText value={term.title} onSave={(v) => onSave({ ...term, title: v })} isEditorMode={isEditorMode} tag="span" />
-      </h3>
+      <EditableText
+        tag="h3"
+        className="text-xl font-bold text-white mb-3"
+        value={term.title}
+        alignment={term.title_align}
+        onSave={(v, a) => onSave({ ...term, title: v, title_align: a })}
+        isEditorMode={isEditorMode}
+      />
 
       {isEditorMode ? (
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -123,7 +167,12 @@ const PaymentCard = ({ term, isEditorMode, onUpdate, onSave }) => {
       )}
 
       <p className="text-gray-400 leading-relaxed">
-        <EditableText value={term.description} onSave={(v) => onSave({ ...term, description: v })} isEditorMode={isEditorMode} />
+        <EditableText
+          value={term.description}
+          alignment={term.description_align}
+          onSave={(v, a) => onSave({ ...term, description: v, description_align: a })}
+          isEditorMode={isEditorMode}
+        />
       </p>
     </motion.div>
   );
@@ -157,49 +206,49 @@ const CondicionesPagoSection = ({ sectionData, isEditorMode, onContentChange }) 
       let newTerms = JSON.parse(JSON.stringify(prevTerms));
       const oldPercentage = newTerms[updatedTermIndex].percentage;
       const diff = newPercentage - oldPercentage;
-  
+
       newTerms[updatedTermIndex].percentage = newPercentage;
       let remainingDiff = -diff;
-      
+
       let otherTerms = newTerms.filter(t => t.id !== updatedId);
-      
+
       while (Math.abs(remainingDiff) > 0.01) {
-          let totalAdjustable = otherTerms.reduce((sum, term) => {
-              if (remainingDiff > 0 && term.percentage < 100) return sum + (100 - term.percentage);
-              if (remainingDiff < 0 && term.percentage > 0) return sum + term.percentage;
-              return sum;
-          }, 0);
-          
-          if(totalAdjustable === 0) break;
-  
-          for (let i = 0; i < otherTerms.length; i++) {
-              let term = otherTerms[i];
-              let adjustment = 0;
-              if (remainingDiff > 0 && term.percentage < 100) {
-                  adjustment = Math.min(remainingDiff, remainingDiff * ((100 - term.percentage) / totalAdjustable));
-              } else if (remainingDiff < 0 && term.percentage > 0) {
-                  adjustment = Math.max(remainingDiff, remainingDiff * (term.percentage / totalAdjustable));
-              }
-              
-              const originalTermIndex = newTerms.findIndex(t => t.id === term.id);
-              newTerms[originalTermIndex].percentage += adjustment;
-              remainingDiff -= adjustment;
+        let totalAdjustable = otherTerms.reduce((sum, term) => {
+          if (remainingDiff > 0 && term.percentage < 100) return sum + (100 - term.percentage);
+          if (remainingDiff < 0 && term.percentage > 0) return sum + term.percentage;
+          return sum;
+        }, 0);
+
+        if (totalAdjustable === 0) break;
+
+        for (let i = 0; i < otherTerms.length; i++) {
+          let term = otherTerms[i];
+          let adjustment = 0;
+          if (remainingDiff > 0 && term.percentage < 100) {
+            adjustment = Math.min(remainingDiff, remainingDiff * ((100 - term.percentage) / totalAdjustable));
+          } else if (remainingDiff < 0 && term.percentage > 0) {
+            adjustment = Math.max(remainingDiff, remainingDiff * (term.percentage / totalAdjustable));
           }
+
+          const originalTermIndex = newTerms.findIndex(t => t.id === term.id);
+          newTerms[originalTermIndex].percentage += adjustment;
+          remainingDiff -= adjustment;
+        }
       }
-  
+
       newTerms.forEach(term => term.percentage = Math.round(term.percentage));
       let currentSum = newTerms.reduce((sum, t) => sum + t.percentage, 0);
       let sumDiff = 100 - currentSum;
-  
+
       if (sumDiff !== 0) {
-          let termToAdjust = newTerms.find(t => t.id !== updatedId && t.percentage + sumDiff >= 0 && t.percentage + sumDiff <= 100) || newTerms[updatedTermIndex];
-          termToAdjust.percentage += sumDiff;
+        let termToAdjust = newTerms.find(t => t.id !== updatedId && t.percentage + sumDiff >= 0 && t.percentage + sumDiff <= 100) || newTerms[updatedTermIndex];
+        termToAdjust.percentage += sumDiff;
       }
-  
+
       return newTerms;
     });
   };
-  
+
   const handleSave = (updatedTerm) => {
     let finalTerms;
     if (updatedTerm) {
@@ -210,9 +259,9 @@ const CondicionesPagoSection = ({ sectionData, isEditorMode, onContentChange }) 
     onContentChange({ ...content, terms: finalTerms });
     toast({ title: 'Condiciones de pago guardadas ☁️' });
   };
-  
-  const handleSubtitleSave = (newValue) => {
-    onContentChange({ ...content, subtitle: newValue });
+
+  const handleSubtitleSave = (newValue, newAlign) => {
+    onContentChange({ ...content, subtitle: newValue, subtitle_align: newAlign });
     toast({ title: 'Contenido guardado ☁️' });
   };
 
@@ -220,16 +269,15 @@ const CondicionesPagoSection = ({ sectionData, isEditorMode, onContentChange }) 
     <div className="py-16 sm:py-24 bg-black text-white">
       <div className="max-w-7xl mx-auto px-4">
         <SectionHeader sectionData={sectionData} />
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-center text-gray-400 max-w-xl mx-auto -mt-6 mb-16"
-        >
-          <EditableText value={content.subtitle} onSave={handleSubtitleSave} isEditorMode={isEditorMode} />
-        </motion.p>
-        
+        <div className="text-center text-gray-400 max-w-xl mx-auto -mt-6 mb-16">
+          <EditableText
+            value={content.subtitle}
+            alignment={content.subtitle_align}
+            onSave={handleSubtitleSave}
+            isEditorMode={isEditorMode}
+          />
+        </div>
+
         <motion.div
           className="grid grid-cols-1 md:grid-cols-3 gap-8"
           variants={{
@@ -241,10 +289,10 @@ const CondicionesPagoSection = ({ sectionData, isEditorMode, onContentChange }) 
           viewport={{ once: true, amount: 0.3 }}
         >
           {currentTerms.map((term, index) => (
-            <PaymentCard 
-              key={term.id} 
-              term={term} 
-              isEditorMode={isEditorMode} 
+            <PaymentCard
+              key={term.id}
+              term={term}
+              isEditorMode={isEditorMode}
               onUpdate={handleTermUpdate}
               onSave={handleSave}
             />

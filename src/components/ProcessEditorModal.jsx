@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2, Plus, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Trash2, Plus, ArrowUp, ArrowDown, Image as ImageIcon, Loader2, AlignJustify } from 'lucide-react';
 import IconPicker from '@/components/IconPicker';
 import { iconMap } from '@/lib/iconMap';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -104,9 +104,16 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
         }
     };
 
-    const handleSave = () => {
-        onSave(steps);
-        onClose();
+    const handleSave = async () => {
+        setIsUploading(true); // Reutilizamos el estado de carga para el botón guardar
+        try {
+            await onSave(steps);
+            onClose();
+        } catch (error) {
+            console.error("Error al guardar:", error);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -209,9 +216,19 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-center">
                                                 <Label>Detalles / Lista</Label>
-                                                <Button onClick={() => handleAddDetail(step.id)} size="sm" variant="outline" className="h-7 text-xs border-gray-700">
-                                                    <Plus className="w-3 h-3 mr-1" /> Agregar Detalle
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        onClick={() => handleUpdateStep(step.id, 'details_align', step.details_align === 'justify' ? 'left' : 'justify')}
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className={`h-7 text-[10px] border-gray-700 transition-colors ${step.details_align === 'justify' ? 'bg-primary/20 border-primary text-primary' : ''}`}
+                                                    >
+                                                        <AlignJustify className="w-3 h-3 mr-1" /> Justificar Masivamente
+                                                    </Button>
+                                                    <Button onClick={() => handleAddDetail(step.id)} size="sm" variant="outline" className="h-7 text-xs border-gray-700">
+                                                        <Plus className="w-3 h-3 mr-1" /> Agregar Detalle
+                                                    </Button>
+                                                </div>
                                             </div>
                                             <div className="space-y-2">
                                                 {step.details.map((detail, idx) => (
@@ -293,8 +310,9 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
                     <Button variant="outline" onClick={onClose} className="border-gray-700 hover:bg-gray-800 text-white">
                         Cancelar
                     </Button>
-                    <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-white">
-                        Guardar Cambios
+                    <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-white" disabled={isUploading}>
+                        {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        {isUploading ? 'Guardando...' : 'Guardar Cambios'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

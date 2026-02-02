@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
-import { Layers, Edit, Settings } from 'lucide-react';
+import { Layers, Edit, Settings, AlignLeft, AlignCenter, AlignJustify } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import SectionHeader from '@/components/SectionHeader';
 import { iconMap } from '@/lib/iconMap';
@@ -62,8 +62,13 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
   const content = { ...defaultContent, ...sectionData.content };
   const steps = content.steps || defaultContent.steps;
 
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProfileImage, setSelectedProfileImage] = useState(null);
+
+  const handleCloseModal = useCallback(() => {
+    setSelectedProfileImage(null);
+  }, []);
   const timelineRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: timelineRef,
@@ -78,6 +83,13 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
   const handleModalSave = (newSteps) => {
     onContentChange({ ...content, steps: newSteps });
     toast({ title: 'Flujo actualizado', description: 'Los cambios se han guardado correctamente.' });
+  };
+
+  const handleAlignChange = (stepId, newAlign) => {
+    const newSteps = steps.map(s =>
+      s.id === stepId ? { ...s, details_align: newAlign } : s
+    );
+    onContentChange({ ...content, steps: newSteps });
   };
 
   return (
@@ -123,7 +135,11 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                   >
                     {isLeft ? (
                       <div className="bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm text-right shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)] w-full">
-                        <TimelineCardContent step={step} />
+                        <TimelineCardContent
+                          step={step}
+                          isEditorMode={isEditorMode}
+                          onAlignChange={(align) => handleAlignChange(step.id, align)}
+                        />
                       </div>
                     ) : (
                       step.image && (
@@ -167,7 +183,11 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                   >
                     {!isLeft ? (
                       <div className="bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm shadow-[0_0_15px_hsl(var(--primary)/0.15)] hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)] w-full">
-                        <TimelineCardContent step={step} />
+                        <TimelineCardContent
+                          step={step}
+                          isEditorMode={isEditorMode}
+                          onAlignChange={(align) => handleAlignChange(step.id, align)}
+                        />
                       </div>
                     ) : (
                       <div className="w-full">
@@ -187,7 +207,11 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
                         )}
                         {/* Mobile view only card if Left */}
                         <div className="sm:hidden bg-gray-900/50 p-6 rounded-xl border border-primary/40 backdrop-blur-sm shadow-[0_0_15px_hsl(var(--primary)/0.15)] w-full">
-                          <TimelineCardContent step={step} />
+                          <TimelineCardContent
+                            step={step}
+                            isEditorMode={isEditorMode}
+                            onAlignChange={(align) => handleAlignChange(step.id, align)}
+                          />
                         </div>
                       </div>
                     )}
@@ -210,26 +234,62 @@ const ProcesoSection = ({ sectionData, isEditorMode, onContentChange }) => {
         src={selectedProfileImage?.src}
         alt={selectedProfileImage?.title}
         isOpen={!!selectedProfileImage}
-        onClose={() => setSelectedProfileImage(null)}
+        onClose={handleCloseModal}
       />
     </div >
   );
 };
 
-const TimelineCardContent = ({ step }) => (
-  <>
-    <h3 className="text-base font-bold text-white mb-2 sm:text-lg">
-      {step.title}
-    </h3>
-    <ul className="space-y-1.5 text-gray-400 text-sm flex flex-col">
-      {step.details.map((detail, detailIndex) => (
-        <li key={detailIndex} className="flex items-center gap-2 justify-end sm:justify-inherit">
-          {/* Simple rendering, details handled in modal */}
-          <span>{detail}</span>
-        </li>
-      ))}
-    </ul>
-  </>
-);
+const TimelineCardContent = ({ step, isEditorMode, onAlignChange }) => {
+  const alignmentClass = {
+    left: 'text-left items-start',
+    center: 'text-center items-center',
+    justify: 'text-justify items-stretch',
+  }[step.details_align || 'left'];
+
+  return (
+    <div className="relative group/card">
+      <h3 className={`text-base font-bold text-white mb-2 sm:text-lg ${step.details_align === 'center' ? 'text-center' : step.details_align === 'justify' ? 'text-justify' : ''}`}>
+        {step.title}
+      </h3>
+      <ul className={`space-y-1.5 text-gray-400 text-sm flex flex-col ${alignmentClass}`}>
+        {step.details.map((detail, detailIndex) => (
+          <li key={detailIndex} className="flex items-center gap-2">
+            <span>{detail}</span>
+          </li>
+        ))}
+      </ul>
+
+      {isEditorMode && (
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/80 backdrop-blur-md border border-white/10 p-1 rounded-lg opacity-0 group-hover/card:opacity-100 transition-all duration-300 z-30 shadow-2xl scale-90 group-hover/card:scale-100">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onAlignChange('left')}
+            className={`w-8 h-8 ${step.details_align === 'left' || !step.details_align ? 'text-primary bg-primary/10' : 'text-gray-400'}`}
+          >
+            <AlignLeft className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onAlignChange('center')}
+            className={`w-8 h-8 ${step.details_align === 'center' ? 'text-primary bg-primary/10' : 'text-gray-400'}`}
+          >
+            <AlignCenter className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onAlignChange('justify')}
+            className={`w-8 h-8 ${step.details_align === 'justify' ? 'text-primary bg-primary/10' : 'text-gray-400'}`}
+          >
+            <AlignJustify className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default ProcesoSection;
