@@ -874,12 +874,32 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             }
 
             doc.save(`SOLIMAQ_MASTERPLAN_${projectName.replace(/\s+/g, '_')}.pdf`);
+            toast({ title: "PDF Generado Correctamente" });
         };
 
-        if (logoImg.complete) start();
-        else {
-            logoImg.onload = start;
-            logoImg.onerror = () => start();
+        // IMAGE LOADING WITH TIMEOUT
+        let isStarted = false;
+        const safeStart = () => {
+            if (isStarted) return;
+            isStarted = true;
+            start();
+        };
+
+        if (logoUrl) {
+            logoImg.onload = safeStart;
+            logoImg.onerror = () => {
+                console.warn("Logo failed to load for PDF, generating without it.");
+                safeStart();
+            };
+            // Failsafe timeout: 2 seconds
+            setTimeout(() => {
+                if (!isStarted) {
+                    console.warn("Logo load timed out, forcing PDF generation.");
+                    safeStart();
+                }
+            }, 2000);
+        } else {
+            safeStart();
         }
     };
 
@@ -951,7 +971,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.35</span>
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.36</span>
                                 </h1>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}
