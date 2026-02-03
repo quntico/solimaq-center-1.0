@@ -315,8 +315,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         const cost = n(it.costoUSD);
         const util = n(it.utilidad);
         const quantity = n(it.qty);
-        const margin = util / 100;
-        const ventaUnit = margin >= 1 ? cost : cost / (1 - margin);
+        // INDUSTRIAL MARKUP: Price = Cost * (1 + Util/100)
+        // 100% util means doubling the cost
+        const ventaUnit = cost * (1 + (util / 100));
         return {
             ventaUnitFinal: ventaUnit,
             totalVenta: ventaUnit * quantity
@@ -345,7 +346,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const toggleAllSections = (val) => setSections(prev => prev.map(s => ({ ...s, collapsed: val })));
 
     const addSection = () => {
-        const newSec = { id: `sec_${uid()}`, collapsed: false, titulo: "NUEVO MÓDULO", tag: "BORRADOR", items: [{ id: uid(), activo: true, codigo: "1.1", equipo: "NUEVO EQUIPO", descripcion: "", qty: 1, costoUSD: 0, utilidad: 10 }] };
+        const newSec = { id: `sec_${uid()}`, collapsed: false, titulo: "NUEVO MÓDULO", tag: "BORRADOR", items: [{ id: uid(), activo: true, codigo: "1.1", equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: 10 }] };
         setSections([...sections, newSec]);
     };
 
@@ -363,7 +364,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         const qty = n(it.qty) || 1;
         const targetVentaUnit = targetTotal / qty;
         const cost = n(it.costoUSD);
-        let newUtil = cost === 0 ? 0 : (1 - (cost / targetVentaUnit)) * 100;
+        // Inverse of Markup: (Price / Cost - 1) * 100
+        let newUtil = cost === 0 ? 0 : ((targetVentaUnit / cost) - 1) * 100;
         updateItem(sId, iId, { utilidad: newUtil });
     };
 
@@ -375,7 +377,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const parts = lastCode.split(".");
             nextCode = `${parts[0]}.${n(parts[1]) + 1}`;
         }
-        updateSection(sId, { items: [...s.items, { id: uid(), activo: true, codigo: nextCode, equipo: "NUEVO EQUIPO", descripcion: "", qty: 1, costoUSD: 0, utilidad: globalUtilVal }] });
+        updateSection(sId, { items: [...s.items, { id: uid(), activo: true, codigo: nextCode, equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: globalUtilVal }] });
     };
 
     const removeItem = (sId, iId) => {
@@ -410,7 +412,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 const r = calcItem(it);
                 const targetVentaUnit = r.ventaUnitFinal * factor;
                 const cost = n(it.costoUSD);
-                let newUtil = cost === 0 ? 0 : (1 - (cost / targetVentaUnit)) * 100;
+                // Inverse of Markup for Target Amount
+                let newUtil = cost === 0 ? 0 : ((targetVentaUnit / cost) - 1) * 100;
                 return { ...it, utilidad: newUtil };
             })
         })));
@@ -515,30 +518,36 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
             const newSections = [];
             let currentSec = null;
+            let lastModuleName = "";
 
             data.forEach((row, idx) => {
-                if (row.MODULO || row.Modulo || row.Módulo) {
-                    const title = row.MODULO || row.Modulo || row.Módulo;
+                const moduloName = String(row.NOMBRE || row.MODULO || row.Modulo || row.Módulo || "").trim();
+                const faseTag = String(row.FASE || row.TAG || row.Tag || "IMPORTADO").trim();
+
+                // Si detectamos un cambio de nombre de módulo (y no es una fila vacía de equipo)
+                if (moduloName && moduloName !== lastModuleName) {
                     currentSec = {
                         id: `sec_${uid()}`,
                         collapsed: false,
-                        titulo: cleanTitle(title),
-                        tag: row.TAG || row.Tag || "IMPORTADO",
+                        titulo: cleanTitle(moduloName),
+                        tag: faseTag,
                         items: []
                     };
                     newSections.push(currentSec);
+                    lastModuleName = moduloName;
                 }
 
                 if (currentSec && (row.EQUIPO || row.Equipo)) {
                     currentSec.items.push({
                         id: uid(),
                         activo: true,
-                        codigo: String(row.ITEM || row.Item || row.CÓDIGO || row.Código || ""),
+                        codigo: String(row.NUM || row.ITEM || row.Item || row.CÓDIGO || row.Código || ""),
                         equipo: String(row.EQUIPO || row.Equipo || ""),
                         descripcion: String(row.DESCRIPCION || row.Descripción || row.DESCRIPCIÓN || ""),
+                        potencia: n(row["Potencia (kW)"] || row.POTENCIA || row.Potencia || 0),
                         qty: n(row.QTY || row.Qty || row.CANTIDAD || row.Cantidad || 1),
-                        costoUSD: n(row.COSTO || row.Costo || 0),
-                        utilidad: n(row.UTIL || row.Util || globalUtilVal),
+                        costoUSD: n(row.COSTO || row.Costo || row.COSTOS || 0),
+                        utilidad: n(row.UTIL || row.Util || row.UTILIDAD || globalUtilVal),
                         media_url: row.MEDIA || row.Media || null,
                         media_type: 'image'
                     });
@@ -556,21 +565,19 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const handleExportExcel = () => {
         const data = [];
         sections.forEach(s => {
-            data.push({ MODULO: s.titulo, TAG: s.tag });
             s.items.forEach(it => {
                 const r = calcItem(it);
                 data.push({
-                    ITEM: it.codigo,
+                    NUM: it.codigo,
+                    FASE: s.tag,
+                    NOMBRE: s.titulo,
                     EQUIPO: it.equipo,
-                    DESCRIPCION: it.descripcion,
-                    QTY: it.qty,
-                    COSTO: it.costoUSD,
-                    UTIL: it.utilidad,
-                    UNITARIO: r.ventaUnitFinal,
-                    TOTAL: r.totalVenta
+                    "Potencia (kW)": it.potencia || 0,
+                    COSTOS: it.costoUSD,
+                    UTILIDAD: it.utilidad,
+                    SUBTOTAL: r.totalVenta
                 });
             });
-            data.push({});
         });
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
@@ -604,12 +611,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const items = data.map(row => ({
                 id: uid(),
                 activo: true,
-                codigo: String(row.ITEM || row.Item || ""),
+                codigo: String(row.NUM || row.ITEM || row.Item || ""),
                 equipo: String(row.EQUIPO || row.Equipo || ""),
                 descripcion: String(row.DESCRIPCION || row.Descripción || ""),
+                potencia: n(row["Potencia (kW)"] || row.POTENCIA || row.Potencia || 0),
                 qty: n(row.QTY || row.Qty || 1),
-                costoUSD: n(row.COSTO || row.Costo || 0),
-                utilidad: n(row.UTIL || row.Util || globalUtilVal)
+                costoUSD: n(row.COSTO || row.Costo || row.COSTOS || 0),
+                utilidad: n(row.UTIL || row.Util || row.UTILIDAD || globalUtilVal)
             }));
             updateSection(sId, { items });
             toast({ title: "Módulo Actualizado" });
@@ -1111,11 +1119,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                     {sections.map((s, sIdx) => {
                         const visibleCols = isAdmin
-                            ? ['item', 'equipo', 'descripcion', 'media', 'qty', 'costo', 'util', 'unitario', 'total', 'action']
-                            : ['item', 'equipo', 'descripcion', 'media', 'qty', 'unitario', 'total'];
+                            ? ['item', 'equipo', 'potencia', 'descripcion', 'media', 'qty', 'costo', 'util', 'unitario', 'total', 'action']
+                            : ['item', 'equipo', 'potencia', 'descripcion', 'media', 'qty', 'unitario', 'total'];
 
                         const initialColWidths = {
-                            item: 80, equipo: 400, descripcion: 600, media: 120, qty: 80,
+                            item: 80, equipo: 350, potencia: 100, descripcion: 550, media: 120, qty: 80,
                             costo: 120, util: 80, unitario: 120, total: 150, action: 80
                         };
 
@@ -1179,8 +1187,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         <div ref={el => virtualHeaderRefs.current[s.id] = el} className="overflow-hidden bg-primary border-t border-black/10">
                                             <div style={{ width: totalTableWidth, minWidth: totalTableWidth }} className="flex h-10">
                                                 {visibleCols.map(colId => {
-                                                    const labels = { item: "Item", equipo: "Equipo", descripcion: "Descripción", media: "MEDIA", qty: "Qty", costo: "Costo", util: "Util %", unitario: "Unit USD", total: "Total USD", action: "Acc" };
-                                                    const aligns = { media: "center", costo: "right", util: "center", unitario: "right", total: "right", action: "center" };
+                                                    const labels = { item: "Item", equipo: "Equipo", potencia: "KW", descripcion: "Descripción", media: "MEDIA", qty: "Qty", costo: "Costo", util: "Util %", unitario: "Unit USD", total: "Total USD", action: "Acc" };
+                                                    const aligns = { media: "center", potencia: "center", costo: "right", util: "center", unitario: "right", total: "right", action: "center" };
                                                     const w = colWidths[colId] || initialColWidths[colId] || 100;
                                                     return (
                                                         <div key={colId} style={{ width: w, minWidth: w }} className={`flex-shrink-0 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-black border-r border-black/10 relative group/cell ${aligns[colId] === "right" ? "justify-end text-right" : aligns[colId] === "center" ? "justify-center text-center" : "justify-start text-left"}`}>
@@ -1241,6 +1249,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                     if (colId === 'equipo') return (
                                                                         <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
                                                                             {isAdmin ? <textarea value={it.equipo} onChange={(e) => updateItem(s.id, it.id, { equipo: e.target.value })} className="bg-transparent text-sm font-black text-white w-full border-b border-white/5 outline-none focus:border-primary/50 resize-none overflow-hidden" rows={1} style={{ fieldSizing: "content" }} /> : <span className={`text-sm font-black text-white uppercase tracking-tight ${!it.activo ? 'line-through text-white/40' : ''}`}>{it.equipo}</span>}
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'potencia') return (
+                                                                        <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
+                                                                            {isAdmin ? (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <input type="number" step="0.1" value={it.potencia || 0} onChange={(e) => updateItem(s.id, it.id, { potencia: n(e.target.value) })} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs font-mono text-primary w-full text-center focus:border-primary/50 outline-none" />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="text-center"><span className="text-xs font-mono text-primary">{it.potencia || 0}</span></div>
+                                                                            )}
                                                                         </td>
                                                                     );
                                                                     if (colId === 'descripcion') return (

@@ -1,0 +1,665 @@
+[
+  {
+    "id": "8ad997f9-7199-4dae-a523-45e700f13f5d",
+    "theme_key": "SMQ_conagua_miramar-600",
+    "company": "CONAGUA",
+    "project": "MIRAMAR 600",
+    "client": "ING. MOISES LÓPEZ",
+    "title": "PLANTA RSM 600",
+    "subtitle": "PROYECTO MIRAMAR",
+    "description": "Soluciones avanzadas para la optimización de procesos industriales con tecnología de punta.",
+    "logo": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/logos/smq_genesis-villegas_fyffes-logo-1768444292145.png",
+    "pdf_url": "",
+    "logo_size": 160,
+    "created_at": "2026-01-31T21:42:15.284+00:00",
+    "updated_at": "2026-02-02T04:06:23.94709+00:00",
+    "banner_scale": 50,
+    "idle_timeout": 5,
+    "initial_display_time": 10,
+    "phase1_duration": 5,
+    "phase2_duration": 115,
+    "phase3_duration": 30,
+    "phase1_name": "Confirmación y Orden",
+    "phase2_name": "Tiempo de Fabricación",
+    "phase3_name": "Transporte",
+    "phase4_name": "Instalación y Puesta en Marcha",
+    "sections_config": [
+      {
+        "id": "portada",
+        "icon": "Home",
+        "label": "Home",
+        "content": {},
+        "isLocked": true,
+        "component": "portada",
+        "isVisible": true
+      },
+      {
+        "id": "descripcion",
+        "icon": {},
+        "label": "Descripción",
+        "content": {
+          "p1": "El proyecto MIRAMAR 600 representa una solución integral de infraestructura pública para la gestión moderna de residuos sólidos urbanos, diseñada para operar a escala industrial con altos estándares técnicos, operativos y normativos. La planta está concebida para procesar grandes volúmenes de RSU de forma continua, incorporando sistemas de separación mecánica y automatizada que permiten una clasificación eficiente, segura y trazable de los materiales. Su capacidad instalada habilita la recuperación sistemática de fracciones valorizables, la producción de combustible derivado de residuos y la reducción sustancial del volumen destinado a disposición final. MIRAMAR 600 se posiciona como un activo estratégico para el fortalecimiento de la economía circular, la protección ambiental y la resiliencia del sistema público de manejo de residuos, estableciendo una plataforma robusta para futuras ampliaciones tecnológicas.\n\n\nCAPACIDAD DIARIA  600 TONELADAS / DÍA.",
+          "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/sections/descripcion/smq_conagua_miramar-600-1769896829057-PORTADA%20RSM%20600.jpg",
+          "p1_align": "justify"
+        },
+        "component": "descripcion",
+        "isVisible": true
+      },
+      {
+        "id": "generales",
+        "icon": "ClipboardList",
+        "label": "Generales",
+        "content": {
+          "specs": [
+            {
+              "id": "capacidad",
+              "icon": "Zap",
+              "title": "Capacidad  de Producción",
+              "value": "600 Toneladas por día.",
+              "title_align": "center",
+              "value_align": "center"
+            },
+            {
+              "id": "velocidad",
+              "icon": "ArrowRight",
+              "title": "Tipo de Instalación",
+              "value": "Planta de selección y clasificación de RSU\nInfraestructura pública para gestión integral de residuos.",
+              "title_align": "center",
+              "value_align": "justify"
+            },
+            {
+              "id": "altura",
+              "icon": "Activity",
+              "title": "Sistema de Control y Automatización",
+              "value": "PLC industrial\nControl centralizado de operación, seguridad y monitoreo de procesos.",
+              "title_align": "center",
+              "value_align": "center"
+            }
+          ],
+          "features": [
+            {
+              "id": 1,
+              "items": [
+                "Planta diseñada para procesar hasta 600 toneladas por día de residuos sólidos urbanos.",
+                "Operación continua y estable, compatible con esquemas industriales 24/7.",
+                "Capacidad dimensionada para absorber variaciones en el flujo de entrada.",
+                "Diseño orientado a alta disponibilidad operativa y continuidad del servicio públic"
+              ],
+              "title": "Capacidad y Operación Industrial Continua",
+              "title_align": "left"
+            },
+            {
+              "id": 2,
+              "items": [
+                "Separación mecánica y automatizada de fracciones orgánicas, inorgánicas y reciclables.",
+                "Recuperación sistemática de materiales valorizables y producción de CDR.",
+                "Reducción significativa del volumen destinado a disposición final.",
+                "Enfoque alineado con principios de economía circular."
+              ],
+              "title": "Clasificación Eficiente y Valorización de Residuos.",
+              "title_align": "left"
+            },
+            {
+              "id": 3,
+              "items": [
+                "Sistema de control centralizado mediante PLC industrial.",
+                "Equipos con protecciones físicas, paros de emergencia y señalización normativa.",
+                "Menor intervención manual en puntos críticos del proceso.",
+                "Operación confiable y trazable conforme a Normas Oficiales Mexicanas."
+              ],
+              "title": "Seguridad, Control y Confiabilidad Operativa.",
+              "title_align": "justify"
+            },
+            {
+              "id": 4,
+              "items": [
+                "Diseño alineado con LGPGIR y NOM-STPS aplicables.",
+                "Instalaciones eléctricas conforme a NOM-001-SEDE.",
+                "Referencias a estándares internacionales (ISO, IEC) como buenas prácticas.",
+                "Proyecto concebido para evaluación, auditoría y operación institucional."
+              ],
+              "title": "Cumplimiento Normativo y Enfoque Institucional.",
+              "title_align": "justify"
+            }
+          ],
+          "specsTitle": "GENERALES DE LA PLANTA",
+          "materiaPrima": {
+            "title": "Tecnología de Separación",
+            "value": "Mecánica y automatizada\nIncluye cribado, separación balística, magnética, inductiva y óptica.",
+            "title_align": "center",
+            "value_align": "center"
+          },
+          "specProducto": {
+            "title": "Materiales  a Procesar",
+            "value": "Residuos sólidos urbanos mixtos\nFracciones orgánicas, inorgánicas, reciclables y combustible derivado de residuos (CDR)",
+            "title_align": "center",
+            "value_align": "center"
+          },
+          "featuresTitle": "Características Clave",
+          "featuresSubtitle": "Descubre los componentes esenciales que hacen de nuestra línea la mejor opción para tu producción.",
+          "featuresSubtitle_align": "justify"
+        },
+        "component": "generales",
+        "isVisible": true
+      },
+      {
+        "id": "proceso",
+        "icon": "Command",
+        "label": "Flujo del proceso",
+        "content": {
+          "steps": [
+            {
+              "id": "extrusion",
+              "icon": "Check",
+              "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/proceso/1769903889065-ChatGPT_Image_31_ene_2026,_17_57_22.png",
+              "title": "01 - Recepción y Alimentación Controlada.",
+              "details": [
+                "- Descarga de RSU en área de recepción diseñada para operación continua.",
+                "- Acopio temporal con control visual y operativo del material entrante.",
+                "- Alimentación mecánica mediante equipos dosificadores hacia la línea.",
+                "-  Regulación de flujo para evitar sobrecargas y asegurar estabilidad del proceso."
+              ],
+              "details_align": "justify"
+            },
+            {
+              "id": "formado",
+              "icon": "Cog",
+              "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/proceso/1769904371880-ETAPA_2.png",
+              "title": "02 - Pretratamiento y Preparación del Material.",
+              "details": [
+                "- Apertura de bolsas para liberar el contenido del residuo.",
+                "- Homogeneización inicial del material antes de la clasificación.",
+                "- Eliminación de interferencias que afecten equipos posteriores.",
+                "- Preparación del RSU para una separación mecánica eficiente."
+              ],
+              "details_align": "left"
+            },
+            {
+              "id": "corte",
+              "icon": "Screw",
+              "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/proceso/1769906463600-ETAPA_3_RSM600.png",
+              "title": "03 -Separación Mecánica Primaria",
+              "details": [
+                "- Clasificación por tamaño mediante sistemas de cribado (trómel).",
+                "- Separación por forma y densidad con equipos balísticos.",
+                "- División del flujo en fracciones orgánicas, 2D y 3D.",
+                "- Optimización del material para procesos automatizados posteriores."
+              ],
+              "details_align": "left"
+            },
+            {
+              "id": "apilado",
+              "icon": "RefreshCcw",
+              "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/proceso/1769906625455-ETAPA_4_RSM_600.png",
+              "title": "04 - Clasificación Automatizada de Materiales.",
+              "details": [
+                "- Recuperación de metales ferrosos mediante separación magnética.",
+                "- Separación de metales no ferrosos por sistemas inductivos.",
+                "- Identificación y separación de reciclables con ópticos.",
+                "- Incremento en pureza y calidad de los materiales recuperados."
+              ],
+              "details_align": "justify"
+            },
+            {
+              "id": "step-1766433336387",
+              "icon": "CheckCircle",
+              "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/proceso/1769906895956-ETAPA_5.png",
+              "title": "05 - Acondicionamiento y Valorización",
+              "details": [
+                "- Compactación y embalaje de materiales reciclables recuperados.",
+                "- Preparación de fracciones para producción de CDR.",
+                "-  Reducción de volumen para optimización logística.",
+                "-  Generación de productos con valor de salida controlado."
+              ]
+            },
+            {
+              "id": "step-1769906737825",
+              "icon": "Orbit",
+              "image": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/proceso/1769907911068-ETAPA_6.png",
+              "title": "06 - Gestión de Rechazos y Salida del Proceso",
+              "details": [
+                "- Identificación de fracción no valorizable del proceso.",
+                "- Conducción controlada hacia disposición final autorizada.",
+                "- Registro operativo y trazabilidad de salidas.",
+                "- Cierre del proceso bajo criterios de control institucional."
+              ]
+            }
+          ]
+        },
+        "component": "proceso",
+        "isVisible": true
+      },
+      {
+        "id": "ficha",
+        "icon": {},
+        "label": "Ficha Técnica",
+        "content": [
+          {
+            "icon": "FileText",
+            "image": "",
+            "tabTitle": "Ficha Principal",
+            "components": [
+              {
+                "id": "motor",
+                "icon": "Wrench",
+                "label": "Motores",
+                "value": "SIEMENS"
+              },
+              {
+                "id": "plc",
+                "icon": "Server",
+                "label": "PLC´s",
+                "value": "SIEMENS"
+              },
+              {
+                "id": "pantalla",
+                "icon": "Zap",
+                "label": "Pantallas Táctiles",
+                "value": "SIEMENS"
+              },
+              {
+                "id": "bomba",
+                "icon": "Wind",
+                "label": "Contactores",
+                "value": "Telemecanique"
+              },
+              {
+                "id": "neumaticos",
+                "icon": "Zap",
+                "label": "Componentes Neumáticos",
+                "value": "FESTO"
+              }
+            ],
+            "technical_data": [
+              {
+                "id": "produccion",
+                "icon": "TrendingUp",
+                "unit": "Toneladas / día",
+                "label": "Capacidad de Tratamiento",
+                "value": "600"
+              },
+              {
+                "id": "ancho",
+                "icon": "Gauge",
+                "unit": "",
+                "label": "Operación Contínua",
+                "value": "24 / 7"
+              },
+              {
+                "id": "espesor",
+                "icon": "Rollers",
+                "unit": "Residuos Municipales",
+                "label": "Planta Integral ",
+                "value": "Automatizada"
+              },
+              {
+                "id": "potencia",
+                "icon": "Power",
+                "unit": "KW",
+                "label": "Potencia Instalada",
+                "value": "800 Kw"
+              },
+              {
+                "id": "dimensiones",
+                "icon": "Maximize",
+                "unit": "metros",
+                "label": "Dimensiones Generales",
+                "value": "140 x 26 x 3.5"
+              }
+            ],
+            "componentsTitle": "Componentes",
+            "technicalDataTitle": "Datos Técnicos"
+          }
+        ],
+        "component": "ficha",
+        "isVisible": true
+      },
+      {
+        "id": "cronograma",
+        "icon": "Timer",
+        "label": "Cronograma",
+        "content": {},
+        "component": "cronograma",
+        "isVisible": true
+      },
+      {
+        "id": "servicios",
+        "icon": "CheckCircle",
+        "label": "Servicios incluidos",
+        "content": {},
+        "component": "servicios",
+        "isVisible": true
+      },
+      {
+        "id": "servicios_copy_1769912108120",
+        "icon": "Building2",
+        "label": "Normatividad",
+        "content": {
+          "services": [
+            {
+              "id": 1,
+              "icon": "ElectricalSafety",
+              "align": "center",
+              "title": "NOM-001-SEDE-2018",
+              "description": "El sistema eléctrico de la planta MIRAMAR es diseñado e integrado conforme a la NOM-001-SEDE-2018, garantizando instalaciones seguras, protecciones eléctricas adecuadas, puesta a tierra, tableros certificados y operación continua en ambiente industrial."
+            },
+            {
+              "id": 2,
+              "icon": "Cog",
+              "align": "center",
+              "title": "Fabricación a la Medida",
+              "description": "Fabricamos la maquinaria según las especificaciones acordadas, utilizando acero de alta calidad y componentes de alta calidad para una operación confiable."
+            },
+            {
+              "id": 3,
+              "icon": "Package",
+              "title": "Embalaje y Logística",
+              "description": "Coordinamos el embalaje seguro de todos los equipos y gestionamos la logística internacional para que llegue en perfectas condiciones hasta sus instalaciones."
+            },
+            {
+              "id": 4,
+              "icon": "Wrench",
+              "title": "Instalación y Puesta en Marcha",
+              "description": "Nuestros técnicos especializados supervisan la instalación completa en la línea de producción y la puesta en marcha para garantizar el funcionamiento óptimo."
+            },
+            {
+              "id": 5,
+              "icon": "Users",
+              "title": "Capacitación del Personal",
+              "description": "Ofrecemos capacitación exhaustiva para su equipo operativo y de mantenimiento, cubriendo todos los aspectos del funcionamiento y cuidado de la maquinaria."
+            },
+            {
+              "id": 6,
+              "icon": "Shield",
+              "title": "Soporte y Garantía",
+              "description": "Proporcionamos un año completo de garantía con soporte técnico 24/7 para resolver cualquier duda o incidencia que pueda surgir."
+            }
+          ],
+          "subtitle": "SOLIMAQ desarrolla el Proyecto MIRAMAR cumpliendo la normatividad nacional e internacional aplicable, integrando estándares de seguridad, calidad y gestión ambiental.",
+          "subtitle_align": "justify"
+        },
+        "component": "servicios",
+        "isVisible": false
+      },
+      {
+        "id": "exclusiones",
+        "icon": "XCircle",
+        "label": "Exclusiones",
+        "content": {
+          "items": [
+            {
+              "id": 1,
+              "icon": "Wrench",
+              "title": "Maniobras de Descarga y Montaje",
+              "description": "El cliente debe proveer personal y equipo (grúa, montacargas) para la descarga y montaje de la máquina."
+            },
+            {
+              "id": 2,
+              "icon": "Droplet",
+              "title": "Sistema de Abastecimiento de Agua",
+              "description": "La instalación de tuberías, conexiones y sistemas de recirculación de agua no están incluidos."
+            },
+            {
+              "id": 3,
+              "icon": "HardHat",
+              "title": "Obra Civil y Adecuaciones",
+              "description": "Cualquier modificación estructural o trabajos de construcción en el área de instalación son responsabilidad del cliente."
+            },
+            {
+              "id": 4,
+              "icon": "Layers",
+              "title": "Importación y Terrestre",
+              "description": "Servicios de Importación y Flete Terrestre NO incluidos en la Propuesta."
+            }
+          ]
+        },
+        "component": "exclusiones",
+        "isVisible": true
+      },
+      {
+        "id": "pdf",
+        "icon": {},
+        "label": "Cotización PDF",
+        "content": {},
+        "component": "pdf",
+        "isVisible": true
+      },
+      {
+        "id": "video",
+        "icon": "PlaySquareIcon",
+        "label": "Video",
+        "content": {},
+        "isLocked": false,
+        "component": "video",
+        "isVisible": true
+      },
+      {
+        "id": "propuesta",
+        "icon": "DollarSign",
+        "label": "Propuesta económica",
+        "content": {
+          "groups": [
+            {
+              "id": "group1",
+              "items": [
+                {
+                  "id": "item1",
+                  "kw": "18",
+                  "icon": "RotateCw",
+                  "price": "19000",
+                  "title": "LÍNEA DE MOLIDO PET/HDPE EN200",
+                  "isActive": true,
+                  "subtitle": "Sistema de Molienda en Seco"
+                },
+                {
+                  "id": "item2",
+                  "kw": "105",
+                  "icon": "Atom",
+                  "price": "88000",
+                  "title": " LÍNEA DE TRITURADO/LAVADO LRP 200 ",
+                  "isActive": true,
+                  "subtitle": "Triturado y Lavado de Plásticos Flexibles"
+                },
+                {
+                  "id": "item3",
+                  "kw": "108",
+                  "icon": "DieHeadCircular",
+                  "price": "48000",
+                  "title": " LÍNEA DE PELETIZADO SP-100",
+                  "isActive": true,
+                  "subtitle": "Peletizadora para LDPE,HPDE de Rígidos y Flexibles."
+                }
+              ],
+              "title": "General",
+              "isOpen": true
+            }
+          ],
+          "showMXN": false,
+          "taxRate": 16,
+          "currency": "USD",
+          "subtitle": "Aquí puedes ver el desglose de la inversión. Marca o desmarca los componentes para ajustar el costo total.",
+          "pageTitle": "PROPUESTA",
+          "sellerName": "SMQ INTERNACIONAL",
+          "exchangeRate": 18.5,
+          "pageDescription": "Aquí puedes ver el desglose de la inversión. Marca o desmarca los componentes para ajustar el costo total.",
+          "sellerDepartment": "DIRECCIÓN DE VENTAS",
+          "pageTitleHighlight": "ECONÓMICA"
+        },
+        "component": "propuesta",
+        "isVisible": true
+      },
+      {
+        "id": "layout",
+        "icon": "MousePointerSquare",
+        "label": "Layout",
+        "content": {
+          "videoUrl": "",
+          "showVideo": false,
+          "isoViewUrl": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/logos-bucket/layout-isometrico/1768361873743_zsiyr.png",
+          "topViewUrl": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/logos-bucket/layout-superior/1768361848496_i59duj.png",
+          "videoTitle": "Animación del Proyecto",
+          "sideViewUrl": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/logos-bucket/layout-lateral/1768361861643_akbayu.png",
+          "isoViewTitle": "Vista Isométrica",
+          "topViewTitle": "Vista Superior",
+          "sideViewTitle": "Vista Lateral"
+        },
+        "isLocked": false,
+        "component": "layout",
+        "isVisible": true
+      },
+      {
+        "id": "normatividad",
+        "icon": "ShieldCheck",
+        "label": "Normatividad",
+        "content": {},
+        "component": "normatividad",
+        "isVisible": false
+      },
+      {
+        "id": "master_plan",
+        "icon": "Target",
+        "label": "Master Plan",
+        "content": {},
+        "component": "master_plan",
+        "isVisible": true
+      },
+      {
+        "id": "calculadora_prod",
+        "icon": "Calculator",
+        "label": "Calculadora",
+        "content": {},
+        "isLocked": false,
+        "component": "calculadora_prod",
+        "isVisible": false
+      },
+      {
+        "id": "analiticas",
+        "icon": "BarChart",
+        "label": "Analíticas",
+        "content": {},
+        "adminOnly": true,
+        "component": "admin",
+        "isVisible": false
+      },
+      {
+        "id": "ajustes",
+        "icon": "Settings",
+        "label": "Ajustes",
+        "content": {},
+        "adminOnly": true,
+        "component": "admin",
+        "isVisible": true
+      },
+      {
+        "id": "ventajas",
+        "icon": "Star",
+        "label": "VENTAJAS",
+        "content": {},
+        "component": "ventajas",
+        "isVisible": false
+      },
+      {
+        "id": "ia",
+        "icon": "BrainCircuit",
+        "label": "Asistente IA",
+        "content": {},
+        "isLocked": false,
+        "component": "ia",
+        "isVisible": false
+      }
+    ],
+    "favicon": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/quotation-files/favicons/smq_genesis-villegas_fyffes-favicon-1768444292565.png",
+    "pdf_template": {
+      "logoUrl": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/logos-bucket/logos/smq-1762613655341-SMQ%20LOGO%202.0.png",
+      "elements": [],
+      "logoSize": 88,
+      "logoPosition": {
+        "x": 314.9553527832031,
+        "y": 6
+      },
+      "backgroundUrl": "https://sacpwdfsypuhmducxwev.supabase.co/storage/v1/object/public/logos-bucket/pdf-templates/smq-1762756471531-FORMATO%20PROPUESTA.png"
+    },
+    "cost_config": {
+      "factor": 1.2083559979167873,
+      "comision": {
+        "type": "percent",
+        "value": 50
+      },
+      "incoterm": "FOB",
+      "maritimo": 8000,
+      "utilidad": {
+        "type": "percent",
+        "value": 17
+      },
+      "optionals": [
+        {
+          "id": 1762980109392,
+          "cost": 68000,
+          "name": "MOLDE PALLET",
+          "factor": 1.3,
+          "isEnabled": true
+        },
+        {
+          "id": 1762980164269,
+          "cost": 14000,
+          "name": "BRAZO ROBOTICO",
+          "factor": 1.6,
+          "isEnabled": false
+        }
+      ],
+      "banner_text": "COEXTRUSION ALTA TECNOLOGÍA",
+      "costo_china": 52850,
+      "instalacion": 6000,
+      "tipo_cambio": 18.5,
+      "costo_maquina": 285000,
+      "smq_logo_size": 1250,
+      "utilidad_type": "fixed",
+      "utilidad_fixed": 34736.15,
+      "utilidad_value": 40000,
+      "utilidad_percent": 25,
+      "impuestos_percent": 15,
+      "terrestre_nacional": 8000,
+      "costo_terrestre_china": 2500
+    },
+    "calculator_config": {
+      "ancho": 1,
+      "largo": 1.5,
+      "espesor": 6,
+      "densidad": 1099,
+      "diasSemana": 6,
+      "capacidadMaq": 280,
+      "horasProdDia": 8,
+      "mermaProceso": 2,
+      "recipe_costs": {
+        "caco3": 5,
+        "virgenLDPE": 35,
+        "recicladoLDPE": 15
+      },
+      "ventaPorTeja": 300,
+      "costoMaterial": 14,
+      "volumenEfectivo": 70,
+      "costosOperativos": 8,
+      "horasPerdidasDia": 1,
+      "recipe_percentages": {
+        "caco3": 10,
+        "virgenLDPE": 0,
+        "recicladoLDPE": 90
+      }
+    },
+    "video_url": "https://www.youtube.com/watch?v=OH36Hxhu0Lo",
+    "client_id": null,
+    "is_template": false,
+    "template_name": null,
+    "last_saved_quotation_id": null,
+    "idleTimeout": 10,
+    "initialDisplayTime": 7,
+    "logoSize": 290,
+    "slug": "miramar-600",
+    "banner_text": "PROYECTO LLAVE EN MANO",
+    "banner_direction": "right-to-left",
+    "banner_speed": null,
+    "is_home": true,
+    "hide_banner": true,
+    "title_animation": "slide"
+  }
+]
