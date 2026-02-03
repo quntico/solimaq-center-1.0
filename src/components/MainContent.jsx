@@ -59,7 +59,8 @@ const MainContent = (props) => {
           activeTab: activeTabMap ? activeTabMap[section.id] : undefined,
           ...(section.id === 'propuesta' && { sections: allSectionsData }),
           ...(section.id === 'video' && { onVideoUrlUpdate }),
-          isStandalone: section.id !== 'master_plan'
+          isStandalone: section.id !== 'master_plan',
+          parentSlug: quotationData?.slug
         };
 
         return (

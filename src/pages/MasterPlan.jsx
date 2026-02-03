@@ -34,8 +34,11 @@ const n = (v) => {
     return Number.isFinite(x) ? x : 0;
 };
 
-const money = (v) =>
-    v.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const money = (v) => {
+    const val = Number(v);
+    if (!Number.isFinite(val)) return "$0.00";
+    return val.toLocaleString("en-US", { style: "currency", currency: "USD" });
+};
 
 const fmt = money;
 
@@ -52,10 +55,19 @@ const cleanTitle = (text) => {
 
 export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isSubmenuMode = false, isAdmin: propIsAdmin, isEditorMode, isAdminAuthenticated: propIsAdminAuth, quotationData, isStandalone = true }) {
     const { slug: paramsSlug } = useParams();
-    const baseSlug = propSlug || paramsSlug || DEFAULT_CLOUD_SLUG;
+
+    // RESOLUTION LOGIC: 
+    // 1. propSlug (passed directly)
+    // 2. paramsSlug (from URL)
+    // 3. quotationData.slug (from parent viewer)
+    // 4. Default fallback
+    const baseSlug = propSlug || paramsSlug || quotationData?.slug || DEFAULT_CLOUD_SLUG;
+
     const CLOUD_SLUG = baseSlug.startsWith('mp-') ? baseSlug : `mp-${baseSlug}`;
     const navigate = useNavigate();
     const { toast } = useToast();
+
+    console.log("[MasterPlan] Initializing with slug:", baseSlug, "Cloud Slug:", CLOUD_SLUG);
 
     // State
     const [horasDia, setHorasDia] = useState(16);
@@ -137,10 +149,18 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [sections, setSections] = useState(() => {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return initialSections;
+            if (!raw) {
+                console.log("[MasterPlan] No local storage data, using defaults.");
+                return initialSections;
+            }
             const parsed = JSON.parse(raw);
-            return (Array.isArray(parsed) && parsed.length > 0) ? parsed : initialSections;
-        } catch { return initialSections; }
+            const finalSections = (Array.isArray(parsed) && parsed.length > 0) ? parsed : initialSections;
+            console.log("[MasterPlan] Loaded sections from local storage:", finalSections.length);
+            return finalSections;
+        } catch (e) {
+            console.error("[MasterPlan] Error loading from local storage:", e);
+            return initialSections;
+        }
     });
 
     useEffect(() => {
@@ -215,6 +235,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     // Logic for Cloud Syncing and Data management...
     const fetchCloudData = async () => {
+        console.log("[MasterPlan] Fetching cloud data for:", CLOUD_SLUG);
         try {
             const { data, error } = await supabase
                 .from('quotations')
@@ -222,15 +243,40 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 .eq('slug', CLOUD_SLUG)
                 .single();
 
-            if (error && error.code !== 'PGRST116') throw error;
+            if (error) {
+                if (error.code !== 'PGRST116') {
+                    console.warn("[MasterPlan] Supabase error:", error);
+                } else {
+                    console.log("[MasterPlan] No specific cloud record found for:", CLOUD_SLUG);
+                }
+            }
+
             let finalData = data;
 
-            if (!finalData && parentSlug && parentSlug !== CLOUD_SLUG) {
+            // FALLBACK LOGIC
+            // If mp-XXX doesn't exist, try parent XXX
+            // If parent XXX is what we are currently trying, skip to avoid loops
+            if (!finalData && parentSlug && parentSlug !== CLOUD_SLUG && parentSlug !== baseSlug) {
+                console.log("[MasterPlan] Trying parent slug fallback:", parentSlug);
                 const { data: pData } = await supabase.from('quotations').select('*').eq('slug', parentSlug).single();
-                if (pData) finalData = pData;
+                if (pData) {
+                    console.log("[MasterPlan] Using parent slug data as fallback");
+                    finalData = pData;
+                }
+            }
+
+            // If still nothing, try the baseSlug without mp- prefix if it's different
+            if (!finalData && baseSlug !== CLOUD_SLUG) {
+                console.log("[MasterPlan] Trying base slug fallback:", baseSlug);
+                const { data: bData } = await supabase.from('quotations').select('*').eq('slug', baseSlug).single();
+                if (bData) {
+                    console.log("[MasterPlan] Using base slug data as fallback");
+                    finalData = bData;
+                }
             }
 
             if (finalData) {
+                console.log("[MasterPlan] Cloud data received:", finalData.slug);
                 const config = finalData.sections_config || {};
                 const isProjectSpecificData = finalData.slug === CLOUD_SLUG;
 
@@ -252,18 +298,25 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 if (config.heroVideoBorderRadius) setHeroVideoBorderRadius(config.heroVideoBorderRadius);
                 if (config.tableFontSize) setTableFontSize(config.tableFontSize);
 
-                if (finalData.slug === CLOUD_SLUG) {
+                if (finalData.slug === CLOUD_SLUG || finalData.slug === parentSlug || finalData.slug === baseSlug) {
                     const sectionsToSet = config.sections || (Array.isArray(config) ? config : null);
                     if (sectionsToSet && sectionsToSet.length > 0) {
                         const cleaned = sectionsToSet.map(s => ({ ...s, titulo: cleanTitle(s.titulo) }));
                         setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: true })));
+                    } else {
+                        // If we have no cloud sections but we matched a record, 
+                        // reset to expanded defaults to be visible
+                        setSections(initialSections.map(s => ({ ...s, collapsed: false })));
                     }
                 }
                 setLastCloudSync(new Date());
+            } else {
+                console.log("[MasterPlan] No cloud data found anywhere, using default Cacao Line (Expanded)");
+                setSections(initialSections.map(s => ({ ...s, collapsed: false })));
             }
             setIsHydrated(true);
         } catch (error) {
-            console.error("Cloud fetch error:", error);
+            console.error("[MasterPlan] Cloud fetch error:", error);
             setIsHydrated(true);
         }
     };
@@ -275,7 +328,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         try {
             const sectionsToSave = (overrideData || sections).map(s => ({
                 ...s,
-                items: s.items.map(it => ({ ...it, ventaUSD: calcItem(it).ventaUnitFinal }))
+                items: (s.items || []).map(it => ({ ...it, ventaUSD: calcItem(it).ventaUnitFinal }))
             }));
 
             const configObject = {
@@ -325,8 +378,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     };
 
     const sectionTotals = useMemo(() => {
+        if (!Array.isArray(sections)) return [];
         return sections.map(s => {
-            const totalVenta = s.items.reduce((acc, it) => it.activo ? acc + calcItem(it).totalVenta : acc, 0);
+            const items = Array.isArray(s.items) ? s.items : [];
+            const totalVenta = items.reduce((acc, it) => it.activo ? acc + calcItem(it).totalVenta : acc, 0);
             return { sectionId: s.id, totalVenta };
         });
     }, [sections]);
@@ -355,7 +410,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     };
 
     const updateItem = (sId, iId, fields) => {
-        setSections(sections.map(s => s.id === sId ? { ...s, items: s.items.map(it => it.id === iId ? { ...it, ...fields } : it) } : s));
+        setSections(sections.map(s => s.id === sId ? { ...s, items: (s.items || []).map(it => it.id === iId ? { ...it, ...fields } : it) } : s));
     };
 
     const updateItemByTotalVenta = (sId, iId, targetTotal) => {
@@ -371,13 +426,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const addItem = (sId) => {
         const s = sections.find(x => x.id === sId);
-        const lastCode = s.items.length > 0 ? s.items[s.items.length - 1].codigo : "1.0";
+        if (!s) return;
+        const items = s.items || [];
+        const lastCode = items.length > 0 ? items[items.length - 1].codigo : "1.0";
         let nextCode = lastCode;
         if (lastCode.includes(".")) {
             const parts = lastCode.split(".");
             nextCode = `${parts[0]}.${n(parts[1]) + 1}`;
         }
-        updateSection(sId, { items: [...s.items, { id: uid(), activo: true, codigo: nextCode, equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: globalUtilVal }] });
+        updateSection(sId, { items: [...items, { id: uid(), activo: true, codigo: nextCode, equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: globalUtilVal }] });
     };
 
     const removeItem = (sId, iId) => {
@@ -387,7 +444,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const justifyAllDescriptions = () => {
         setSections(sections.map(s => ({
             ...s,
-            items: s.items.map(it => ({ ...it, descAlign: "justify" }))
+            items: (s.items || []).map(it => ({ ...it, descAlign: "justify" }))
         })));
         toast({ title: "Justificación Completa", description: "Todas las descripciones han sido justificadas." });
     };
@@ -395,7 +452,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const applyGlobalUtilization = () => {
         setSections(sections.map(s => ({
             ...s,
-            items: s.items.map(it => ({ ...it, utilidad: globalUtilVal }))
+            items: (s.items || []).map(it => ({ ...it, utilidad: globalUtilVal }))
         })));
         toast({ title: "Utilidad aplicada", description: `Se aplicó ${globalUtilVal}% de utilidad a todo el proyecto.` });
     };
@@ -408,7 +465,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
         setSections(sections.map(s => ({
             ...s,
-            items: s.items.map(it => {
+            items: (s.items || []).map(it => {
                 const r = calcItem(it);
                 const targetVentaUnit = r.ventaUnitFinal * factor;
                 const cost = n(it.costoUSD);
@@ -803,6 +860,19 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const headerStyles = isScrolled ? "bg-black/90 backdrop-blur-2xl border-b border-white/5 py-4 shadow-2xl" : "bg-transparent py-10";
 
+    if (!isHydrated) return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6">
+            <div className="relative">
+                <Loader2 className="w-16 h-16 text-primary animate-spin" />
+                <div className="absolute inset-0 bg-primary/20 blur-xl animate-pulse rounded-full" />
+            </div>
+            <div className="flex flex-col items-center gap-2">
+                <span className="text-white font-black text-xs uppercase tracking-[0.3em] animate-pulse">Cargando Plan Maestro</span>
+                <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">{baseSlug}</span>
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-[#020202] text-white font-sans selection:bg-primary selection:text-black">
             {/* 1. Dynamic Header */}
@@ -816,7 +886,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v3.72</span>
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.40</span>
                                 </h1>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}
@@ -873,11 +943,6 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     {projectDesc}
                                 </p>
                                 <div className="flex flex-wrap gap-8 pt-4">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Cliente</span>
-                                        <span className="text-white font-bold">{clientName}</span>
-                                    </div>
-                                    <div className="w-[1px] h-10 bg-white/10" />
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Inversión Estimada</span>
                                         <span className="text-primary font-black text-xl tracking-tight">{money(grandTotals.totalVenta)}</span>
@@ -938,7 +1003,6 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             Aquí puedes ver el desglose de la inversión. Marca o desmarca los componentes para ajustar el costo total.
                         </p>
 
-                        {/* Integrated View Controls */}
                         <div className="flex items-center gap-3 justify-center flex-wrap">
                             <button
                                 onClick={handleExportPDF}
@@ -1028,6 +1092,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         </div>
                     </div>
                 )}
+
                 <div className={`sticky z-[160] transition-all duration-500 ${isScrolled ? 'top-[88px] opacity-100' : 'opacity-0 pointer-events-none translate-y-4'}`}>
                     <div className="bg-zinc-900/40 backdrop-blur-2xl border border-white/5 rounded-2xl p-2 flex items-center justify-between shadow-2xl">
                         <div className="flex items-center gap-6 px-4">
@@ -1228,7 +1293,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     {visibleCols.map(colId => <col key={colId} style={{ width: colWidths[colId] || initialColWidths[colId] || 100 }} />)}
                                                 </colgroup>
                                                 <tbody style={{ fontSize: `${tableFontSize}px` }}>
-                                                    {s.items.map(it => {
+                                                    {(s.items || []).map(it => {
+                                                        if (!it) return null;
                                                         const r = calcItem(it);
                                                         return (
                                                             <tr key={it.id} className={`border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors ${!it.activo && 'opacity-30'}`}>
@@ -1345,46 +1411,48 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 </div>
 
                 {/* Footer Totals */}
-                {isStandalone && (
-                    <>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-20 p-8 bg-zinc-950/40 border border-white/5 rounded-[2.5rem] backdrop-blur-xl group/footer relative overflow-hidden">
-                            <div className="space-y-6 flex flex-col justify-center">
-                                <div>
-                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-1 opacity-40">Resumen de Proyecto</span>
-                                    <div className="h-[2px] w-12 bg-primary/30 rounded-full" />
+                {
+                    isStandalone && (
+                        <>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-20 p-8 bg-zinc-950/40 border border-white/5 rounded-[2.5rem] backdrop-blur-xl group/footer relative overflow-hidden">
+                                <div className="space-y-6 flex flex-col justify-center">
+                                    <div>
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-1 opacity-40">Resumen de Proyecto</span>
+                                        <div className="h-[2px] w-12 bg-primary/30 rounded-full" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 text-[11px] font-bold uppercase tracking-widest opacity-60">
+                                        <div>MXN s/IVA: <span className="text-white ml-2">{grandTotals.mxnSinIvaVenta.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></div>
+                                        <div>IVA {ivaPct}%: <span className="text-white ml-2">{grandTotals.ivaVenta.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></div>
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 text-[11px] font-bold uppercase tracking-widest opacity-60">
-                                    <div>MXN s/IVA: <span className="text-white ml-2">{grandTotals.mxnSinIvaVenta.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></div>
-                                    <div>IVA {ivaPct}%: <span className="text-white ml-2">{grandTotals.ivaVenta.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></div>
+
+                                <div
+                                    onMouseEnter={() => setIsFooterHovered(true)}
+                                    onMouseLeave={() => setIsFooterHovered(false)}
+                                    className={`p-8 rounded-[2.5rem] flex flex-col justify-center items-end relative overflow-hidden transition-all duration-700 cursor-default shadow-2xl ${isFooterHovered ? 'bg-primary scale-[1.02] shadow-primary/30' : 'bg-primary'}`}
+                                >
+                                    <span className={`relative z-10 font-black uppercase tracking-[0.4em] transition-all duration-500 mb-2 ${isFooterHovered ? 'text-[14px] text-black' : 'text-[11px] opacity-70 text-black'}`}>Precio de Venta USD</span>
+                                    <h2 className="relative z-10 text-6xl md:text-7xl font-black tracking-tighter text-black tabular-nums transition-transform duration-300">
+                                        {money(isFooterHovered ? animatedPriceVal : grandTotals.totalVenta)}
+                                    </h2>
+                                    <div className="relative z-10 mt-6 flex flex-col items-end gap-1 font-black uppercase tracking-widest text-black/80 text-[11px]">
+                                        ≈ {(grandTotals.mxnSinIvaVenta + grandTotals.ivaVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })} MXN <span className="text-[9px] opacity-60">(IVA Incluido)</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div
-                                onMouseEnter={() => setIsFooterHovered(true)}
-                                onMouseLeave={() => setIsFooterHovered(false)}
-                                className={`p-8 rounded-[2.5rem] flex flex-col justify-center items-end relative overflow-hidden transition-all duration-700 cursor-default shadow-2xl ${isFooterHovered ? 'bg-primary scale-[1.02] shadow-primary/30' : 'bg-primary'}`}
-                            >
-                                <span className={`relative z-10 font-black uppercase tracking-[0.4em] transition-all duration-500 mb-2 ${isFooterHovered ? 'text-[14px] text-black' : 'text-[11px] opacity-70 text-black'}`}>Precio de Venta USD</span>
-                                <h2 className="relative z-10 text-6xl md:text-7xl font-black tracking-tighter text-black tabular-nums transition-transform duration-300">
-                                    {money(isFooterHovered ? animatedPriceVal : grandTotals.totalVenta)}
-                                </h2>
-                                <div className="relative z-10 mt-6 flex flex-col items-end gap-1 font-black uppercase tracking-widest text-black/80 text-[11px]">
-                                    ≈ {(grandTotals.mxnSinIvaVenta + grandTotals.ivaVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })} MXN <span className="text-[9px] opacity-60">(IVA Incluido)</span>
-                                </div>
+                            {/* Footer Brand */}
+                            <div className="mt-20 text-center opacity-30">
+                                <img src="/solimaq_logo.png" alt="Footer Logo" className="h-8 object-contain mx-auto grayscale brightness-200 mb-4" />
+                                <p className="text-[10px] font-black uppercase tracking-[0.4em]">Solimaq Center · Industrial Planning Solutions · 2024</p>
                             </div>
-                        </div>
-
-                        {/* Footer Brand */}
-                        <div className="mt-20 text-center opacity-30">
-                            <img src="/solimaq_logo.png" alt="Footer Logo" className="h-8 object-contain mx-auto grayscale brightness-200 mb-4" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.4em]">Solimaq Center · Industrial Planning Solutions · 2024</p>
-                        </div>
-                    </>
-                )}
-            </div>
+                        </>
+                    )
+                }
+            </div >
 
             {/* Overlays (Modals, Lightboxes, Video) */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {selectedMedia && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.1, opacity: 0 }} className="relative max-w-7xl w-full h-full flex items-center justify-center">
@@ -1392,63 +1460,70 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             <button onClick={() => setSelectedMedia(null)} className="absolute top-4 right-4 p-4 rounded-full bg-white/10 text-white hover:bg-red-500 transition-all backdrop-blur-md"><X size={24} /></button>
                         </motion.div>
                     </motion.div>
-                )}
-            </AnimatePresence>
+                )
+                }
+            </AnimatePresence >
 
-            {isHeroVideoActive && (
-                <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center p-10">
-                    <video src={heroVideoUrl} autoPlay controls className="max-w-full max-h-full rounded-3xl" />
-                    <button onClick={() => setIsHeroVideoActive(false)} className="absolute top-10 right-10 p-4 bg-white/10 text-white rounded-full hover:bg-red-500 transition-all"><X size={32} /></button>
-                </div>
-            )}
+            {
+                isHeroVideoActive && (
+                    <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center p-10">
+                        <video src={heroVideoUrl} autoPlay controls className="max-w-full max-h-full rounded-3xl" />
+                        <button onClick={() => setIsHeroVideoActive(false)} className="absolute top-10 right-10 p-4 bg-white/10 text-white rounded-full hover:bg-red-500 transition-all"><X size={32} /></button>
+                    </div>
+                )
+            }
 
-            {isParamsModalOpen && (
-                <Dialog open={isParamsModalOpen} onOpenChange={setIsParamsModalOpen}>
-                    <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 text-white">
-                        <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-widest text-primary">⚙️ Parámetros Globales</DialogTitle></DialogHeader>
-                        <div className="space-y-8 py-4">
-                            <div className="grid grid-cols-2 gap-8">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Horas/Día</label>
-                                    <input type="number" value={horasDia} onChange={e => setHorasDia(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
+            {
+                isParamsModalOpen && (
+                    <Dialog open={isParamsModalOpen} onOpenChange={setIsParamsModalOpen}>
+                        <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 text-white">
+                            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-widest text-primary">⚙️ Parámetros Globales</DialogTitle></DialogHeader>
+                            <div className="space-y-8 py-4">
+                                <div className="grid grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Horas/Día</label>
+                                        <input type="number" value={horasDia} onChange={e => setHorasDia(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo de Cambio</label>
+                                        <input type="number" value={tipoCambio} onChange={e => setTipoCambio(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo de Cambio</label>
-                                    <input type="number" value={tipoCambio} onChange={e => setTipoCambio(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
+                                <div className="space-y-4 pt-4 border-t border-white/5">
+                                    <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Utilidad Global (%)</label><span className="text-primary font-black">{globalUtilVal}%</span></div>
+                                    <Slider value={[globalUtilVal]} max={100} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
+                                    <button onClick={applyGlobalUtilization} className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all">Aplicar Utilidad a Todo</button>
+                                </div>
+                                <div className="space-y-4 pt-4 border-t border-white/5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Importar Estructura (Excel)</label>
+                                    <button onClick={() => fileInputRef.current.click()} className="w-full py-4 bg-primary/10 border border-primary/30 border-dashed rounded-xl flex items-center justify-center gap-3 text-primary font-black uppercase tracking-widest hover:bg-primary/20 transition-all text-[11px]">
+                                        <Upload size={18} /> {importedFileName || "Subir Archivo .xlsx"}
+                                    </button>
+                                    <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleImportExcel} />
                                 </div>
                             </div>
-                            <div className="space-y-4 pt-4 border-t border-white/5">
-                                <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Utilidad Global (%)</label><span className="text-primary font-black">{globalUtilVal}%</span></div>
-                                <Slider value={[globalUtilVal]} max={100} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
-                                <button onClick={applyGlobalUtilization} className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all">Aplicar Utilidad a Todo</button>
-                            </div>
-                            <div className="space-y-4 pt-4 border-t border-white/5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Importar Estructura (Excel)</label>
-                                <button onClick={() => fileInputRef.current.click()} className="w-full py-4 bg-primary/10 border border-primary/30 border-dashed rounded-xl flex items-center justify-center gap-3 text-primary font-black uppercase tracking-widest hover:bg-primary/20 transition-all text-[11px]">
-                                    <Upload size={18} /> {importedFileName || "Subir Archivo .xlsx"}
-                                </button>
-                                <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleImportExcel} />
-                            </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            )}
+                        </DialogContent>
+                    </Dialog>
+                )
+            }
 
-            {targetAmountModalOpen && (
-                <Dialog open={targetAmountModalOpen} onOpenChange={setTargetAmountModalOpen}>
-                    <DialogContent className="max-w-md bg-zinc-950 border-white/10 text-white">
-                        <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Ajustar Monto de Venta</DialogTitle></DialogHeader>
-                        <div className="py-6 space-y-6">
-                            <p className="text-xs text-gray-400">Ingresa el monto total objetivo. El sistema redistribuirá las utilidades proporcionalmente.</p>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Monto Total USD</label>
-                                <input type="number" value={targetAmountValue} onChange={e => setTargetAmountValue(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-2xl font-black text-primary outline-none focus:bg-white/10 transition-all" />
+            {
+                targetAmountModalOpen && (
+                    <Dialog open={targetAmountModalOpen} onOpenChange={setTargetAmountModalOpen}>
+                        <DialogContent className="max-w-md bg-zinc-950 border-white/10 text-white">
+                            <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Ajustar Monto de Venta</DialogTitle></DialogHeader>
+                            <div className="py-6 space-y-6">
+                                <p className="text-xs text-gray-400">Ingresa el monto total objetivo. El sistema redistribuirá las utilidades proporcionalmente.</p>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Monto Total USD</label>
+                                    <input type="number" value={targetAmountValue} onChange={e => setTargetAmountValue(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-2xl font-black text-primary outline-none focus:bg-white/10 transition-all" />
+                                </div>
+                                <button onClick={applyTargetAmount} className="w-full py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all">Ejecutar Ajuste Especial</button>
                             </div>
-                            <button onClick={applyTargetAmount} className="w-full py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all">Ejecutar Ajuste Especial</button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            )}
+                        </DialogContent>
+                    </Dialog>
+                )
+            }
 
             <ExportTemplateEditor
                 isOpen={isTemplateEditorOpen}
@@ -1464,17 +1539,19 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 logoUrl={logoUrl}
             />
 
-            {showPasswordPrompt && (
-                <PasswordPrompt
-                    onCorrectPassword={(pw) => {
-                        setIsAdminAuthenticated(true);
-                        setIsAdmin(true);
-                        setShowPasswordPrompt(false);
-                    }}
-                    onCancel={() => setShowPasswordPrompt(false)}
-                />
-            )}
-        </div>
+            {
+                showPasswordPrompt && (
+                    <PasswordPrompt
+                        onCorrectPassword={(pw) => {
+                            setIsAdminAuthenticated(true);
+                            setIsAdmin(true);
+                            setShowPasswordPrompt(false);
+                        }}
+                        onCancel={() => setShowPasswordPrompt(false)}
+                    />
+                )
+            }
+        </div >
     );
 }
 
