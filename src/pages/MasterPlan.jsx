@@ -339,7 +339,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     useEffect(() => { fetchCloudData(); }, [CLOUD_SLUG]);
 
-    const saveToCloud = async (overrideData = null) => {
+    const saveToCloud = async (overrideData = null, configOverrides = {}) => {
         setIsCloudSyncing(true);
         try {
             const sectionsToSave = (overrideData || sections).map(s => ({
@@ -347,27 +347,42 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 items: (s.items || []).map(it => ({ ...it, ventaUSD: calcItem(it).ventaUnitFinal }))
             }));
 
+            // Resolving values: priority to overrides, then state
+            const finalMpTitle = configOverrides.mpTitle || mpTitle;
+            const finalMpSubTitle = configOverrides.mpSubTitle || mpSubTitle;
+            const finalProjectDesc = configOverrides.projectDesc || projectDesc;
+            const finalHeroVideo = configOverrides.heroVideoUrl || heroVideoUrl;
+            const finalHeroIntegrated = configOverrides.heroVideoIsIntegrated !== undefined ? configOverrides.heroVideoIsIntegrated : heroVideoIsIntegrated;
+            const finalHeroScale = configOverrides.heroVideoScale || heroVideoScale;
+            const finalHeroRadius = configOverrides.heroVideoBorderRadius || heroVideoBorderRadius;
+            const finalTableFontSize = configOverrides.tableFontSize || tableFontSize;
+            const finalPdfSettings = configOverrides.pdfSettings || pdfSettings;
+
+            const finalClient = configOverrides.client || clientName;
+            const finalProject = configOverrides.project || projectName;
+            const finalLogo = configOverrides.logo || logoUrl;
+
             const configObject = {
                 sections: sectionsToSave,
-                mpTitle,
-                mpSubTitle,
-                projectDesc,
-                heroVideoUrl,
-                heroVideoIsIntegrated,
-                heroVideoScale,
-                heroVideoBorderRadius,
-                tableFontSize,
-                pdfSettings
+                mpTitle: finalMpTitle,
+                mpSubTitle: finalMpSubTitle,
+                projectDesc: finalProjectDesc,
+                heroVideoUrl: finalHeroVideo,
+                heroVideoIsIntegrated: finalHeroIntegrated,
+                heroVideoScale: finalHeroScale,
+                heroVideoBorderRadius: finalHeroRadius,
+                tableFontSize: finalTableFontSize,
+                pdfSettings: finalPdfSettings
             };
 
             const { error } = await supabase.from('quotations').upsert({
                 slug: CLOUD_SLUG,
-                theme_key: CLOUD_SLUG, // theme_key is required and usually must be unique
-                project: projectName, // Removed "MASTER PLAN:" prefix to avoid recursion/duplication
-                client: clientName,
-                logo: logoUrl, // Added Persistence for Logo
+                theme_key: CLOUD_SLUG,
+                project: finalProject,
+                client: finalClient,
+                logo: finalLogo,
                 sections_config: configObject,
-                video_url: heroVideoUrl,
+                video_url: finalHeroVideo,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'slug' });
 
@@ -916,7 +931,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         setClientName(newClient);
         setProjectName(newProject);
         setLogoUrl(newLogo);
-        if (isAdmin) saveToCloud();
+
+        if (isAdmin) {
+            saveToCloud(null, {
+                pdfSettings: newSettings,
+                client: newClient,
+                project: newProject,
+                logo: newLogo
+            });
+        }
         toast({ title: "Plantilla Guardada" });
     };
 
@@ -971,7 +994,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.36</span>
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.37</span>
                                 </h1>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}
