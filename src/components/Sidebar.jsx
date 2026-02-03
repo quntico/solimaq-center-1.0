@@ -201,7 +201,11 @@ const Sidebar = ({
                     {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.cotizadorMode')}</span>}
                   </button>
                   <button
-                    onClick={() => setIsEditorMode(!isEditorMode)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsEditorMode(prev => !prev);
+                    }}
                     className={`w-full flex items-center p-3 rounded-lg transition-colors ${isEditorMode ? 'bg-green-500/10 text-green-400' : 'hover:bg-gray-800'}`}
                   >
                     <Edit size={20} />

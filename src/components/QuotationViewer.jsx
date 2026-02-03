@@ -93,6 +93,7 @@ const defaultSections = [
   { id: 'generales', label: 'Generales', icon: 'ClipboardList', isVisible: false, component: 'generales' },
   { id: 'exclusiones', label: 'Exclusiones', icon: 'XCircle', isVisible: false, component: 'exclusiones' },
   { id: 'ia', label: 'Asistente IA', icon: 'BrainCircuit', isVisible: false, isLocked: false, component: 'ia' },
+  { id: 'extra_resources', label: 'Recursos', icon: 'FileText', isVisible: false, component: 'generic', adminOnly: true },
 ];
 
 const clientVisibleSections = new Set(defaultSections.filter(s => !s.adminOnly).map(s => s.id));
@@ -622,6 +623,11 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
         onExport={(type) => {
           window.dispatchEvent(new CustomEvent('EXPORT_QUOTATION', { detail: { type } }));
         }}
+        isEditorMode={isEditorMode && isAdminView}
+        quotationData={displayData}
+        onUpdate={setSectionsConfig}
+        onAtomicUpdate={updateSectionContent}
+        activeTheme={activeTheme}
       />
       <div className="flex h-screen overflow-hidden bg-black relative">
         <div className="absolute left-0 top-0 bottom-0 z-[500] flex-shrink-0">

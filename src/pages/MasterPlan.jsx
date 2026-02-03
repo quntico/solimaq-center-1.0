@@ -176,8 +176,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     useEffect(() => {
         if (propIsAdmin !== undefined) setIsAdmin(propIsAdmin);
-        else setIsAdmin(Boolean(isEditorMode || isAdminAuthenticated));
-    }, [propIsAdmin, isEditorMode, isAdminAuthenticated]);
+        // CRITICAL FIX: To allow "User Mode" toggle even when authenticated,
+        // we must strictly follow isEditorMode if it's available.
+        // isAdminAuthenticated enables the toggle, but isEditorMode determines the state.
+        else setIsAdmin(Boolean(isEditorMode));
+    }, [propIsAdmin, isEditorMode]);
 
     useEffect(() => {
         if (quotationData) {
@@ -293,9 +296,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     if (config.projectDesc) setProjectDesc(config.projectDesc);
                 }
 
+                if (finalData.logo) setLogoUrl(finalData.logo);
+                if (finalData.client) setClientName(finalData.client);
+                if (finalData.project) setProjectName(finalData.project);
+
                 if (quotationData) {
+                    // Props take precedence if provided (e.g. wrapper overrides)
                     if (quotationData.client) setClientName(quotationData.client);
                     if (quotationData.project) setProjectName(quotationData.project);
+                    if (quotationData.logo) setLogoUrl(quotationData.logo);
                 }
 
                 if (finalData.video_url || config.heroVideoUrl) setHeroVideoUrl(finalData.video_url || config.heroVideoUrl);
@@ -354,8 +363,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const { error } = await supabase.from('quotations').upsert({
                 slug: CLOUD_SLUG,
                 theme_key: CLOUD_SLUG, // theme_key is required and usually must be unique
-                project: `MASTER PLAN: ${projectName}`,
+                project: projectName, // Removed "MASTER PLAN:" prefix to avoid recursion/duplication
                 client: clientName,
+                logo: logoUrl, // Added Persistence for Logo
                 sections_config: configObject,
                 video_url: heroVideoUrl,
                 updated_at: new Date().toISOString()
@@ -409,15 +419,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const addSection = () => {
         const newSec = { id: `sec_${uid()}`, collapsed: false, titulo: "NUEVO MÓDULO", tag: "BORRADOR", items: [{ id: uid(), activo: true, codigo: "1.1", equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: 10 }] };
-        setSections([...sections, newSec]);
+        setSections(prev => [...prev, newSec]);
     };
 
     const removeSection = (id) => {
-        if (window.confirm("¿Eliminar este módulo completo?")) setSections(sections.filter(s => s.id !== id));
+        if (window.confirm("¿Eliminar este módulo completo?")) setSections(prev => prev.filter(s => s.id !== id));
     };
 
     const updateItem = (sId, iId, fields) => {
-        setSections(sections.map(s => s.id === sId ? { ...s, items: (s.items || []).map(it => it.id === iId ? { ...it, ...fields } : it) } : s));
+        setSections(prev => prev.map(s => s.id === sId ? { ...s, items: (s.items || []).map(it => it.id === iId ? { ...it, ...fields } : it) } : s));
     };
 
     const updateItemByTotalVenta = (sId, iId, targetTotal) => {
@@ -449,7 +459,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     };
 
     const justifyAllDescriptions = () => {
-        setSections(sections.map(s => ({
+        setSections(prev => prev.map(s => ({
             ...s,
             items: (s.items || []).map(it => ({ ...it, descAlign: "justify" }))
         })));
@@ -533,35 +543,47 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         let count = 0;
         try {
             const bucket = await getActiveBucket();
+            // Deep copy current sections to working state
+            const finalSections = JSON.parse(JSON.stringify(sections));
+
             for (const file of files) {
                 const nameParts = file.name.split('.');
                 const code = nameParts[0];
                 const ext = nameParts.pop();
                 const type = file.type.startsWith('video') ? 'video' : 'image';
 
-                let targetSec = null;
-                let targetItem = null;
-
-                for (const s of sections) {
+                for (const s of finalSections) {
+                    if (!s.items) continue;
                     const it = s.items.find(x => x.codigo === code);
                     if (it) {
-                        targetSec = s.id;
-                        targetItem = it.id;
+                        const filePath = `masterplan/bulk_${code}_${Date.now()}.${ext}`;
+                        try {
+                            const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+                            if (uploadError) throw uploadError;
+
+                            const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+                            it.media_url = publicUrl;
+                            it.media_type = type;
+                            count++;
+                        } catch (e) {
+                            console.error(`Failed to upload ${file.name}`, e);
+                        }
                         break;
                     }
                 }
-
-                if (targetItem) {
-                    const filePath = `masterplan/bulk_${code}_${Date.now()}.${ext}`;
-                    await supabase.storage.from(bucket).upload(filePath, file);
-                    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
-                    updateItem(targetSec, targetItem, { media_url: publicUrl, media_type: type });
-                    count++;
-                }
             }
-            toast({ title: "Carga Masiva Exitosa", description: `Se actualizaron ${count} items.` });
+
+            if (count > 0) {
+                setSections(finalSections);
+                saveToCloud(finalSections);
+                toast({ title: "Carga Masiva Exitosa", description: `Se actualizaron ${count} items.` });
+            } else {
+                toast({ title: "Ningún archivo coincidente", description: "Asegúrate de que los nombres de archivo coincidan con los códigos (ej. 1.jpg)" });
+            }
+
         } catch (error) {
             console.error(error);
+            toast({ title: "Error crítico en carga masiva", variant: "destructive" });
         } finally {
             setIsCloudSyncing(false);
         }
@@ -634,7 +656,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         potencia: parseFinancial(getValue(row, ["Potencia (kW)", "POTENCIA", "Potencia", "KW"])),
                         qty: parseFinancial(getValue(row, ["QTY", "Qty", "CANTIDAD", "Cantidad"]) || 1),
                         costoUSD: parseFinancial(getValue(row, ["COSTO", "Costo", "COSTOS", "PRECIO"]) || 0),
-                        utilidad: parseFinancial(getValue(row, ["UTILIDAD", "UTIL", "Util", "Util %"]) || globalUtilVal),
+                        utilidad: (() => {
+                            const raw = getValue(row, ["UTILIDAD", "UTIL", "Util", "Util %"]);
+                            let val = parseFinancial(raw);
+                            // If user provides no value, use global. If 0, use 0.
+                            if (val === 0 && (raw === 0 || raw === "0")) return 0;
+                            if (!val) return globalUtilVal;
+                            // Heuristic: If <= 5, assume Ratio (e.g. 1 = 100%, 0.3 = 30%)
+                            if (val <= 5.0) return val * 100;
+                            return val;
+                        })(),
                         media_url: getValue(row, ["MEDIA", "Media", "FOTO"]) || null,
                         media_type: 'image'
                     });
@@ -705,7 +736,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 potencia: parseFinancial(getValue(row, ["Potencia (kW)", "POTENCIA", "Potencia", "KW"])),
                 qty: parseFinancial(getValue(row, ["QTY", "Qty", "CANTIDAD", "Cantidad"]) || 1),
                 costoUSD: parseFinancial(getValue(row, ["COSTO", "Costo", "COSTOS", "PRECIO"]) || 0),
-                utilidad: parseFinancial(getValue(row, ["UTILIDAD", "UTIL", "Util", "Util %"]) || globalUtilVal)
+                utilidad: (() => {
+                    const raw = getValue(row, ["UTILIDAD", "UTIL", "Util", "Util %"]);
+                    let val = parseFinancial(raw);
+                    if (val === 0 && (raw === 0 || raw === "0")) return 0;
+                    if (!val) return globalUtilVal;
+                    if (val <= 5.0) return val * 100;
+                    return val;
+                })()
             }));
             // Perform update and save immediately
             // Perform update and save immediately
@@ -845,7 +883,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         }
     };
 
-    const handleExportPDF = () => setIsTemplateEditorOpen(true);
+    const handleExportPDF = () => {
+        if (isAdmin) {
+            setIsTemplateEditorOpen(true);
+        } else {
+            generateDirectPDF();
+        }
+    };
 
     const handleSavePdfSettings = (newSettings, newClient, newProject, newLogo) => {
         setPdfSettings(newSettings);
@@ -907,7 +951,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.45</span>
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.35</span>
                                 </h1>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}
