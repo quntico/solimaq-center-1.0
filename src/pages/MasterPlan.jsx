@@ -8,7 +8,7 @@ import { supabase } from "@/lib/customSupabaseClient";
 import PasswordPrompt from '@/components/PasswordPrompt';
 import { getActiveBucket } from "@/lib/bucketResolver";
 import SectionHeader from '@/components/SectionHeader';
-import { Camera, Video, Image as ImageIcon, X, Check, Maximize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
+import { Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -41,6 +41,14 @@ const money = (v) => {
 };
 
 const fmt = money;
+
+const parseFinancial = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const clean = String(val).replace(/[$,%\s]/g, ''); // Remove $ , % and spaces
+    const num = parseFloat(clean);
+    return isFinite(num) ? num : 0;
+};
 
 const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
 
@@ -105,8 +113,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [isPriceEditMode, setIsPriceEditMode] = useState(false);
     const [targetAmountModalOpen, setTargetAmountModalOpen] = useState(false);
     const [targetAmountValue, setTargetAmountValue] = useState(0);
-    const [isFooterHovered, setIsFooterHovered] = useState(false);
-    const [animatedPriceVal, setAnimatedPriceVal] = useState(0);
+
 
     const [pdfSettings, setPdfSettings] = useState(() => {
         try {
@@ -560,6 +567,21 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         }
     };
 
+    // Helper for fuzzy header matching
+    const getValue = (row, possibleKeys) => {
+        const rowKeys = Object.keys(row);
+        for (const target of possibleKeys) {
+            const normalizedTarget = target.toUpperCase().trim();
+            // Try exact match first
+            if (row[target] !== undefined) return row[target];
+
+            // Try normalized match
+            const foundKey = rowKeys.find(k => k.toUpperCase().trim() === normalizedTarget);
+            if (foundKey) return row[foundKey];
+        }
+        return undefined;
+    };
+
     // Excel Handlers
     const handleImportExcel = (e) => {
         const file = e.target.files[0];
@@ -574,38 +596,46 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const data = XLSX.utils.sheet_to_json(ws);
 
             const newSections = [];
-            let currentSec = null;
-            let lastModuleName = "";
+            const sectionMap = new Map(); // Title -> Section Reference
 
             data.forEach((row, idx) => {
-                const moduloName = String(row.NOMBRE || row.MODULO || row.Modulo || row.Módulo || "").trim();
-                const faseTag = String(row.FASE || row.TAG || row.Tag || "IMPORTADO").trim();
+                // Fuzzy match module name
+                const rawName = getValue(row, ["NOMBRE", "MODULO", "Modulo", "Módulo", "TITULO"]) || "";
+                const moduloName = String(rawName).trim();
 
-                // Si detectamos un cambio de nombre de módulo (y no es una fila vacía de equipo)
-                if (moduloName && moduloName !== lastModuleName) {
+                const rawTag = getValue(row, ["FASE", "TAG", "Tag"]) || "IMPORTADO";
+                const faseTag = String(rawTag).trim();
+
+                if (!moduloName) return; // Skip rows without module name
+
+                // Find or Create Section
+                let currentSec = sectionMap.get(moduloName);
+                if (!currentSec) {
                     currentSec = {
-                        id: `sec_${uid()}`,
+                        id: `sec_${uid()}_${idx}`, // Unique ID
                         collapsed: false,
                         titulo: cleanTitle(moduloName),
                         tag: faseTag,
                         items: []
                     };
                     newSections.push(currentSec);
-                    lastModuleName = moduloName;
+                    sectionMap.set(moduloName, currentSec);
                 }
 
-                if (currentSec && (row.EQUIPO || row.Equipo)) {
+                // Parse Item Data knowing headers might be messy
+                const eq = getValue(row, ["EQUIPO", "Equipo", "ITEM_DESC"]);
+                if (eq) {
                     currentSec.items.push({
                         id: uid(),
                         activo: true,
-                        codigo: String(row.NUM || row.ITEM || row.Item || row.CÓDIGO || row.Código || ""),
-                        equipo: String(row.EQUIPO || row.Equipo || ""),
-                        descripcion: String(row.DESCRIPCION || row.Descripción || row.DESCRIPCIÓN || ""),
-                        potencia: n(row["Potencia (kW)"] || row.POTENCIA || row.Potencia || 0),
-                        qty: n(row.QTY || row.Qty || row.CANTIDAD || row.Cantidad || 1),
-                        costoUSD: n(row.COSTO || row.Costo || row.COSTOS || 0),
-                        utilidad: n(row.UTIL || row.Util || row.UTILIDAD || globalUtilVal),
-                        media_url: row.MEDIA || row.Media || null,
+                        codigo: String(getValue(row, ["NUM", "ITEM", "Item", "CÓDIGO", "Código"]) || ""),
+                        equipo: String(eq),
+                        descripcion: String(getValue(row, ["DESCRIPCION", "Descripción", "DESCRIPCIÓN"]) || ""),
+                        potencia: parseFinancial(getValue(row, ["Potencia (kW)", "POTENCIA", "Potencia", "KW"])),
+                        qty: parseFinancial(getValue(row, ["QTY", "Qty", "CANTIDAD", "Cantidad"]) || 1),
+                        costoUSD: parseFinancial(getValue(row, ["COSTO", "Costo", "COSTOS", "PRECIO"]) || 0),
+                        utilidad: parseFinancial(getValue(row, ["UTILIDAD", "UTIL", "Util", "Util %"]) || globalUtilVal),
+                        media_url: getValue(row, ["MEDIA", "Media", "FOTO"]) || null,
                         media_type: 'image'
                     });
                 }
@@ -614,6 +644,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             if (newSections.length > 0) {
                 setSections(newSections);
                 toast({ title: "Excel Importado", description: `Se cargaron ${newSections.length} módulos.` });
+                saveToCloud(newSections);
             }
         };
         reader.readAsBinaryString(file);
@@ -668,16 +699,20 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const items = data.map(row => ({
                 id: uid(),
                 activo: true,
-                codigo: String(row.NUM || row.ITEM || row.Item || ""),
-                equipo: String(row.EQUIPO || row.Equipo || ""),
-                descripcion: String(row.DESCRIPCION || row.Descripción || ""),
-                potencia: n(row["Potencia (kW)"] || row.POTENCIA || row.Potencia || 0),
-                qty: n(row.QTY || row.Qty || 1),
-                costoUSD: n(row.COSTO || row.Costo || row.COSTOS || 0),
-                utilidad: n(row.UTIL || row.Util || row.UTILIDAD || globalUtilVal)
+                codigo: String(getValue(row, ["NUM", "ITEM", "Item", "CÓDIGO", "Código"]) || ""),
+                equipo: String(getValue(row, ["EQUIPO", "Equipo", "ITEM_DESC"]) || ""),
+                descripcion: String(getValue(row, ["DESCRIPCION", "Descripción", "DESCRIPCIÓN"]) || ""),
+                potencia: parseFinancial(getValue(row, ["Potencia (kW)", "POTENCIA", "Potencia", "KW"])),
+                qty: parseFinancial(getValue(row, ["QTY", "Qty", "CANTIDAD", "Cantidad"]) || 1),
+                costoUSD: parseFinancial(getValue(row, ["COSTO", "Costo", "COSTOS", "PRECIO"]) || 0),
+                utilidad: parseFinancial(getValue(row, ["UTILIDAD", "UTIL", "Util", "Util %"]) || globalUtilVal)
             }));
-            updateSection(sId, { items });
+            // Perform update and save immediately
+            // Perform update and save immediately
+            const updatedSections = sections.map(s => s.id === sId ? { ...s, items } : s);
+            setSections(updatedSections);
             toast({ title: "Módulo Actualizado" });
+            saveToCloud(updatedSections);
         };
         reader.readAsBinaryString(file);
     };
@@ -842,21 +877,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         document.addEventListener('mouseup', onMouseUp);
     };
 
-    useEffect(() => {
-        if (!isFooterHovered) return;
-        const target = grandTotals.totalVenta;
-        let start = target * 0.8;
-        const duration = 1500;
-        const startTime = Date.now();
-        const anim = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easeOut = 1 - Math.pow(1 - progress, 3);
-            setAnimatedPriceVal(start + (target - start) * easeOut);
-            if (progress < 1) requestAnimationFrame(anim);
-        };
-        requestAnimationFrame(anim);
-    }, [isFooterHovered, grandTotals.totalVenta]);
+
 
     const headerStyles = isScrolled ? "bg-black/90 backdrop-blur-2xl border-b border-white/5 py-4 shadow-2xl" : "bg-transparent py-10";
 
@@ -886,7 +907,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.40</span>
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.45</span>
                                 </h1>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}
@@ -1004,6 +1025,22 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         </p>
 
                         <div className="flex items-center gap-3 justify-center flex-wrap">
+                            <button
+                                onClick={() => toggleAllSections(false)}
+                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                            >
+                                <Maximize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
+                                ABRIR MÓDULOS
+                            </button>
+
+                            <button
+                                onClick={() => toggleAllSections(true)}
+                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                            >
+                                <Minimize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
+                                CERRAR MÓDULOS
+                            </button>
+
                             <button
                                 onClick={handleExportPDF}
                                 className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
@@ -1412,7 +1449,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                 {/* Footer Totals */}
                 {
-                    isStandalone && (
+                    true && (
                         <>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-20 p-8 bg-zinc-950/40 border border-white/5 rounded-[2.5rem] backdrop-blur-xl group/footer relative overflow-hidden">
                                 <div className="space-y-6 flex flex-col justify-center">
@@ -1427,16 +1464,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 </div>
 
                                 <div
-                                    onMouseEnter={() => setIsFooterHovered(true)}
-                                    onMouseLeave={() => setIsFooterHovered(false)}
-                                    className={`p-8 rounded-[2.5rem] flex flex-col justify-center items-end relative overflow-hidden transition-all duration-700 cursor-default shadow-2xl ${isFooterHovered ? 'bg-primary scale-[1.02] shadow-primary/30' : 'bg-primary'}`}
+                                    className="px-12 py-10 rounded-[2.5rem] flex flex-col justify-center items-end relative overflow-hidden shadow-2xl scale-[1.02] shadow-[0_0_40px_rgba(155,212,40,0.4)]"
+                                    style={{ backgroundColor: '#9BD428' }}
                                 >
-                                    <span className={`relative z-10 font-black uppercase tracking-[0.4em] transition-all duration-500 mb-2 ${isFooterHovered ? 'text-[14px] text-black' : 'text-[11px] opacity-70 text-black'}`}>Precio de Venta USD</span>
-                                    <h2 className="relative z-10 text-6xl md:text-7xl font-black tracking-tighter text-black tabular-nums transition-transform duration-300">
-                                        {money(isFooterHovered ? animatedPriceVal : grandTotals.totalVenta)}
+                                    <span className="relative z-10 font-black uppercase tracking-[0.4em] mb-2 text-[14px] text-black">Precio de Venta USD</span>
+                                    <h2 className="relative z-10 text-5xl md:text-7xl font-black tracking-tighter text-black tabular-nums transition-transform duration-300">
+                                        {money(grandTotals.totalVenta)}
                                     </h2>
-                                    <div className="relative z-10 mt-6 flex flex-col items-end gap-1 font-black uppercase tracking-widest text-black/80 text-[11px]">
-                                        ≈ {(grandTotals.mxnSinIvaVenta + grandTotals.ivaVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })} MXN <span className="text-[9px] opacity-60">(IVA Incluido)</span>
+                                    <div className="relative z-10 mt-6 flex flex-col items-end gap-1 font-black uppercase tracking-widest text-black text-[11px]">
+                                        ≈ {(grandTotals.mxnSinIvaVenta + grandTotals.ivaVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })} MXN <span className="text-[9px] opacity-80">(IVA Incluido)</span>
                                     </div>
                                 </div>
                             </div>
