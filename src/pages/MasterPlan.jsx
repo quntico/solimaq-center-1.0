@@ -616,6 +616,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const foundKey = rowKeys.find(k => k.toUpperCase().trim() === normalizedTarget);
             if (foundKey) return row[foundKey];
         }
+
+        // SPECIAL FALLBACK: If we are looking for description, try "contains"
+        if (possibleKeys.some(k => k.includes("DESC"))) {
+            const descKey = rowKeys.find(k => k.toUpperCase().includes("DESC") && !k.toUpperCase().includes("ITEM_DESC")); // Avoid ITEM_DESC alias for Equipo
+            if (descKey) return row[descKey];
+        }
+
         return undefined;
     };
 
@@ -630,7 +637,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const wb = XLSX.read(bstr, { type: 'binary' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws);
+            // Treat everything as text initially to avoid weird number formatting
+            const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+            if (data.length > 0) {
+                console.log("Excel Import Debug - First Row Keys:", Object.keys(data[0]));
+                console.log("Excel Import Debug - First Row Data:", data[0]);
+            }
 
             const newSections = [];
             const sectionMap = new Map(); // Title -> Section Reference
@@ -667,7 +680,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         activo: true,
                         codigo: String(getValue(row, ["NUM", "ITEM", "Item", "CÓDIGO", "Código"]) || ""),
                         equipo: String(eq),
-                        descripcion: String(getValue(row, ["DESCRIPCION", "Descripción", "DESCRIPCIÓN"]) || ""),
+                        // getValue now handles partial "DESC" matching via fallback
+                        descripcion: String(getValue(row, ["DESCRIPCION", "DECRIPCION", "DESCRIPCIÓN", "Descripción", "Description", "DESC", "Desc"]) || ""),
                         potencia: parseFinancial(getValue(row, ["Potencia (kW)", "POTENCIA", "Potencia", "KW"])),
                         qty: parseFinancial(getValue(row, ["QTY", "Qty", "CANTIDAD", "Cantidad"]) || 1),
                         costoUSD: parseFinancial(getValue(row, ["COSTO", "Costo", "COSTOS", "PRECIO"]) || 0),
@@ -747,7 +761,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 activo: true,
                 codigo: String(getValue(row, ["NUM", "ITEM", "Item", "CÓDIGO", "Código"]) || ""),
                 equipo: String(getValue(row, ["EQUIPO", "Equipo", "ITEM_DESC"]) || ""),
-                descripcion: String(getValue(row, ["DESCRIPCION", "Descripción", "DESCRIPCIÓN"]) || ""),
+                descripcion: String(getValue(row, ["DESCRIPCION", "DECRIPCION", "DESC", "DESCRIPCIÓN", "Descripción", "Description", "Desc"]) || ""),
                 potencia: parseFinancial(getValue(row, ["Potencia (kW)", "POTENCIA", "Potencia", "KW"])),
                 qty: parseFinancial(getValue(row, ["QTY", "Qty", "CANTIDAD", "Cantidad"]) || 1),
                 costoUSD: parseFinancial(getValue(row, ["COSTO", "Costo", "COSTOS", "PRECIO"]) || 0),
@@ -874,18 +888,24 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
             const finalY = doc.lastAutoTable.finalY + 8;
             if (finalY < 185) {
-                const totalBoxWidth = pdfSettings.colWidths.total + pdfSettings.colWidths.unit + 30;
+                const totalBoxWidth = pdfSettings.colWidths.total + pdfSettings.colWidths.unit + 45;
                 const tableRightPos = 282;
 
                 doc.setFillColor(0, 0, 0);
-                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 14, 'F');
+                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 20, 'F');
 
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(12);
+
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
                 doc.text("TOTAL GENERAL", tableRightPos - totalBoxWidth + 5, finalY + 9);
 
-                doc.setFontSize(16);
-                doc.text(money(grandTotals.totalVenta), tableRightPos - 5, finalY + 9, { align: 'right' });
+                doc.setFontSize(14);
+                doc.text(money(grandTotals.totalVenta) + " USD", tableRightPos - 5, finalY + 9, { align: 'right' });
+
+                doc.setFontSize(7);
+                doc.setFont("helvetica", "normal");
+                doc.text("(Precios más 16% de I.V.A.)", tableRightPos - 5, finalY + 16, { align: 'right' });
             }
 
             doc.save(`SOLIMAQ_MASTERPLAN_${projectName.replace(/\s+/g, '_')}.pdf`);
@@ -933,8 +953,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         setLogoUrl(newLogo);
 
         if (isAdmin) {
+            // CRITICAL: Ensure we don't save the logo inside the JSON blob
+            const { logoUrl, ...cleanSettings } = newSettings;
             saveToCloud(null, {
-                pdfSettings: newSettings,
+                pdfSettings: cleanSettings,
                 client: newClient,
                 project: newProject,
                 logo: newLogo
@@ -994,7 +1016,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.37</span>
+                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.50</span>
                                 </h1>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}

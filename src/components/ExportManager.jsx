@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import * as tus from 'tus-js-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X,
@@ -10,6 +11,7 @@ import {
     Zap,
     Upload,
     ExternalLink,
+    Link as LinkIcon,
     Trash2,
     Loader2
 } from 'lucide-react';
@@ -21,11 +23,11 @@ import {
     DialogDescription
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, supabaseUrl, supabaseAnonKey } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver';
 import { useToast } from '@/components/ui/use-toast';
 
-const DATA_SECTION_ID = 'extra_resources';
+const DATA_SECTION_ID = 'export_resources';
 
 const ExportProgress = ({ isOpen, type, progress, status }) => {
     const titles = {
@@ -35,7 +37,9 @@ const ExportProgress = ({ isOpen, type, progress, status }) => {
         excel: 'Estructura de Datos',
         project_a: 'Proyecto A',
         project_b: 'Proyecto B',
-        comparative: 'Comparativa'
+        comparative: 'Comparativa',
+        concentrado_a: 'MASTER PLAN A',
+        concentrado_b: 'MASTER PLAN B'
     };
 
     return (
@@ -134,12 +138,8 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
     const { toast } = useToast();
 
     // Resources Logic
-    const getResources = () => {
-        const sec = quotationData?.sections_config?.find(s => s.id === DATA_SECTION_ID);
-        return sec?.content || {};
-    };
-
-    const resources = getResources();
+    const resourcesSection = quotationData?.sections_config?.find(s => s.id === DATA_SECTION_ID);
+    const resources = resourcesSection?.content || {};
 
     const updateResource = (key, url) => {
         if (onAtomicUpdate) {
@@ -182,31 +182,105 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
         if (!file || !uploadTarget) return;
 
         setIsUploading(true);
+        let bucket = 'Desconocido';
+
         try {
-            const bucket = await getActiveBucket();
+            bucket = await getActiveBucket();
             const ext = file.name.split('.').pop();
             const fileName = `${activeTheme}/${uploadTarget}_${Date.now()}.${ext}`;
 
-            const { data, error } = await supabase.storage
-                .from(bucket)
-                .upload(fileName, file, { cacheControl: '3600', upsert: false });
+            // LIMIT: 50MB (Gateway Limit). If larger, use TUS to bypass.
+            if (file.size > 50 * 1024 * 1024) {
+                const { data: { session } } = await supabase.auth.getSession();
+                const upload = new tus.Upload(file, {
+                    endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+                    retryDelays: [0, 3000, 5000, 10000, 20000],
+                    headers: {
+                        authorization: `Bearer ${session?.access_token || supabaseAnonKey}`,
+                        'x-upsert': 'true',
+                        apikey: supabaseAnonKey,
+                    },
+                    uploadDataDuringCreation: true,
+                    removeFingerprintOnSuccess: true,
+                    metadata: {
+                        bucketName: bucket,
+                        objectName: fileName,
+                        contentType: file.type || 'application/octet-stream',
+                        cacheControl: '3600',
+                    },
+                    chunkSize: 6 * 1024 * 1024,
+                    onError: function (error) {
+                        console.error('TUS upload failed:', error);
+                        toast({
+                            title: "Error de Subida (TUS)",
+                            description: `Bucket: ${bucket} | Error: ${error.message}`,
+                            variant: "destructive"
+                        });
+                        setIsUploading(false);
+                        setUploadTarget(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                    },
+                    onSuccess: function () {
+                        const { data: { publicUrl } } = supabase.storage
+                            .from(bucket)
+                            .getPublicUrl(fileName);
 
-            if (error) throw error;
+                        updateResource(uploadTarget, publicUrl);
+                        toast({ title: "Archivo Grande Subido", description: "El documento se ha procesado con éxito (TUS)." });
+                        setIsUploading(false);
+                        setUploadTarget(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                    },
+                });
 
-            const { data: { publicUrl } } = supabase.storage
-                .from(bucket)
-                .getPublicUrl(fileName);
+                const previousUploads = await upload.findPreviousUploads();
+                if (previousUploads.length) {
+                    upload.resumeFromPreviousUpload(previousUploads[0]);
+                }
+                upload.start();
 
-            updateResource(uploadTarget, publicUrl);
-            toast({ title: "Archivo Subido", description: "El documento se ha guardado correctamente." });
+            } else {
+                // --- STANDARD UPLOAD (Small Files < 50MB) ---
+                const { data, error } = await supabase.storage
+                    .from(bucket)
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+
+                if (error) throw error;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from(bucket)
+                    .getPublicUrl(fileName);
+
+                updateResource(uploadTarget, publicUrl);
+                toast({ title: "Archivo Subido Correctamente", description: "El documento se ha guardado." });
+
+                setIsUploading(false);
+                setUploadTarget(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
 
         } catch (error) {
             console.error("Upload error:", error);
-            toast({ title: "Error", description: "No se pudo subir el archivo.", variant: "destructive" });
-        } finally {
+            const msg = error?.message || "Error desconocido";
+            toast({
+                title: "Error al subir archivo",
+                description: `Bucket: ${bucket} | Detalle: ${msg}`,
+                variant: "destructive"
+            });
             setIsUploading(false);
             setUploadTarget(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleManualLink = (key) => {
+        const url = window.prompt("Ingresa el enlace directo del archivo (URL):");
+        if (url) {
+            updateResource(key, url);
+            toast({ title: "Enlace Vinculado", description: "El recurso se ha actualizado manualmente." });
         }
     };
 
@@ -235,7 +309,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
         }
 
         if (customAction) {
-            customAction();
+            await customAction();
         } else {
             onExport(type);
         }
@@ -245,7 +319,44 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
         onClose();
     };
 
-    const exportItems = [
+    // FIXED ORDER DEFINITION (No DND)
+    // Row 1: Project A, Master Plan A
+    // Row 2: Project B, Master Plan B
+    // Row 3: Propuesta, Fichas
+    // Row 4: Comparativa
+    const fixedItems = [
+        {
+            id: 'project_a',
+            type: 'resource',
+            title: 'Proyecto A (PDF)',
+            description: 'Documentación técnica del Proyecto A.',
+            icon: <FileText className="w-6 h-6 text-indigo-400" />,
+            color: 'hover:border-indigo-400/50'
+        },
+        {
+            id: 'concentrado_a',
+            type: 'resource',
+            title: 'MASTER PLAN A',
+            description: 'Listado detallado de equipos - Opción A.',
+            icon: <Zap className="w-6 h-6 text-cyan-400" />,
+            color: 'hover:border-cyan-400/50'
+        },
+        {
+            id: 'project_b',
+            type: 'resource',
+            title: 'Proyecto B (PDF)',
+            description: 'Documentación técnica del Proyecto B.',
+            icon: <FileText className="w-6 h-6 text-pink-400" />,
+            color: 'hover:border-pink-400/50'
+        },
+        {
+            id: 'concentrado_b',
+            type: 'resource',
+            title: 'MASTER PLAN B',
+            description: 'Listado detallado de equipos - Opción B.',
+            icon: <Zap className="w-6 h-6 text-emerald-400" />,
+            color: 'hover:border-emerald-400/50'
+        },
         {
             id: 'propuesta',
             type: 'export',
@@ -254,15 +365,6 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
             icon: <FileText className="w-6 h-6 text-primary" />,
             action: () => runExport('propuesta'),
             color: 'hover:border-primary/50'
-        },
-        {
-            id: 'masterplan',
-            type: 'export',
-            title: 'Master Plan (PDF)',
-            description: 'Exportar la estructura técnica completa en PDF.',
-            icon: <Zap className="w-6 h-6 text-yellow-500" />,
-            action: () => runExport('masterplan'),
-            color: 'hover:border-yellow-500/50'
         },
         {
             id: 'fichas',
@@ -274,93 +376,48 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
             color: 'hover:border-blue-400/50'
         },
         {
-            id: 'excel',
-            type: 'export',
-            title: 'Master Plan (XLSX)',
-            description: 'Descargar archivo Excel editable para ingeniería.',
-            icon: <FileSpreadsheet className="w-6 h-6 text-green-500" />,
-            action: () => runExport('excel'),
-            color: 'hover:border-green-500/50'
-        }
-    ];
-
-    const extraResources = [
-        {
-            id: 'project_a',
-            type: 'resource',
-            title: 'Proyecto A (PDF)',
-            description: 'Documentación técnica del Proyecto A.',
-            icon: <FileText className="w-6 h-6 text-indigo-400" />,
-            color: 'hover:border-indigo-400/50'
-        },
-        {
-            id: 'project_b',
-            type: 'resource',
-            title: 'Proyecto B (PDF)',
-            description: 'Documentación técnica del Proyecto B.',
-            icon: <FileText className="w-6 h-6 text-pink-400" />,
-            color: 'hover:border-pink-400/50'
-        },
-        {
             id: 'comparative',
             type: 'resource',
             title: 'Comparativa (PDF)',
-            description: 'Análisis comparativo de opciones de inversión.',
+            description: 'Análisis comparativo de opciones.',
             icon: <FileText className="w-6 h-6 text-orange-400" />,
-            color: 'hover:border-orange-400/50'
-        },
-        {
-            id: 'concentrado_a',
-            type: 'resource',
-            title: 'Concentrado Equipos A',
-            description: 'Listado detallado de equipos - Opción A.',
-            icon: <Table className="w-6 h-6 text-cyan-400" />,
-            color: 'hover:border-cyan-400/50'
-        },
-        {
-            id: 'concentrado_b',
-            type: 'resource',
-            title: 'Concentrado Equipos B',
-            description: 'Listado detallado de equipos - Opción B.',
-            icon: <Table className="w-6 h-6 text-emerald-400" />,
-            color: 'hover:border-emerald-400/50'
+            color: 'hover:border-orange-400/50',
+            fullWidth: true // Special flag for the last item
         },
     ];
 
-    // Combine and Filter
-    const allItems = [
-        ...exportItems,
-        ...extraResources.filter(r => isEditorMode || resources[r.id])
-    ];
+    // Use fixedItems directly to preserve layout structure
+    const displayItems = fixedItems;
 
     return (
         <>
             <Dialog open={isOpen && !isExporting} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-[900px] bg-zinc-950 border-white/10 text-white max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[1000px] w-full bg-zinc-950 border-white/10 text-white max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tighter uppercase italic">
                             CENTRO DE <span className="text-primary text-3xl">EXPORTACIÓN</span>
                         </DialogTitle>
                         <DialogDescription className="text-zinc-400 text-base">
-                            Selecciona el formato que deseas generar o descargar para tu proyecto.
+                            Documentación y Archivos del Proyecto.
                         </DialogDescription>
                     </DialogHeader>
 
-                    {/* Standard Exports & Resources Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                        {allItems.map((item) => {
-                            // Determine handling based on type
+                    {/* Fixed 2-column Grid for "Line by Line" look */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                        {displayItems.map((item) => {
                             const isResource = item.type === 'resource';
                             const hasFile = isResource ? !!resources[item.id] : true;
+                            const isDisabled = !hasFile && !isEditorMode;
 
-                            // Handler
                             const handleClick = () => {
+                                if (isDisabled) return;
+
                                 if (item.type === 'export') {
                                     item.action();
                                 } else {
                                     if (hasFile) {
-                                        // Wrap resource download in the fake progress UI
-                                        runExport(item.id, () => window.open(resources[item.id], '_blank'));
+                                        // Simple direct access - open in new tab
+                                        window.open(resources[item.id], '_blank');
                                     } else if (isEditorMode) {
                                         handleUploadClick(item.id);
                                     }
@@ -368,18 +425,31 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                             };
 
                             return (
-                                <button
+                                <div
                                     key={item.id}
                                     onClick={handleClick}
-                                    className={`relative flex flex-col gap-3 p-6 bg-zinc-900/50 border border-white/5 rounded-2xl text-left transition-all duration-300 group ${item.color} hover:bg-zinc-900 active:scale-95`}
+                                    className={`relative flex flex-col gap-3 p-6 border rounded-2xl text-left transition-all duration-300 group
+                                    ${item.fullWidth ? 'md:col-span-2' : ''}
+                                    ${isDisabled
+                                            ? 'bg-zinc-900/20 border-white/5 opacity-50 cursor-not-allowed grayscale'
+                                            : `bg-zinc-900/50 border-white/5 ${item.color} hover:bg-zinc-900 active:scale-95 cursor-pointer`
+                                        }`}
                                 >
                                     <div className="flex justify-between items-start w-full">
-                                        <div className="p-3 bg-black/40 rounded-xl w-fit group-hover:scale-110 transition-transform text-white">
+                                        <div className={`p-3 rounded-xl w-fit transition-transform text-white ${isDisabled ? 'bg-zinc-800' : 'bg-black/40 group-hover:scale-110'}`}>
                                             {item.icon}
                                         </div>
-                                        {/* Editor Controls for Resources */}
+
+                                        {/* Controls for Resources */}
                                         {isResource && isEditorMode && (
                                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                <div
+                                                    className="p-2 hover:bg-blue-500/10 rounded-full cursor-pointer transition-colors"
+                                                    onClick={() => handleManualLink(item.id)}
+                                                    title="Vincular enlace manual"
+                                                >
+                                                    <LinkIcon size={14} className="text-zinc-500 hover:text-blue-400" />
+                                                </div>
                                                 <div
                                                     className="p-2 hover:bg-white/10 rounded-full cursor-pointer transition-colors"
                                                     onClick={() => handleUploadClick(item.id)}
@@ -398,23 +468,27 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                                                 )}
                                             </div>
                                         )}
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-bold text-lg leading-tight group-hover:text-white transition-colors">
-                                            {item.title}
-                                        </h3>
-                                        <p className="text-xs text-zinc-500 mt-1 line-clamp-2 leading-relaxed">
-                                            {item.description}
-                                        </p>
-                                        {!hasFile && isResource && isEditorMode && (
-                                            <div className="mt-2 text-[10px] items-center flex gap-1 text-primary font-bold uppercase tracking-wider">
-                                                <Upload size={10} />
-                                                Click para subir
-                                            </div>
+                                        {/* Disabled Badge for Users */}
+                                        {isDisabled && (
+                                            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest border border-zinc-800 px-2 py-1 rounded">
+                                                No Disponible
+                                            </span>
                                         )}
                                     </div>
-                                </button>
+                                    <div>
+                                        <h3 className={`font-bold text-lg transition-colors flex items-center gap-2 ${isDisabled ? 'text-zinc-500' : 'text-white group-hover:text-primary'}`}>
+                                            {item.title}
+                                            {hasFile && isResource && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/20">DISPONIBLE</span>}
+                                        </h3>
+                                        <p className="text-sm text-zinc-500 leading-snug">{item.description}</p>
+                                    </div>
+                                    {!hasFile && isResource && isEditorMode && (
+                                        <div className="mt-2 text-[10px] items-center flex gap-1 text-primary font-bold uppercase tracking-wider">
+                                            <Upload size={10} />
+                                            Click para subir
+                                        </div>
+                                    )}
+                                </div>
                             );
                         })}
                     </div>
@@ -437,8 +511,8 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                     )}
 
                     <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-500 tracking-widest uppercase font-black">
-                        <span>SOLIMAQ CENTER v3.72</span>
-                        <span>Sincronizado Cloud</span>
+                        <span>SOLIMAQ CENTER v3.75</span>
+                        <span>Estructura Simplificada</span>
                     </div>
                 </DialogContent>
             </Dialog>

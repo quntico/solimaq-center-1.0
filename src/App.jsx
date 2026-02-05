@@ -5,6 +5,8 @@ import AdminLayout from '@/layouts/AdminLayout';
 import ClientLayout from '@/layouts/ClientLayout';
 import MasterPlan from '@/pages/MasterPlan';
 
+import SecureViewer from '@/components/SecureViewer';
+
 function App() {
   return (
     <HelmetProvider>
@@ -14,6 +16,7 @@ function App() {
           <Route path="/cotizacion/:slug" element={<ClientLayout />} />
           <Route path="/master-plan" element={<MasterPlan />} />
           <Route path="/master-plan/:slug" element={<MasterPlan />} />
+          <Route path="/visor-seguro" element={<SecureViewer />} />
         </Routes>
       </Router>
     </HelmetProvider>

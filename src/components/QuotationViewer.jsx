@@ -94,6 +94,7 @@ const defaultSections = [
   { id: 'exclusiones', label: 'Exclusiones', icon: 'XCircle', isVisible: false, component: 'exclusiones' },
   { id: 'ia', label: 'Asistente IA', icon: 'BrainCircuit', isVisible: false, isLocked: false, component: 'ia' },
   { id: 'extra_resources', label: 'Recursos', icon: 'FileText', isVisible: false, component: 'generic', adminOnly: true },
+  { id: 'export_resources', label: 'Centro de Exportación', icon: 'Download', isVisible: false, component: 'generic', adminOnly: true },
 ];
 
 const clientVisibleSections = new Set(defaultSections.filter(s => !s.adminOnly).map(s => s.id));
@@ -395,14 +396,28 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
 
       setThemes(prevThemes => {
         const currentTheme = prevThemes[activeTheme];
-        const currentSections = currentTheme.sections_config || [];
+        // Ensure sections_config is an array
+        const currentSections = Array.isArray(currentTheme.sections_config) ? currentTheme.sections_config : [];
 
-        // Build the new sections config based on CURRENT (Head) state
-        const updatedSections = currentSections.map(s =>
-          s.id === sectionId
-            ? { ...s, content: { ...(s.content || {}), ...newContent } }
-            : s
-        );
+        let updatedSections;
+        const sectionExists = currentSections.some(s => s.id === sectionId);
+
+        if (sectionExists) {
+          updatedSections = currentSections.map(s =>
+            s.id === sectionId
+              ? { ...s, content: { ...(s.content || {}), ...newContent } }
+              : s
+          );
+        } else {
+          // Append new section if it doesn't exist
+          const newSection = {
+            id: sectionId,
+            isVisible: false,
+            component: 'generic',
+            content: newContent
+          };
+          updatedSections = [...currentSections, newSection];
+        }
 
         // Process with merge defaults to maintain component logic
         const processed = mergeWithDefaults(updatedSections);

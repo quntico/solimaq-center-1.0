@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Trash2, Eye, Download, Plus, Save, Edit, X, Lock, Unlock, Loader2, FilePlus, FileDown } from 'lucide-react';
+import { Upload, FileText, Trash2, Eye, Download, Plus, Save, Edit, X, Lock, Unlock, Loader2, FilePlus, FileDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, Minimize } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import SectionHeader from '@/components/SectionHeader';
 import { getActiveBucket } from '@/lib/bucketResolver';
 import { cn } from '@/lib/utils';
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// Configure Worker locally (Static Asset)
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+const pdfOptions = {
+  cMapUrl: '/cmaps/',
+  cMapPacked: true,
+  standardFontDataUrl: '/standard_fonts/'
+};
 
 const AdminLoginDialog = ({ isOpen, onClose, onLogin }) => {
   const [password, setPassword] = useState('');
@@ -51,17 +61,22 @@ const AdminLoginDialog = ({ isOpen, onClose, onLogin }) => {
   );
 };
 
-const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme }) => {
+const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme, activeBucket }) => {
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [inputKey, setInputKey] = useState(Date.now()); // Force reset input
   const fileInputRef = useRef(null);
 
   const resetState = () => {
     setName('');
     setFile(null);
     setIsUploading(false);
+    setInputKey(Date.now());
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleFileChange = (e) => {
@@ -80,63 +95,96 @@ const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme }) => {
     }
 
     setIsUploading(true);
+    console.log("Iniciando subida de cotización:", name);
+
+    let createdRecordId = null;
+
     try {
       // 1. Insert DB record to get an ID
-      const { data: dbData, error: dbError } = await supabase
+      console.log("Insertando registro en DB...");
+      const insertPromise = supabase
         .from('pdf_quotations')
         .insert({ name: name.trim(), theme_key: activeTheme, file_path: 'uploading' })
         .select()
         .single();
 
-      if (dbError) throw dbError;
+      const insertTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout conectando con la base de datos (Insert)")), 20000));
 
-      // 2. Try uploading to potential buckets
-      const potentialBuckets = ['quotation-pdfs', 'quotation-files', 'public', 'storage', 'logos-bucket'];
+      const { data: dbData, error: dbError } = await Promise.race([insertPromise, insertTimeout]);
+
+      if (dbError) throw dbError;
+      console.log("Registro creado, ID:", dbData.id);
+      createdRecordId = dbData.id;
+
+      // 2. Use passed activeBucket (with fallback)
+      const targetBucket = activeBucket || 'quotation-pdfs';
+      console.log(`[Upload] Target Bucket determined: ${targetBucket}`);
+
       let uploadSuccess = false;
       let usedBucket = '';
       let filePath = '';
       let lastError = null;
 
-      for (const bucket of potentialBuckets) {
+      const tryUpload = async (bucket) => {
         try {
+          console.log(`Intentando subir a bucket: ${bucket}`);
           filePath = `${activeTheme}/${dbData.id}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-          const { error: uploadError } = await supabase.storage
+
+          const uploadPromise = supabase.storage
             .from(bucket)
             .upload(filePath, file);
 
-          if (uploadError) {
-            // If bucket not found, continue to next
-            if (uploadError.message && (uploadError.message.includes("Bucket not found") || uploadError.message.includes("does not exist"))) {
-              console.warn(`Upload attempt to bucket '${bucket}' failed(Bucket not found / does not exist).Trying next...`);
-              lastError = uploadError;
-              continue;
-            }
-            throw uploadError; // Other errors (size, type, etc) should fail immediately
-          }
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Upload timed out after 60s")), 60000)
+          );
 
-          usedBucket = bucket;
-          uploadSuccess = true;
-          break; // Success!
+          const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]);
+
+          if (uploadError) throw uploadError;
+          return true;
         } catch (err) {
-          console.warn(`Upload attempt to bucket '${bucket}' failed with unexpected error: `, err);
+          console.warn(`Fallo subida a ${bucket}:`, err.message);
           lastError = err;
+          return false;
+        }
+      };
+
+      // Attempt 1: The resolved active bucket
+      if (await tryUpload(targetBucket)) {
+        usedBucket = targetBucket;
+        uploadSuccess = true;
+      } else {
+        // Attempt 2: Fallback list (excluding the one we just tried)
+        const potentialBuckets = ['quotation-pdfs', 'quotation-files', 'public', 'storage', 'logos-bucket'];
+        for (const bucket of potentialBuckets) {
+          if (bucket === targetBucket) continue;
+          if (await tryUpload(bucket)) {
+            usedBucket = bucket;
+            uploadSuccess = true;
+            break;
+          }
         }
       }
 
       if (!uploadSuccess) {
+        console.error("No se pudo subir a ningún bucket. Eliminando registro DB...");
         await supabase.from('pdf_quotations').delete().eq('id', dbData.id);
         throw new Error(lastError?.message || "No se pudo subir el archivo a ningún almacenamiento disponible.");
       }
 
       // 3. Update DB record with the final file path including the bucket name
       const finalStoredPath = `${usedBucket}/${filePath}`;
+      console.log("Actualizando registro con ruta final:", finalStoredPath);
 
-      const { data: updatedData, error: updateError } = await supabase
+      const updatePromise = supabase
         .from('pdf_quotations')
         .update({ file_path: finalStoredPath })
         .eq('id', dbData.id)
         .select()
         .single();
+
+      const updateTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout actualizando DB")), 20000));
+      const { data: updatedData, error: updateError } = await Promise.race([updatePromise, updateTimeout]);
 
       if (updateError) throw updateError;
 
@@ -146,7 +194,18 @@ const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme }) => {
       onClose();
 
     } catch (error) {
-      console.error(error);
+      console.error("Critical Error in handleSubmit:", error);
+
+      // Robust Cleanup
+      if (createdRecordId) {
+        console.warn(`Cleaning up orphaned record ${createdRecordId} due to error...`);
+        // Fire and forget cleanup
+        supabase.from('pdf_quotations').delete().eq('id', createdRecordId).then(({ error: delErr }) => {
+          if (delErr) console.error("Failed to clean up record:", delErr);
+          else console.log("Cleanup successful.");
+        });
+      }
+
       toast({ title: "Error", description: `No se pudo añadir la cotización: ${error.message}`, variant: "destructive" });
     } finally {
       setIsUploading(false);
@@ -168,6 +227,7 @@ const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme }) => {
             disabled={isUploading}
           />
           <Input
+            key={inputKey}
             type="file"
             accept=".pdf"
             ref={fileInputRef}
@@ -205,6 +265,61 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
   const [pdfUrl, setPdfUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
 
+  // PDF State
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [scale, setScale] = useState(1.0);
+
+
+
+  // Responsive PDF
+  const pdfContainerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(null);
+
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+
+    const observeTarget = pdfContainerRef.current;
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        // Use contentRect.width to get the width excluding padding/border if box-sizing is content-box,
+        // but flex containers usually need careful measurement. 
+        // We will subtract some padding (32px for p-4/8) to be safe or use clientWidth.
+        // entry.contentRect.width is usually precise for the inner content area.
+        setContainerWidth(entry.contentRect.width - 48); // Subtracting extra padding to ensure it fits nicely
+      }
+    });
+
+    resizeObserver.observe(observeTarget);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Track current page on scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const pageId = entry.target.id;
+            const pageNum = parseInt(pageId.replace('pdf-page-', ''));
+            if (!isNaN(pageNum)) {
+              setPageNumber(pageNum);
+            }
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    const pages = document.querySelectorAll('.pdf-page-container');
+    if (pages.length > 0) {
+      pages.forEach((p) => observer.observe(p));
+    }
+
+    return () => observer.disconnect();
+  }, [numPages, pdfUrl, selectedQuotation]);
+
   useEffect(() => {
     const initBucket = async () => {
       const bucket = await getActiveBucket();
@@ -240,6 +355,8 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
 
   /* PDF Cache Ref to store blob URLs and prevent re-fetching: { [id]: { pdfUrl, downloadUrl } } */
   const pdfCache = useRef({});
+  const [viewerError, setViewerError] = useState(null);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   const loadPdfToCache = useCallback(async (quotation) => {
     if (!quotation || !quotation.file_path || quotation.file_path === 'uploading') return null;
@@ -261,32 +378,29 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
       pathToUse = parts.slice(1).join('/');
     }
 
+    // console.log(`[PDF Loader] Processing ${quotation.name}...`);
+
     try {
-      let urlToFetch = null;
-      let originalSignedUrl = null;
-
-      const { data, error } = await supabase.storage
+      // Use Signed URL for direct streaming access (Reliable and Secure)
+      // Local worker ensures this is fast enough (~200ms)
+      const { data: signedData, error: signedError } = await supabase.storage
         .from(bucketToUse)
-        .createSignedUrl(pathToUse, 3600);
+        .createSignedUrl(pathToUse, 3600); // 1 hour validity
 
-      if (data?.signedUrl) {
-        urlToFetch = data.signedUrl;
-        originalSignedUrl = data.signedUrl;
-      } else {
-        const { data: publicData } = supabase.storage.from(bucketToUse).getPublicUrl(pathToUse);
-        urlToFetch = publicData.publicUrl;
-        originalSignedUrl = publicData.publicUrl;
+      if (signedError) {
+        throw signedError;
       }
 
-      const response = await fetch(urlToFetch);
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!signedData?.signedUrl) {
+        throw new Error("No se pudo generar la URL de acceso.");
+      }
 
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
+      const finalUrl = signedData.signedUrl;
+      console.log("[PDF Loader] URL Generated.");
 
       const cacheItem = {
-        pdfUrl: objectUrl,
-        downloadUrl: originalSignedUrl
+        pdfUrl: finalUrl,
+        downloadUrl: finalUrl
       };
 
       pdfCache.current[quotation.id] = cacheItem;
@@ -294,15 +408,14 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
 
     } catch (err) {
       console.error(`Error loading PDF for ${quotation.name}:`, err);
-      return null;
+      // Return error object instead of null to propagate reason
+      return { error: err.message || "Error al generar acceso al documento." };
     }
   }, [activeBucket]);
 
   useEffect(() => {
+    // Cleanup cache just in case, though URLs are mainly strings now
     return () => {
-      Object.values(pdfCache.current).forEach(cacheItem => {
-        if (cacheItem.pdfUrl) URL.revokeObjectURL(cacheItem.pdfUrl);
-      });
     };
   }, []);
 
@@ -314,6 +427,9 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
       if (!selectedQuotation) {
         setPdfUrl(null);
         setDownloadUrl(null);
+        setViewerError(null);
+        setIsPdfLoading(false);
+        setNumPages(null); // Reset pages
         return;
       }
 
@@ -322,17 +438,33 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
         console.log(`[PDF Cache] Hit for ${selectedQuotation.name}`);
         setPdfUrl(pdfCache.current[selectedQuotation.id].pdfUrl);
         setDownloadUrl(pdfCache.current[selectedQuotation.id].downloadUrl);
+        setViewerError(null);
+        setIsPdfLoading(false);
         return;
       }
 
       console.log(`[PDF Cache] Miss for ${selectedQuotation.name}, fetching...`);
+      setIsPdfLoading(true);
       setPdfUrl(null);
+      setViewerError(null);
+      setNumPages(null);
 
-      const cached = await loadPdfToCache(selectedQuotation);
+      const result = await loadPdfToCache(selectedQuotation);
 
-      if (isMounted && cached) {
-        setPdfUrl(cached.pdfUrl);
-        setDownloadUrl(cached.downloadUrl);
+      if (isMounted) {
+        setIsPdfLoading(false);
+        if (result && result.error) {
+          setViewerError(result.error);
+          setPdfUrl(null);
+        } else if (result) {
+          setPdfUrl(result.pdfUrl);
+          setDownloadUrl(result.downloadUrl);
+          setViewerError(null);
+        } else {
+          // General fallback
+          setViewerError("No se pudo cargar el documento.");
+          setPdfUrl(null);
+        }
       }
     };
 
@@ -431,10 +563,16 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
     }
   };
 
+  function onDocumentLoadSuccess({ numPages }) {
+    setNumPages(numPages);
+    setPageNumber(1);
+    setIsPdfLoading(false);
+  }
+
   return (
     <div className="py-4 sm:py-8 w-full h-full min-h-screen flex flex-col">
       <AdminLoginDialog isOpen={isLoginDialogOpen} onClose={() => setIsLoginDialogOpen(false)} onLogin={handleLoginSuccess} />
-      <AddQuotationDialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} onAdd={handleAddSuccess} activeTheme={activeTheme} />
+      <AddQuotationDialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} onAdd={handleAddSuccess} activeTheme={activeTheme} activeBucket={activeBucket} />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-[95%] mx-auto w-full flex-grow flex flex-col">
         <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4 sm:gap-0">
@@ -530,9 +668,11 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
           {/* Viewer Section - 9 Columns */}
           <div className="lg:col-span-9 h-full flex flex-col">
             {selectedQuotation && pdfUrl ? (
-              <div className="bg-white/10 backdrop-blur-[30px] border border-white/20 rounded-2xl overflow-hidden h-full flex flex-col shadow-[0_12px_40px_rgba(0,0,0,0.7)] relative">
+              <div className="bg-white/10 backdrop-blur-[30px] border border-white/20 rounded-2xl overflow-hidden h-full relative shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50 z-20" />
-                <div className="p-4 border-b border-white/20 flex justify-between items-center bg-white/5 backdrop-blur-md shrink-0 z-10">
+
+                {/* Fixed Header */}
+                <div className="absolute top-0 left-0 right-0 h-[80px] border-b border-white/20 flex justify-between items-center bg-white/5 backdrop-blur-md px-6 z-10">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/30 flex items-center justify-center border border-primary/50 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
                       <FileText className="w-5 h-5 text-primary" />
@@ -544,39 +684,142 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                       <span className="text-[10px] text-primary/80 font-bold uppercase tracking-widest">Documento Activo</span>
                     </div>
                   </div>
+
+                  {/* Controls */}
                   <div className="flex items-center gap-2">
-                    <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] text-primary hover:text-white border border-primary/30 bg-primary/10 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]">
-                        PANTALLA COMPLETA
-                      </Button>
-                    </a>
+                    {/* Page Navigation / Search */}
+                    <div className="flex items-center bg-black/40 rounded-lg p-1 mr-2 border border-white/10">
+                      <Input
+                        className="h-7 w-12 text-center bg-transparent border-none text-white text-xs p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        value={pageNumber}
+                        onChange={(e) => setPageNumber(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const page = parseInt(e.currentTarget.value);
+                            if (page >= 1 && page <= (numPages || 1)) {
+                              const pageElement = document.getElementById(`pdf-page-${page}`);
+                              if (pageElement) pageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }
+                        }}
+                        type="number"
+                        min={1}
+                        max={numPages || 1}
+                      />
+                      <span className="text-xs text-gray-400 font-mono px-2 border-l border-white/10">
+                        / {numPages || '--'}
+                      </span>
+                    </div>
+                    {/* Scale Controls */}
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10" onClick={() => setScale(s => Math.max(0.5, s - 0.1))}><ZoomOut className="w-4 h-4" /></Button>
+                    <span className="text-xs text-gray-300 font-mono w-10 text-center">{Math.round(scale * 100)}%</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10" onClick={() => setScale(s => Math.min(2.0, s + 0.1))}><ZoomIn className="w-4 h-4" /></Button>
+
+                    <div className="h-4 w-px bg-white/20 mx-1" />
+
+                    {/* Fullscreen Toggle */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-white hover:bg-white/10"
+                      onClick={() => {
+                        if (!document.fullscreenElement) {
+                          pdfContainerRef.current?.requestFullscreen();
+                        } else {
+                          document.exitFullscreen();
+                        }
+                      }}
+                      title="Pantalla Completa"
+                    >
+                      <Maximize className="w-4 h-4" />
+                    </Button>
+
                     <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary hover:bg-primary/20 transition-all rounded-full" title="Descargar PDF">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary hover:bg-primary/20 transition-all rounded-full ml-1" title="Descargar PDF">
                         <Download className="w-4 h-4" />
                       </Button>
                     </a>
                   </div>
                 </div>
 
-                {/* PDF Viewer with Mobile Scrolling and Centering Fix */}
-                <div className="flex-grow overflow-hidden relative bg-[#0a0a0a]/50 group">
-                  <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 via-transparent to-primary/20" />
-                  </div>
-
-                  <div className="w-full h-full overflow-hidden relative flex flex-col items-center justify-center p-0 sm:p-4 bg-black/40">
-                    <div className="w-full h-full overflow-auto touch-auto [-webkit-overflow-scrolling:touch]">
-                      <iframe
-                        src={`${pdfUrl}#view=FitV&toolbar=0&navpanes=0`}
-                        className="w-full h-full min-h-[70vh] sm:min-h-full border-0 shadow-3xl bg-white"
-                        style={{ display: 'block' }}
-                        title={selectedQuotation.name}
-                        loading="lazy"
-                        scrolling="yes"
-                      />
-                    </div>
+                {/* React PDF Viewer - Absolute Handling */}
+                <div
+                  ref={pdfContainerRef}
+                  className="absolute top-[80px] bottom-0 left-0 right-0 overflow-y-scroll bg-[#2a2a2a] w-full snap-y snap-mandatory scroll-smooth"
+                  style={{ scrollPaddingTop: '20px' }}
+                >
+                  <div className="min-h-full w-full flex flex-col items-center justify-start py-8">
+                    <Document
+                      file={pdfUrl}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      options={pdfOptions}
+                      loading={
+                        <div className="flex flex-col items-center justify-center p-12 text-white">
+                          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+                          <span className="font-bold">Cargando Documento...</span>
+                        </div>
+                      }
+                      error={
+                        <div className="text-red-500 font-bold flex flex-col items-center justify-center p-8 mt-10">
+                          <X className="w-10 h-10 mb-2" />
+                          Error al cargar el PDF.
+                        </div>
+                      }
+                      className="flex flex-col gap-8 items-center"
+                    >
+                      {Array.from(new Array(numPages || 0), (el, index) => (
+                        <div
+                          key={`page_${index + 1}`}
+                          id={`pdf-page-${index + 1}`}
+                          className="pdf-page-container relative shadow-2xl bg-white transition-transform snap-center"
+                          style={{ border: '1px solid rgba(255,255,255,0.05)' }}
+                        >
+                          <Page
+                            pageNumber={index + 1}
+                            width={containerWidth ? Math.max(300, Math.min(containerWidth - 64, 1200)) * scale : undefined}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                            className="block"
+                            loading={
+                              <div
+                                className="bg-white flex items-center justify-center"
+                                style={{
+                                  width: containerWidth ? Math.max(300, Math.min(containerWidth - 64, 1200)) * scale : '100%',
+                                  aspectRatio: '0.707',
+                                }}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <Loader2 className="w-8 h-8 animate-spin text-gray-400 mb-2" />
+                                  <span className="text-gray-300 text-xs font-mono uppercase tracking-widest">Cargando...</span>
+                                </div>
+                              </div>
+                            }
+                          />
+                        </div>
+                      ))}
+                    </Document>
                   </div>
                 </div>
+              </div>
+            ) : viewerError ? (
+              <div className="h-full flex flex-col items-center justify-center bg-[#1a0a0a] border-2 border-dashed border-red-900/50 rounded-lg text-center p-8">
+                <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mb-4">
+                  <X className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Error al cargar documento</h3>
+                <p className="text-red-400 font-mono text-sm max-w-md break-words">{viewerError}</p>
+                <Button
+                  variant="outline"
+                  className="mt-6 border-red-800 text-red-500 hover:bg-red-900/20"
+                  onClick={() => {
+                    setViewerError(null);
+                    const current = selectedQuotation;
+                    setSelectedQuotation(null);
+                    setTimeout(() => setSelectedQuotation(current), 100);
+                  }}
+                >
+                  Reintentar
+                </Button>
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center bg-[#0a0a0a] border-2 border-dashed border-gray-800 rounded-lg text-center p-8">
@@ -591,8 +834,8 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
             )}
           </div>
         </div>
-      </motion.div>
-    </div>
+      </motion.div >
+    </div >
   );
 };
 

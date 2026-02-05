@@ -33,12 +33,14 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
         if (initialSettings) setSettings(initialSettings);
     }, [initialSettings]);
 
-    const [logoUrl, setLogoUrl] = useState(initialSettings?.logoUrl || initialLogoUrl || "/solimaq_logo.png");
+    const [logoUrl, setLogoUrl] = useState(initialLogoUrl || initialSettings?.logoUrl || "/solimaq_logo.png");
 
     useEffect(() => {
-        if (initialSettings?.logoUrl) setLogoUrl(initialSettings.logoUrl);
-        else if (initialLogoUrl && !logoUrl) setLogoUrl(initialLogoUrl);
+        // Prioritize the prop, but fallback to settings if prop is missing (legacy support)
+        if (initialLogoUrl) setLogoUrl(initialLogoUrl);
+        else if (initialSettings?.logoUrl) setLogoUrl(initialSettings.logoUrl);
     }, [initialSettings?.logoUrl, initialLogoUrl]);
+
     const [isUploading, setIsUploading] = useState(false);
     const fileRef = useRef(null);
 
@@ -67,10 +69,14 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                 const ratio = img.width / img.height;
                 setLogoAspectRatio(ratio);
                 setLogoUrl(event.target.result);
-                setSettings(p => ({
-                    ...p,
-                    logoPos: { ...p.logoPos, height: p.logoPos.width / ratio }
-                }));
+                // Clean logoUrl from settings if it exists there to avoid conflicts
+                setSettings(p => {
+                    const { logoUrl, ...rest } = p;
+                    return {
+                        ...rest,
+                        logoPos: { ...p.logoPos, height: p.logoPos.width / ratio }
+                    };
+                });
                 setIsUploading(false);
             };
         };
@@ -78,7 +84,12 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
     };
 
     const handleSaveSettings = () => {
-        if (onSave) onSave(settings, editableClient, editableProject, logoUrl);
+        if (onSave) {
+            // CRITICAL: Remove logoUrl from settings before saving to prevent dual source of truth
+            // The logo is saved as a separate column/field in the DB
+            const { logoUrl, ...cleanSettings } = settings;
+            onSave(cleanSettings, editableClient, editableProject, logoUrl);
+        }
     };
 
     const generatePDF = () => {
@@ -187,18 +198,27 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
             // TOTAL GENERAL ALIGNED TO THE LAST COLUMN (WIDTH OF THE TABLE)
             const finalY = doc.lastAutoTable.finalY + 8;
             if (finalY < 185) {
-                const totalBoxWidth = settings.colWidths.total + settings.colWidths.unit + 30; // Extend across last columns
+                const totalBoxWidth = settings.colWidths.total + settings.colWidths.unit + 45; // Extend width to prevent overlap
                 const tableRightPos = 282; // Matches page margin
 
                 doc.setFillColor(0, 0, 0);
-                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 14, 'F');
+                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 20, 'F'); // Increased height for legend
 
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(12);
+
+                // Label
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
                 doc.text("TOTAL GENERAL", tableRightPos - totalBoxWidth + 5, finalY + 9);
 
-                doc.setFontSize(16);
-                doc.text(money(grandTotals.totalVenta), tableRightPos - 5, finalY + 9, { align: 'right' });
+                // Amount
+                doc.setFontSize(14); // Slightly smaller to ensure fit
+                doc.text(money(grandTotals.totalVenta) + " USD", tableRightPos - 5, finalY + 9, { align: 'right' });
+
+                // VAT Legend
+                doc.setFontSize(7);
+                doc.setFont("helvetica", "normal");
+                doc.text("(Precios más 16% de I.V.A.)", tableRightPos - 5, finalY + 16, { align: 'right' });
             }
 
             doc.save(`SOLIMAQ_MP_${editableProject.replace(/\s+/g, '_')}.pdf`);
@@ -224,7 +244,7 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                         <Settings2 className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-white font-bold leading-none">Editor Pro v11.0</h2>
+                        <h2 className="text-white font-bold leading-none">Editor Pro v11.5</h2>
                         <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">Plantilla de Exportacion</p>
                     </div>
                 </div>
