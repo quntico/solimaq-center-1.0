@@ -323,17 +323,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     const sectionsToSet = config.sections || (Array.isArray(config) ? config : null);
                     if (sectionsToSet && sectionsToSet.length > 0) {
                         const cleaned = sectionsToSet.map(s => ({ ...s, titulo: cleanTitle(s.titulo) }));
-                        setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: false })));
+                        setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: true })));
                     } else {
                         // If we have no cloud sections but we matched a record, 
                         // reset to expanded defaults to be visible
-                        setSections(initialSections.map(s => ({ ...s, collapsed: false })));
+                        setSections(initialSections.map(s => ({ ...s, collapsed: true })));
                     }
                 }
                 setLastCloudSync(new Date());
             } else {
                 console.log("[MasterPlan] ⚠️ No cloud data found, using default sections (Expanded)");
-                setSections(initialSections.map(s => ({ ...s, collapsed: false })));
+                setSections(initialSections.map(s => ({ ...s, collapsed: true })));
             }
             console.log("[MasterPlan] ✅ Hydration complete - rendering content", { sectionsCount: sections.length });
             setIsHydrated(true);
@@ -342,7 +342,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             // ENSURE we have sections even on error
             if (sections.length === 0) {
                 console.log("[MasterPlan] 🔧 Loading default sections due to error");
-                setSections(initialSections.map(s => ({ ...s, collapsed: false })));
+                setSections(initialSections.map(s => ({ ...s, collapsed: true })));
             }
             setIsHydrated(true);
         }
@@ -361,20 +361,21 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         return () => clearTimeout(timeout);
     }, [isHydrated]);
 
-    // Force expand sections in integrated mode (when rendered inside QuotationViewer)
-    const hasExpandedRef = useRef(false);
-    useEffect(() => {
-        if (!isStandalone && sections.length > 0 && !hasExpandedRef.current) {
-            const hasCollapsed = sections.some(s => s.collapsed);
-            if (hasCollapsed) {
-                console.log("[MasterPlan] 🔧 Forcing expansion in integrated mode");
-                hasExpandedRef.current = true;
-                setSections(prev => prev.map(s => ({ ...s, collapsed: false })));
-            } else {
-                hasExpandedRef.current = true; // Mark as done even if no collapsed sections
-            }
-        }
-    }, [isStandalone]); // Only depend on isStandalone, not sections.length
+    // REMOVED: Auto-expand in integrated mode - sections should be collapsed by default
+    // const hasExpandedRef = useRef(false);
+    // useEffect(() => {
+    //     if (!isStandalone && sections.length > 0 && !hasExpandedRef.current) {
+    //         const hasCollapsed = sections.some(s => s.collapsed);
+    //         if (hasCollapsed) {
+    //             console.log("[MasterPlan] 🔧 Forcing expansion in integrated mode");
+    //             hasExpandedRef.current = true;
+    //             setSections(prev => prev.map(s => ({ ...s, collapsed: false })));
+    //         } else {
+    //             hasExpandedRef.current = true; // Mark as done even if no collapsed sections
+    //         }
+    //     }
+    // }, [isStandalone]); // Only depend on isStandalone, not sections.length
+
 
     const saveToCloud = async (overrideData = null, configOverrides = {}) => {
         setIsCloudSyncing(true);
