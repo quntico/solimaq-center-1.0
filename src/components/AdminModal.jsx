@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { QRCodeCanvas } from 'qrcode.react';
+import jsPDF from 'jspdf';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { BRANDS } from '@/lib/brands'; // Import brands
@@ -580,6 +581,67 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
     window.open(`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`, '_blank');
   };
 
+  const handleDownloadQRPDF = () => {
+    if (!currentThemeData?.slug) {
+      toast({ title: "Sin Slug", description: "Esta cotización no tiene slug.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Get QR canvas
+      const qrCanvas = document.querySelector('#qr-canvas-download');
+      if (!qrCanvas) {
+        toast({ title: "Error", description: "No se pudo generar el QR.", variant: "destructive" });
+        return;
+      }
+
+      const qrImage = qrCanvas.toDataURL('image/png');
+      const url = `https://www.solimaq.site/cotizacion/${currentThemeData.slug}`;
+
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Add title
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(currentThemeData.project || 'Proyecto', 105, 30, { align: 'center' });
+
+      // Add subtitle
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(currentThemeData.client || '', 105, 40, { align: 'center' });
+
+      // Add QR code (centered)
+      const qrSize = 80;
+      const qrX = (210 - qrSize) / 2; // Center on A4 width (210mm)
+      pdf.addImage(qrImage, 'PNG', qrX, 60, qrSize, qrSize);
+
+      // Add URL below QR
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 102, 204); // Blue color for link
+      pdf.text(url, 105, 155, { align: 'center' });
+
+      // Add instructions
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Escanea el código QR o visita el enlace para ver la cotización', 105, 170, { align: 'center' });
+
+      // Save PDF
+      const fileName = `QR_${currentThemeData.project?.replace(/\s/g, '_') || 'Proyecto'}.pdf`;
+      pdf.save(fileName);
+
+      toast({ title: "¡PDF Descargado! 📄", description: `${fileName} guardado correctamente.` });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
+    }
+  };
+
+
   if (!isOpen) return null;
   // CRITICAL GUARD: Render nothing if critical data missing
   if (!currentThemeData || !themes) return null;
@@ -999,7 +1061,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
               <h3 className="text-2xl font-bold text-black">Código QR</h3>
               <div className="p-4 bg-white rounded-lg shadow-inner border border-gray-200">
-                <QRCodeCanvas value={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`} size={256} level="H" includeMargin={true} />
+                <QRCodeCanvas id="qr-canvas-download" value={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`} size={256} level="H" includeMargin={true} />
               </div>
               <div className="text-center w-full max-w-[280px]">
                 <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2 truncate">{currentThemeData.project}</p>
@@ -1014,9 +1076,15 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                     <span>solimaq.site/cotizacion/{currentThemeData.slug}</span>
                   </a>
                 </div>
-                <Button onClick={() => setShowQR(false)} className="w-full bg-primary text-white hover:bg-primary/90">
-                  Cerrar
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleDownloadQRPDF} className="flex-1 bg-primary text-white hover:bg-primary/90">
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Descargar PDF
+                  </Button>
+                  <Button onClick={() => setShowQR(false)} variant="outline" className="flex-1">
+                    Cerrar
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
