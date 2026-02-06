@@ -75,7 +75,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const navigate = useNavigate();
     const { toast } = useToast();
 
-    console.log("[MasterPlan] Initializing with slug:", baseSlug, "Cloud Slug:", CLOUD_SLUG);
+    console.log("[MasterPlan] 🔍 Initialization:", {
+        propSlug,
+        paramsSlug,
+        quotationDataSlug: quotationData?.slug,
+        baseSlug,
+        CLOUD_SLUG,
+        isStandalone,
+        hasQuotationData: !!quotationData,
+        brandColor: quotationData?.brand_color
+    });
 
     // State
     const [horasDia, setHorasDia] = useState(16);
@@ -154,20 +163,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     });
 
     const [sections, setSections] = useState(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) {
-                console.log("[MasterPlan] No local storage data, using defaults.");
-                return initialSections;
-            }
-            const parsed = JSON.parse(raw);
-            const finalSections = (Array.isArray(parsed) && parsed.length > 0) ? parsed : initialSections;
-            console.log("[MasterPlan] Loaded sections from local storage:", finalSections.length);
-            return finalSections;
-        } catch (e) {
-            console.error("[MasterPlan] Error loading from local storage:", e);
-            return initialSections;
-        }
+        // AGGRESSIVE FIX: Always start with expanded default sections
+        // This bypasses all localStorage issues
+        console.log("[MasterPlan] 🔧 FORCE-LOADING expanded default sections");
+        return initialSections;
     });
 
     useEffect(() => {
@@ -285,8 +284,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 }
             }
 
+            console.log("[MasterPlan] 📦 Query result:", {
+                found: !!finalData,
+                slug: finalData?.slug,
+                hasSectionsConfig: !!finalData?.sections_config
+            });
+
             if (finalData) {
-                console.log("[MasterPlan] Cloud data received:", finalData.slug);
+                console.log("[MasterPlan] ✅ Cloud data received:", finalData.slug);
                 const config = finalData.sections_config || {};
                 const isProjectSpecificData = finalData.slug === CLOUD_SLUG;
 
@@ -318,7 +323,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     const sectionsToSet = config.sections || (Array.isArray(config) ? config : null);
                     if (sectionsToSet && sectionsToSet.length > 0) {
                         const cleaned = sectionsToSet.map(s => ({ ...s, titulo: cleanTitle(s.titulo) }));
-                        setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: true })));
+                        setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: false })));
                     } else {
                         // If we have no cloud sections but we matched a record, 
                         // reset to expanded defaults to be visible
@@ -327,17 +332,49 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 }
                 setLastCloudSync(new Date());
             } else {
-                console.log("[MasterPlan] No cloud data found anywhere, using default Cacao Line (Expanded)");
+                console.log("[MasterPlan] ⚠️ No cloud data found, using default sections (Expanded)");
                 setSections(initialSections.map(s => ({ ...s, collapsed: false })));
             }
+            console.log("[MasterPlan] ✅ Hydration complete - rendering content", { sectionsCount: sections.length });
             setIsHydrated(true);
         } catch (error) {
-            console.error("[MasterPlan] Cloud fetch error:", error);
+            console.error("[MasterPlan] ❌ Cloud fetch error, but forcing hydration anyway:", error);
+            // ENSURE we have sections even on error
+            if (sections.length === 0) {
+                console.log("[MasterPlan] 🔧 Loading default sections due to error");
+                setSections(initialSections.map(s => ({ ...s, collapsed: false })));
+            }
             setIsHydrated(true);
         }
     };
 
     useEffect(() => { fetchCloudData(); }, [CLOUD_SLUG]);
+
+    // Safety timeout: force hydration after 3s if not already hydrated
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            if (!isHydrated) {
+                console.warn("[MasterPlan] ⚠️ Forcing hydration after 3s timeout - data loading may have failed");
+                setIsHydrated(true);
+            }
+        }, 3000);
+        return () => clearTimeout(timeout);
+    }, [isHydrated]);
+
+    // Force expand sections in integrated mode (when rendered inside QuotationViewer)
+    const hasExpandedRef = useRef(false);
+    useEffect(() => {
+        if (!isStandalone && sections.length > 0 && !hasExpandedRef.current) {
+            const hasCollapsed = sections.some(s => s.collapsed);
+            if (hasCollapsed) {
+                console.log("[MasterPlan] 🔧 Forcing expansion in integrated mode");
+                hasExpandedRef.current = true;
+                setSections(prev => prev.map(s => ({ ...s, collapsed: false })));
+            } else {
+                hasExpandedRef.current = true; // Mark as done even if no collapsed sections
+            }
+        }
+    }, [isStandalone]); // Only depend on isStandalone, not sections.length
 
     const saveToCloud = async (overrideData = null, configOverrides = {}) => {
         setIsCloudSyncing(true);
@@ -826,7 +863,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             let globalIdx = 1;
 
             sections.forEach((s, sIdx) => {
-                const activeItems = s.items.filter(it => it.activo);
+                const activeItems = (s.items || []).filter(it => it.activo);
                 if (activeItems.length === 0) return;
 
                 tableData.push([
@@ -990,6 +1027,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const headerStyles = isScrolled ? "bg-black/90 backdrop-blur-2xl border-b border-white/5 py-4 shadow-2xl" : "bg-transparent py-10";
 
+    console.log("[MasterPlan] 🎨 Render check:", { isHydrated, sectionsCount: sections.length, isStandalone });
+
     if (!isHydrated) return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6">
             <div className="relative">
@@ -1126,6 +1165,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             <div className={`mx-auto pb-40 ${isStandalone ? 'max-w-[1800px] px-6 md:px-12 pt-10' : 'max-w-7xl px-4 py-24 border-t border-white/5'}`}>
                 {!isStandalone && (
                     <div className="text-center mb-16 pt-8 relative">
+
                         <h1 className="text-5xl sm:text-8xl font-black tracking-tighter mb-6 uppercase">
                             MASTER <span className="text-primary">PLAN</span>
                         </h1>

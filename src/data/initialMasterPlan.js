@@ -3,7 +3,7 @@ const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
 export const initialSections = [
     {
         id: "sec_cacao",
-        collapsed: true,
+        collapsed: false,
         titulo: "Línea de cacao (desde grano) · Selección → Tostado → Descascarillado → Molienda → Prensado",
         tag: "Oferta LST · Bean to Powder 200–300 kg/h",
         items: [
@@ -30,7 +30,7 @@ export const initialSections = [
     },
     {
         id: "sec_polvo_bebida",
-        collapsed: true,
+        collapsed: false,
         summaryDesc: "",
         titulo: "Chocolate en polvo para bebida (mezcla con leche) · Formulación → Mezclado → (Opcional) Instantizado",
         tag: "Pendiente de cotizar (requerido para tu SKU de bebida)",
@@ -45,7 +45,7 @@ export const initialSections = [
     },
     {
         id: "sec_empaque_polvo",
-        collapsed: true,
+        collapsed: false,
         summaryDesc: "",
         titulo: "Empaque de polvos · Bolsa 400 g",
         tag: "Oferta PKW-130",
@@ -55,7 +55,7 @@ export const initialSections = [
     },
     {
         id: "sec_tabletas",
-        collapsed: true,
+        collapsed: false,
         summaryDesc: "",
         titulo: "Tabletas (2 líneas) · Templado → Moldeo → Vibrado → Enfriado → Desmolde",
         tag: "Oferta Mini Chocolate Molding Line (ajustada a 2 líneas) + 1 Foil",
@@ -78,7 +78,7 @@ export const initialSections = [
     },
     {
         id: "sec_hex",
-        collapsed: true,
+        collapsed: false,
         summaryDesc: "",
         titulo: "Empaque de tabletas hexagonales · Encartonado hex",
         tag: "Pendiente de cotizar (tu otra presentación)",
@@ -90,7 +90,7 @@ export const initialSections = [
     },
     {
         id: "sec_utilidades",
-        collapsed: true,
+        collapsed: false,
         summaryDesc: "",
         titulo: "Utilidades mínimas (planta)",
         tag: "Pendiente (no inflar: queda en 0 hasta cotizar)",

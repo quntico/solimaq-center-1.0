@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import GenericSection from './sections/GenericSection';
+import MasterPlan from '../pages/MasterPlan';
 
 const MainContent = (props) => {
   const {
@@ -45,7 +46,11 @@ const MainContent = (props) => {
       {sections.map(section => {
         if (!section.isVisible) return null;
 
-        const Component = section.Component || GenericSection;
+        // Map section ID to component
+        let Component = section.Component || GenericSection;
+        if (section.id === 'master_plan') {
+          Component = MasterPlan;
+        }
 
         const sectionProps = {
           sectionData: section,
@@ -60,19 +65,25 @@ const MainContent = (props) => {
           ...(section.id === 'propuesta' && { sections: allSectionsData }),
           ...(section.id === 'video' && { onVideoUrlUpdate }),
           isStandalone: section.id !== 'master_plan',
-          parentSlug: quotationData?.slug
+          parentSlug: quotationData?.slug,
+          slug: quotationData?.slug
         };
 
         return (
           <section id={section.id} key={section.id}>
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.5 }}
-            >
+            {section.id === 'master_plan' ? (
+              // Render MasterPlan without motion wrapper to avoid visibility issues
               <Component {...sectionProps} />
-            </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Component {...sectionProps} />
+              </motion.div>
+            )}
           </section>
         );
       })}
