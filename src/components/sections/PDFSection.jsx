@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import SectionHeader from '@/components/SectionHeader';
 import { getActiveBucket } from '@/lib/bucketResolver';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeFileName } from '@/lib/utils';
+
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Configure Worker locally (Static Asset)
@@ -128,7 +129,8 @@ const AddQuotationDialog = ({ isOpen, onClose, onAdd, activeTheme, activeBucket 
       const tryUpload = async (bucket) => {
         try {
           console.log(`Intentando subir a bucket: ${bucket}`);
-          filePath = `${activeTheme}/${dbData.id}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          filePath = `${activeTheme}/${dbData.id}-${sanitizeFileName(file.name)}`;
+
 
           const uploadPromise = supabase.storage
             .from(bucket)

@@ -152,6 +152,7 @@ const EditableList = ({ items, onSave, isEditorMode }) => {
 };
 
 
+
 const SpecCard = ({ iconName, title, titleAlignment, value, alignment, onSave, onIconChange, isEditorMode }) => {
   const Icon = iconMap[iconName] || iconMap['Zap'];
   const isCentered = titleAlignment === 'center';

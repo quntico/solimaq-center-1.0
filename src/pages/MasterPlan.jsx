@@ -7,7 +7,9 @@ import ExportTemplateEditor from '../components/ExportTemplateEditor';
 import { supabase } from "@/lib/customSupabaseClient";
 import PasswordPrompt from '@/components/PasswordPrompt';
 import { getActiveBucket } from "@/lib/bucketResolver";
+import { sanitizeFileName } from "@/lib/utils";
 import SectionHeader from '@/components/SectionHeader';
+
 import { Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -609,7 +611,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     if (!s.items) continue;
                     const it = s.items.find(x => x.codigo === code);
                     if (it) {
-                        const filePath = `masterplan/bulk_${code}_${Date.now()}.${ext}`;
+                        const filePath = `masterplan/bulk_${sanitizeFileName(code)}_${Date.now()}.${ext}`;
                         try {
                             const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
                             if (uploadError) throw uploadError;

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, Zap, ChevronsUpDown, X, Save, Eraser, Settings, Palette, Scale, Upload, Image, Loader2, Minimize, Timer, PlaySquare, Clock, CheckCircle, Wrench, Ship, Truck, Copy, Link as LinkIcon, ClipboardCopy, Star, Home, MonitorSpeaker as Announce, MoveHorizontal, EyeOff, ExternalLink, QrCode, RefreshCw, Trash2, FileDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeFileName } from '@/lib/utils';
+
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -295,7 +296,8 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
     try {
       const bucketName = await getActiveBucket();
-      const fileName = `${field}s/${activeTheme.toLowerCase()}-${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+      const fileName = `${field}s/${activeTheme.toLowerCase()}-${Date.now()}-${sanitizeFileName(file.name)}`;
+
 
       const { error: uploadError } = await supabase.storage
         .from(bucketName)

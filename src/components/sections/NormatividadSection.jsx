@@ -22,14 +22,34 @@ const NormatividadSection = ({ sectionData, isEditorMode, onContentChange }) => 
         { id: 3, icon: 'ElectricalSafety', title: 'NOM-001-SEDE-2018', description: 'Instalaciones eléctricas seguras y certificadas.', align: 'left' },
     ];
 
-    const content = sectionData.content || { services: defaultServices };
+    const [content, setContent] = useState(() => ({
+        services: defaultServices,
+        ...(sectionData.content || {})
+    }));
+
+    // Sync with external data
+    React.useEffect(() => {
+        if (sectionData.content) {
+            setContent(prev => ({ ...prev, ...sectionData.content }));
+        }
+    }, [sectionData.content]);
+
     const services = content.services || defaultServices;
 
     const handleSave = async (index, field, value) => {
         const updatedServices = [...services];
         updatedServices[index] = { ...updatedServices[index], [field]: value };
-        onContentChange({ services: updatedServices });
+        const newContent = { services: updatedServices };
+
+        // Optimistic UI update
+        setContent(newContent);
+
+        // Propagate to parent
+        if (onContentChange) {
+            onContentChange(newContent);
+        }
     };
+
 
     const containerVariants = {
         hidden: { opacity: 0 },

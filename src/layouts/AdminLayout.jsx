@@ -3,13 +3,51 @@ import { supabase } from '@/lib/customSupabaseClient';
 import LoadingScreen from '@/components/LoadingScreen';
 import QuotationViewer from '@/components/QuotationViewer';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/components/ui/use-toast';
 
 const AdminLayout = () => {
   const [appIsLoading, setAppIsLoading] = useState(true);
   const [initialQuotationData, setInitialQuotationData] = useState(null);
+  const [activeTheme, setActiveTheme] = useState(null);
   const [allThemes, setAllThemes] = useState({});
   const [error, setError] = useState(null);
   const { t } = useLanguage();
+  const { toast } = useToast();
+
+  const handleThemeSwitch = async (newThemeKey) => {
+    console.log("[AdminLayout] Switching theme to:", newThemeKey);
+    setActiveTheme(newThemeKey);
+
+    // Update URL to persist project selection on reload
+    const url = new URL(window.location);
+    url.searchParams.set('p', newThemeKey);
+    window.history.pushState({}, '', url);
+
+    // If we don't have the full data for this theme yet, fetch it
+    if (!allThemes[newThemeKey]?.sections_config || allThemes[newThemeKey]?.isStub) {
+      console.log("[AdminLayout] Lazy loading full data for:", newThemeKey);
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('quotations')
+          .select('*')
+          .eq('theme_key', newThemeKey)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        setAllThemes(prev => ({
+          ...prev,
+          [newThemeKey]: data
+        }));
+        setInitialQuotationData(data);
+      } catch (err) {
+        console.error("Error lazy loading theme:", err);
+        toast({ title: "Error", description: "No se pudo cargar el proyecto.", variant: "destructive" });
+      }
+    } else {
+      setInitialQuotationData(allThemes[newThemeKey]);
+    }
+  };
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -27,25 +65,23 @@ const AdminLayout = () => {
         }
 
         const themesObject = {};
-        // Filter out soft-deleted items
         allData.filter(item => !item.theme_key.startsWith('deleted_')).forEach(item => {
-          themesObject[item.theme_key] = item;
+          themesObject[item.theme_key] = { ...item, isStub: true };
         });
-        setAllThemes(themesObject);
 
-        // Identify which project to load first (Home or Fallback)
-        let targetThemeKey = null;
-        const homeStub = allData.find(item => item.is_home);
+        // Identify which project to load first
+        const params = new URLSearchParams(window.location.search);
+        const urlThemeKey = params.get('p');
+        let targetThemeKey = urlThemeKey && themesObject[urlThemeKey] ? urlThemeKey : null;
 
-        if (homeStub) {
-          targetThemeKey = homeStub.theme_key;
-        } else if (allData.length > 0) {
-          targetThemeKey = allData[0].theme_key;
-          console.warn(t('adminLayout.noHome'));
+        if (!targetThemeKey) {
+          const homeStub = allData.find(item => item.is_home);
+          targetThemeKey = homeStub ? homeStub.theme_key : (allData[0]?.theme_key || null);
         }
 
         if (targetThemeKey) {
-          // FETCH FULL DATA FOR THE INITIAL PROJECT ONLY
+          setActiveTheme(targetThemeKey);
+          // FETCH FULL DATA FOR THE INITIAL PROJECT
           const { data: fullData, error: fullError } = await supabase
             .from('quotations')
             .select('*')
@@ -54,18 +90,13 @@ const AdminLayout = () => {
 
           if (!fullError && fullData) {
             setInitialQuotationData(fullData);
-            // Update allThemes with the full data so the shell has it
             themesObject[targetThemeKey] = fullData;
           } else {
-            // Fallback to stub if full fetch fails
-            setInitialQuotationData(allData.find(d => d.theme_key === targetThemeKey));
+            setInitialQuotationData(themesObject[targetThemeKey]);
           }
-        } else {
-          throw new Error(t('adminLayout.noHomeNoFallback'));
         }
 
         setAllThemes(themesObject);
-
       } catch (e) {
         console.error(e);
         setError(e.message);
@@ -75,32 +106,26 @@ const AdminLayout = () => {
     };
 
     fetchAllData();
-  }, []); // Only run once on mount
+  }, [t]);
 
-  if (appIsLoading) {
-    return <LoadingScreen message={t('adminLayout.loadingConfig')} />;
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-black text-white p-4 text-center">
-        <h1 className="text-3xl font-bold text-red-500 mb-4">{t('adminLayout.loadErrorTitle')}</h1>
-        <p className="text-lg mb-8 max-w-md">{error}</p>
-      </div>
-    );
-  }
-
-  if (!initialQuotationData) {
-    return <LoadingScreen message={t('adminLayout.loadingConfig')} />;
-  }
+  if (appIsLoading) return <LoadingScreen message={t('adminLayout.loadingConfig')} />;
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 text-center">
+      <h1 className="text-3xl font-bold text-red-500 mb-4">{t('adminLayout.loadErrorTitle')}</h1>
+      <p className="text-lg mb-8 max-w-md">{error}</p>
+    </div>
+  );
 
   return (
     <QuotationViewer
       initialQuotationData={initialQuotationData}
       allThemes={allThemes}
       isAdminView={true}
+      activeThemeProp={activeTheme}
+      onThemeChange={handleThemeSwitch}
     />
   );
 };
+
 
 export default AdminLayout;

@@ -8,6 +8,7 @@ import IconPicker from '@/components/IconPicker';
 import { iconMap } from '@/lib/iconMap';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver';
+import { sanitizeFileName } from '@/lib/utils';
 
 const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
     const [steps, setSteps] = useState(initialSteps || []);
@@ -80,7 +81,8 @@ const ProcessEditorModal = ({ isOpen, onClose, initialSteps, onSave }) => {
         setIsUploading(true);
         try {
             const bucketName = await getActiveBucket();
-            const fileName = `proceso/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+            const fileName = `proceso/${Date.now()}-${sanitizeFileName(file.name)}`;
+
 
             const { error: uploadError } = await supabase.storage
                 .from(bucketName)

@@ -270,25 +270,17 @@ const PropuestaEconomicaSection = ({
   }));
 
   // Sync state when props change (external updates)
-  // Sync state when props change (external updates)
   useEffect(() => {
-    if (sectionData.content && sectionData.content.groups && sectionData.content.groups.length > 0) {
-      // If we have saved groups, use them directly and DO NOT merge with defaults for groups
-      // This prevents deleted items from reappearing if they exist in defaults
+    if (sectionData.content) {
+      // If sectionData.content exists, we trust its structure (even if groups is empty)
+      // This allows 'deleting all items' to persist.
       setContent(prev => ({
         ...prev,
         ...sectionData.content
       }));
-    } else {
-      // Only fall back to defaults if no saved content exists
-      setContent(prev => ({
-        ...prev,
-        ...DEFAULT_CONTENT,
-        ...(sectionData.content || {}),
-        exchangeRate: sectionData.content?.exchangeRate ?? DEFAULT_CONTENT.exchangeRate
-      }));
     }
   }, [sectionData.content]);
+
 
   const activeItems = content.groups.flatMap(g => g.items).filter(i => i.isActive);
   const subtotal = activeItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
@@ -299,15 +291,21 @@ const PropuestaEconomicaSection = ({
   const totalMXN = subtotal * (parseFloat(content.exchangeRate) || 1);
 
   const updateContent = (newContent) => {
+    console.log("[PropuestaEconomica] Update requested. IsAdmin:", isModeAdmin);
+
     // Optimistic update
     setContent(newContent);
 
     // Propagate to parent ONLY if in editor mode (prevents DB writes for public users)
-    // Use isModeAdmin to allow saving even if only local admin mode is active
     if (onContentChange && isModeAdmin) {
+      console.log("[PropuestaEconomica] Propagating change to Database...");
       onContentChange(newContent);
+    } else if (!isModeAdmin) {
+      console.warn("[PropuestaEconomica] Changes NOT saved to DB because Admin mode is NOT active.");
     }
   };
+
+
 
   const toggleGroupExpand = (groupId) => {
     setExpandedGroups(prev => ({
@@ -953,8 +951,22 @@ const PropuestaEconomicaSection = ({
                     className="w-full bg-primary hover:bg-primary/80 text-white font-bold"
                     onClick={() => {
                       updateContent(content);
-                      toast({ title: "Guardado", description: "Selección almacenada correctamente." });
+                      if (isModeAdmin) {
+                        toast({
+                          title: "Guardando en la Nube... ☁️",
+                          description: "Sincronizando cambios con la base de datos."
+                        });
+                      } else {
+                        toast({
+                          title: "Cambio Local",
+                          description: "Los cambios son temporales. Activa Admin para guardar.",
+                          variant: "secondary"
+                        });
+                      }
                     }}
+
+
+
                   >
                     <Save size={18} className="mr-2" /> Guardar Selección
                   </Button>

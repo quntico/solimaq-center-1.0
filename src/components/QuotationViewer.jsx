@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
@@ -158,10 +158,30 @@ const mergeWithDefaults = (config) => {
   return mergedConfig;
 };
 
-const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = false }) => {
+const QuotationViewer = ({
+  initialQuotationData,
+  allThemes = {},
+  isAdminView = false,
+  activeThemeProp,
+  onThemeChange
+}) => {
   const [isEditorMode, setIsEditorMode] = useState(false);
-  const [activeTheme, setActiveTheme] = useState(initialQuotationData.theme_key);
-  const [themes, setThemes] = useState(isAdminView ? allThemes : { [initialQuotationData.theme_key]: initialQuotationData });
+
+  // Internal state for the active theme, defaults to prop or initial data
+  const [localActiveTheme, setLocalActiveTheme] = useState(initialQuotationData?.theme_key || 'solimaq');
+  const activeTheme = activeThemeProp || localActiveTheme;
+
+  const [themes, setThemes] = useState(isAdminView ? allThemes : { [activeTheme]: initialQuotationData });
+
+  // Sync state with props when parent (AdminLayout) changes them
+  useEffect(() => {
+    if (isAdminView) {
+      setThemes(allThemes);
+    } else if (initialQuotationData?.theme_key) {
+      setThemes({ [initialQuotationData.theme_key]: initialQuotationData });
+    }
+  }, [allThemes, initialQuotationData, isAdminView]);
+
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [activeSection, setActiveSection] = useState('descripcion');
@@ -169,56 +189,33 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
   const [showCommandDialog, setShowCommandDialog] = useState(false);
   const [aiQuery, setAiQuery] = useState('');
   const [isBannerVisible, setIsBannerVisible] = useState(true);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
+    return localStorage.getItem('isAdminAuthenticated') === 'true';
+  });
+
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+
   const idleTimerRef = useRef(null);
   const initialDisplayTimerRef = useRef(null);
   const hasInteracted = useRef(false);
   const [previewData, setPreviewData] = useState(null);
+
   const { t } = useLanguage();
   const { toast } = useToast();
 
   const quotationData = themes[activeTheme];
   const displayData = previewData ? { ...quotationData, ...previewData } : quotationData;
 
-  const isInitialized = useRef(false);
-
-  useEffect(() => {
-    if (isInitialized.current) return;
-
-    // Apply mergeWithDefaults to ALL themes to ensure "Normatividad" is always forced to the correct component
-    const processAllThemes = (rawThemes) => {
-      const processed = {};
-      Object.keys(rawThemes).forEach(key => {
-        const theme = rawThemes[key];
-        processed[key] = {
-          ...theme,
-          sections_config: mergeWithDefaults(theme.sections_config)
-        };
-      });
-      return processed;
-    };
-
-    const processedInitial = {
-      ...initialQuotationData,
-      sections_config: mergeWithDefaults(initialQuotationData.sections_config),
-    };
-
-    const initialThemes = isAdminView ? processAllThemes(allThemes) : { [initialQuotationData.theme_key]: processedInitial };
-    setThemes(initialThemes);
-    isInitialized.current = true;
-
-    if (isAdminView) {
-      const savedTheme = localStorage.getItem('activeTheme');
-      if (savedTheme && initialThemes[savedTheme] && initialThemes[savedTheme].sections_config) {
-        setActiveTheme(savedTheme);
-      } else {
-        setActiveTheme(initialQuotationData.theme_key);
-      }
-    } else {
-      setActiveTheme(initialQuotationData.theme_key);
-    }
-  }, [initialQuotationData.theme_key, isAdminView, allThemes, initialQuotationData]);
+  // Handle section visibility filtering for clients
+  const visibleSections = useMemo(() => {
+    if (isEditorMode) return defaultSections;
+    const config = displayData?.sections_config || defaultSections;
+    return config.filter(s => {
+      if (isAdminView) return true;
+      if (s.adminOnly) return false;
+      return s.isVisible !== false;
+    });
+  }, [displayData, isEditorMode, isAdminView]);
 
   const [isFullDataLoading, setIsFullDataLoading] = useState(false);
 
@@ -250,11 +247,21 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
 
   // LAZY LOADING THEME SWITCHER
   const handleThemeSwitch = async (newThemeKey) => {
+    // Update URL to persist project selection on reload
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set('p', newThemeKey);
+      window.history.pushState({}, '', url);
+    } catch (e) {
+      console.warn("Could not update URL:", e);
+    }
+
     const targetTheme = themes[newThemeKey];
     if (targetTheme && targetTheme.sections_config) {
       setActiveTheme(newThemeKey);
       return;
     }
+
 
     setIsFullDataLoading(true);
     try {
@@ -288,7 +295,9 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
   const handleAdminLogout = () => {
     setIsAdminAuthenticated(false);
     setIsEditorMode(false);
+    localStorage.removeItem('isAdminAuthenticated');
   };
+
 
   const handleHomeClick = useCallback(() => {
     setActiveSection('descripcion');
@@ -388,73 +397,76 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
   }, []);
 
   const updateSectionContent = async (sectionId, newContent) => {
-    console.log(`[ATOMIC SAVE] Updating ${sectionId}:`, newContent);
+    console.log(`[DB_SYNC] Starting sync for section: ${sectionId}`);
 
     try {
-      // Use functional state update to ensure we use the LATEST state (Atomic)
-      let finalNewConfig = null;
+      // 1. Calculate the new state synchronously
+      const currentTheme = themes[activeTheme];
+      if (!currentTheme) throw new Error("No hay un tema activo seleccionado.");
 
-      setThemes(prevThemes => {
-        const currentTheme = prevThemes[activeTheme];
-        // Ensure sections_config is an array
-        const currentSections = Array.isArray(currentTheme.sections_config) ? currentTheme.sections_config : [];
+      const currentSections = Array.isArray(currentTheme.sections_config) ? currentTheme.sections_config : [];
 
-        let updatedSections;
-        const sectionExists = currentSections.some(s => s.id === sectionId);
+      let updatedSections;
+      const sectionExists = currentSections.some(s => s.id === sectionId);
 
-        if (sectionExists) {
-          updatedSections = currentSections.map(s =>
-            s.id === sectionId
-              ? { ...s, content: { ...(s.content || {}), ...newContent } }
-              : s
-          );
-        } else {
-          // Append new section if it doesn't exist
-          const newSection = {
-            id: sectionId,
-            isVisible: false,
-            component: 'generic',
-            content: newContent
-          };
-          updatedSections = [...currentSections, newSection];
-        }
-
-        // Process with merge defaults to maintain component logic
-        const processed = mergeWithDefaults(updatedSections);
-
-        // Pre-calculate final config for DB sync outside state update
-        finalNewConfig = updatedSections.map(({ Component, subItems, ...rest }) => rest);
-
-        return {
-          ...prevThemes,
-          [activeTheme]: { ...currentTheme, sections_config: processed }
-        };
-      });
-
-      // Give a tiny tick for state calculation to finish or use the pre-calculated finalNewConfig
-      if (finalNewConfig) {
-        const { error } = await supabase
-          .from('quotations')
-          .update({
-            sections_config: finalNewConfig,
-            updated_at: new Date().toISOString()
-          })
-          .eq('theme_key', activeTheme);
-
-        if (error) throw error;
-        console.log('[ATOMIC SAVE] DB Sync Successful');
+      if (sectionExists) {
+        updatedSections = currentSections.map(s =>
+          s.id === sectionId
+            ? { ...s, content: { ...(s.content || {}), ...newContent } }
+            : s
+        );
+      } else {
+        updatedSections = [...currentSections, {
+          id: sectionId,
+          isVisible: true,
+          component: 'generic',
+          content: newContent
+        }];
       }
+
+      // 2. Prepare for DB (sanitize and remove internal React components/ephemeral data)
+      const sanitizedConfigForDB = updatedSections.map(({ Component, subItems, ...rest }) => rest);
+
+      // 3. Update UI state (Optimistic & Local)
+      const processedForUI = mergeWithDefaults(sanitizedConfigForDB);
+
+      setThemes(prev => ({
+        ...prev,
+        [activeTheme]: { ...prev[activeTheme], sections_config: processedForUI }
+      }));
+
+      // 4. Commit to Supabase Database
+      const projectTitle = themes[activeTheme]?.project || activeTheme;
+      console.log(`[DB_SYNC] 🚀 Persistence started for project: "${projectTitle}" (${activeTheme})`);
+
+      const { error } = await supabase
+        .from('quotations')
+        .update({
+          sections_config: sanitizedConfigForDB,
+          updated_at: new Date().toISOString()
+        })
+        .eq('theme_key', activeTheme);
+
+      if (error) throw error;
+
+      console.log(`[DB_SYNC] ✅ Success! Saved "${projectTitle}" to Supabase.`);
+
     } catch (err) {
-      console.error("[ATOMIC SAVE] Error:", err);
+      console.error("[DB_SYNC] Fatal Error:", err);
       toast({
-        title: "Fallo de Sincronización",
-        description: "Reintenta guardar el módulo.",
+        title: "Error de Persistencia",
+        description: "Los cambios no se guardaron en la nube. Verifica tu conexión.",
         variant: "destructive"
       });
     }
   };
 
+
+
+
   const setSectionsConfig = async (newConfig) => {
+
+
     try {
       const sanitizedConfig = newConfig.map(({ Component, subItems, ...rest }) => rest);
       const processedConfig = mergeWithDefaults(sanitizedConfig);
@@ -599,11 +611,13 @@ const QuotationViewer = ({ initialQuotationData, allThemes = {}, isAdminView = f
         <PasswordPrompt
           onCorrectPassword={(autoEditor) => {
             setIsAdminAuthenticated(true);
+            localStorage.setItem('isAdminAuthenticated', 'true');
             if (autoEditor) setIsEditorMode(true);
             setShowPasswordPrompt(false);
           }}
           onCancel={() => setShowPasswordPrompt(false)}
         />
+
       )}
       {isAdminView && (
         <AdminModal

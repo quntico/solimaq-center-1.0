@@ -5,6 +5,7 @@ import { UploadCloud, Save, X, Loader2, AlignLeft, AlignCenter, AlignJustify } f
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver';
+import { sanitizeFileName } from '@/lib/utils';
 import ImageModal from '@/components/ImageModal';
 
 const EditableText = ({
@@ -113,6 +114,7 @@ const EditableText = ({
   </div>;
 };
 
+
 const DescripcionSection = ({
   quotationData,
   sectionData,
@@ -164,7 +166,8 @@ const DescripcionSection = ({
     setIsUploading(true);
     try {
       const bucketName = await getActiveBucket();
-      const fileName = `sections/descripcion/${activeTheme.toLowerCase()}-${Date.now()}-${file.name}`;
+      const fileName = `sections/descripcion/${activeTheme.toLowerCase()}-${Date.now()}-${sanitizeFileName(file.name)}`;
+
       const {
         error
       } = await supabase.storage.from(bucketName).upload(fileName, file, {

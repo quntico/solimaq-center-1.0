@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver.js';
+import { sanitizeFileName } from '@/lib/utils';
 import { generateFichasTecnicasPDF } from '@/lib/pdfGenerator';
 
 const defaultContentSingle = {
@@ -240,8 +241,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
   const handleImageUpload = async (event, fichaIndex) => {
     if (!event.target.files || event.target.files.length === 0) return;
     const file = event.target.files[0];
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    const fileName = `${Date.now()}_${sanitizedFileName}`;
+    const fileName = `${Date.now()}_${sanitizeFileName(file.name)}`;
+
 
     setIsUploading(true);
     toast({ title: 'Subiendo imagen...', description: 'Por favor espera.' }); // Immediate feedback
