@@ -590,11 +590,12 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
     }
 
     try {
-      // Get QR canvas
       // Get QR canvas (HIDDEN ONE)
-      const qrCanvas = document.querySelector('#qr-canvas-hidden');
+      // Robust selector: Find the canvas inside our hidden container
+      const qrCanvas = document.querySelector('#qr-container-hidden canvas');
+
       if (!qrCanvas) {
-        toast({ title: "Error", description: "No se encontró el código QR para generar.", variant: "destructive" });
+        toast({ title: "Error", description: "No se encontró el lienzo del QR (hidden canvas missing).", variant: "destructive" });
         return;
       }
 
@@ -667,7 +668,12 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
       toast({ title: "¡PDF Descargado! 📄", description: `${fileName} guardado con enlace activo.` });
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
+      toast({
+        title: "Error al generar PDF",
+        description: error.message || "Error desconocido al crear el archivo.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
   };
 
@@ -1081,9 +1087,10 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
               </div>
 
               {/* HIDDEN QR CANVAS FOR GENERATION */}
-              <div className="absolute opacity-0 pointer-events-none -z-50">
+              {/* HIDDEN QR CANVAS FOR GENERATION */}
+              {/* Wrappper ID ensures we find the canvas regardless of how the library renders it */}
+              <div id="qr-container-hidden" className="absolute opacity-0 pointer-events-none -z-50">
                 <QRCodeCanvas
-                  id="qr-canvas-hidden"
                   value={`https://www.solimaq.site/cotizacion/${currentThemeData?.slug || ''}`}
                   size={512}
                   level="H"
