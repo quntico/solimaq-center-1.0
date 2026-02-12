@@ -419,7 +419,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
     return (
         <>
             <Dialog open={isOpen && !isExporting} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-[1000px] w-full bg-zinc-950 border-white/10 text-white max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[1000px] w-full bg-zinc-950 border-white/10 text-white max-h-[90vh] overflow-y-auto z-[9999]">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tighter uppercase italic">
                             CENTRO DE <span className="text-primary text-3xl">EXPORTACIÓN</span>
