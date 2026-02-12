@@ -633,7 +633,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
       pdf.text('Escanea el código QR o visita el enlace para ver la cotización', 105, 170, { align: 'center' });
 
       // Save PDF
-      const fileName = `QR_${currentThemeData.project?.replace(/\s/g, '_') || 'Proyecto'}.pdf`;
+      const fileName = `QR_${String(currentThemeData.project || 'Proyecto').replace(/\s/g, '_')}.pdf`;
       pdf.save(fileName);
 
       toast({ title: "¡PDF Descargado! 📄", description: `${fileName} guardado correctamente.` });
@@ -683,7 +683,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
                       <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                         {Object.values(themes || {})
-                          .filter(t => !t.theme_key.startsWith('deleted_')) // Validar filtro visual local
+                          .filter(t => t && t.theme_key && !String(t.theme_key).startsWith('deleted_')) // Validar filtro visual local y existencia
                           .sort((a, b) => (a?.project || "").localeCompare(b?.project || "")).map(theme => {
                             const isActive = activeTheme === theme.theme_key;
                             const isProtected = theme.is_template; // Only protect Template, allow deleting Home
@@ -695,6 +695,10 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                                     <span className={cn("font-medium truncate", isActive ? "text-primary" : "text-gray-200")}>{theme.project || "Sin Nombre"}</span>
                                   </div>
                                   <span className="text-xs text-gray-500 truncate">{theme.client}</span>
+                                  <span className="text-[10px] text-gray-600 truncate font-mono">{theme.theme_key}</span>
+                                  {String(theme.theme_key).startsWith('mp-') && (
+                                    <span className="text-[10px] bg-blue-900/30 text-blue-400 px-1 rounded inline-block w-fit mt-1">MASTER PLAN</span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <Button variant="ghost" size="sm" onClick={() => { handleThemeChange(theme.theme_key); setIsManageMode(false); toast({ title: "Cargado", description: `Editando ${theme.project}` }); }} className="text-gray-400 hover:text-white hover:bg-gray-800" disabled={isActive}>
@@ -847,8 +851,9 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                           <SelectTrigger className="w-full bg-gray-900 border-gray-700 text-white h-10">
                             <SelectValue placeholder="Seleccionar cotización..." />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-900 border-gray-700 text-white z-[60] max-h-[300px]">
+                          <SelectContent className="bg-gray-900 border-gray-700 text-white z-[6000] max-h-[300px]">
                             {Object.values(themes || {})
+                              .filter(t => t && t.theme_key && !String(t.theme_key).startsWith('deleted_'))
                               .sort((a, b) => (a?.project || "").localeCompare(b?.project || ""))
                               .map((theme) => (
                                 <SelectItem key={theme.theme_key} value={theme.theme_key} className="focus:bg-gray-800 cursor-pointer">

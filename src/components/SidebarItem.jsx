@@ -96,7 +96,7 @@ const SidebarItem = ({
   const isVisible = section.isVisible !== false;
 
   // FORCE UNLOCK: Always allow editing these sections regardless of DB config
-  const forceUnlockedIds = ['ia', 'layout', 'video', 'calculadora_prod'];
+  const forceUnlockedIds = ['ia', 'layout', 'video', 'calculadora_prod', 'master_plan'];
   const isLocked = section.isLocked && !forceUnlockedIds.includes(section.id);
 
   const handleSaveLabel = () => {

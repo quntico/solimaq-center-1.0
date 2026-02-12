@@ -33,6 +33,9 @@ export function LanguageProvider({ children }) {
   };
 
   const t = (key, params = {}) => {
+    if (!key) return '';
+    if (typeof key !== 'string') return String(key);
+
     const keys = key.split('.');
     let result = translations[language];
     for (const k of keys) {

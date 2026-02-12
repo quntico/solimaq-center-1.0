@@ -34,8 +34,9 @@ const CloneModal = ({ isOpen, onClose, themes, setThemes, activeTheme, onCloneSu
         setSourceThemeData(themes[activeTheme]);
       } else {
         // Fallback to template if no active theme (shouldn't happen in normal flow)
-        const template = Object.values(themes).find(theme => theme.is_template);
-        setSourceThemeData(template || Object.values(themes)[0]);
+        const safeThemes = themes || {};
+        const template = Object.values(safeThemes).find(theme => theme && theme.is_template);
+        setSourceThemeData(template || Object.values(safeThemes)[0]);
       }
     }
   }, [isOpen, themes, activeTheme]);
@@ -101,8 +102,13 @@ const CloneModal = ({ isOpen, onClose, themes, setThemes, activeTheme, onCloneSu
         is_template: false, // Cloned quotations are not templates
       };
 
+      // Remove unwanted fields
       delete newQuotationData.id;
-      delete newQuotationData.bannerScale;
+      delete newQuotationData.created_at;
+      delete newQuotationData.updated_at;
+      delete newQuotationData.bannerScale; // Legacy field
+
+      // Ensure persistent dates
       newQuotationData.created_at = new Date().toISOString();
       newQuotationData.updated_at = new Date().toISOString();
 

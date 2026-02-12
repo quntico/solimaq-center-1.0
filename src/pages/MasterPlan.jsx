@@ -56,7 +56,7 @@ const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
 
 const cleanTitle = (text) => {
     if (!text) return "";
-    let clean = text;
+    let clean = String(text);
     while (/^\d+[\.\-\)]?\s*/.test(clean)) {
         clean = clean.replace(/^\d+[\.\-\)]?\s*/, "");
     }
@@ -324,7 +324,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 if (finalData.slug === CLOUD_SLUG || finalData.slug === parentSlug || finalData.slug === baseSlug) {
                     const sectionsToSet = config.sections || (Array.isArray(config) ? config : null);
                     if (sectionsToSet && sectionsToSet.length > 0) {
-                        const cleaned = sectionsToSet.map(s => ({ ...s, titulo: cleanTitle(s.titulo) }));
+                        const cleaned = sectionsToSet.filter(s => s).map(s => ({ ...s, titulo: cleanTitle(s.titulo) }));
                         setSections(isAdmin ? cleaned : cleaned.map(s => ({ ...s, collapsed: true })));
                     } else {
                         // If we have no cloud sections but we matched a record, 
@@ -784,8 +784,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, s.titulo.substring(0, 30));
-        XLSX.writeFile(wb, `Modulo_${s.titulo.replace(/\s+/g, '_')}.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, String(s.titulo).substring(0, 30));
+        XLSX.writeFile(wb, `Modulo_${String(s.titulo || "Modulo").replace(/\s+/g, '_')}.xlsx`);
     };
 
     const handleImportSectionExcel = (sId, file) => {
@@ -948,7 +948,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.text("(Precios más 16% de I.V.A.)", tableRightPos - 5, finalY + 16, { align: 'right' });
             }
 
-            doc.save(`SOLIMAQ_MASTERPLAN_${projectName.replace(/\s+/g, '_')}.pdf`);
+            doc.save(`SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}.pdf`);
             toast({ title: "PDF Generado Correctamente" });
         };
 

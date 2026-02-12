@@ -21,11 +21,12 @@ const EditableText = ({
   const textareaRef = useRef(null);
 
   const formatTextForDisplay = rawText => {
-    return rawText.replace(/\n/g, '<br />');
+    if (!rawText) return '';
+    return String(rawText).replace(/\n/g, '<br />');
   };
 
   const applyFormatting = rawText => {
-    let formattedText = rawText;
+    let formattedText = String(rawText || '');
     if (projectId) {
       const projectRegex = new RegExp(`(${projectId})`, 'gi');
       formattedText = formattedText.replace(projectRegex, `<span class="font-bold text-white">${projectId}</span>`);
@@ -36,7 +37,16 @@ const EditableText = ({
   };
 
   useEffect(() => {
-    const plainText = value.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+    let safeValue = '';
+    try {
+      safeValue = String(value || '');
+    } catch (e) {
+      console.error("Error converting value to string:", e);
+    }
+
+    if (typeof safeValue !== 'string') safeValue = '';
+
+    const plainText = safeValue.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
     setText(plainText);
     setCurrentAlign(alignment);
   }, [value, alignment]);
@@ -71,7 +81,8 @@ const EditableText = ({
   };
 
   const handleCancel = () => {
-    const plainText = value.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+    const safeValue = String(value || '');
+    const plainText = safeValue.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
     setText(plainText);
     setCurrentAlign(alignment);
     setIsEditing(false);

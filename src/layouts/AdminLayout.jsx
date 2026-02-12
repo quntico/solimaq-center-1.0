@@ -55,7 +55,7 @@ const AdminLayout = () => {
       setError(null);
 
       try {
-        // Fetch all quotations first (METADATA ONLY)
+        // 1. Fetch all quotations metadata
         const { data: allData, error: allError } = await supabase
           .from('quotations')
           .select('id, theme_key, project, client, company, is_home, is_template, updated_at, slug');
@@ -69,19 +69,31 @@ const AdminLayout = () => {
           themesObject[item.theme_key] = { ...item, isStub: true };
         });
 
-        // Identify which project to load first
+        // 2. Resolve Target Theme Key
+        // Priority: 1. URL Param 'p' -> 2. LocalStorage 'activeTheme' -> 3. 'is_home' flag -> 4. First in list
         const params = new URLSearchParams(window.location.search);
-        const urlThemeKey = params.get('p');
-        let targetThemeKey = urlThemeKey && themesObject[urlThemeKey] ? urlThemeKey : null;
+        let targetThemeKey = params.get('p');
 
+        // If URL param missing, try LocalStorage
+        if (!targetThemeKey) {
+          const storedTheme = localStorage.getItem('activeTheme');
+          if (storedTheme && themesObject[storedTheme]) {
+            console.log("[AdminLayout] Restoring active theme from LocalStorage:", storedTheme);
+            targetThemeKey = storedTheme;
+          }
+        }
+
+        // If still missing, try Home or First
         if (!targetThemeKey) {
           const homeStub = allData.find(item => item.is_home);
           targetThemeKey = homeStub ? homeStub.theme_key : (allData[0]?.theme_key || null);
         }
 
+        // 3. Fetch Full Data for Target
         if (targetThemeKey) {
+          console.log("[AdminLayout] Loading target theme:", targetThemeKey);
           setActiveTheme(targetThemeKey);
-          // FETCH FULL DATA FOR THE INITIAL PROJECT
+
           const { data: fullData, error: fullError } = await supabase
             .from('quotations')
             .select('*')
@@ -90,9 +102,21 @@ const AdminLayout = () => {
 
           if (!fullError && fullData) {
             setInitialQuotationData(fullData);
-            themesObject[targetThemeKey] = fullData;
+            themesObject[targetThemeKey] = fullData; // Upgrade stub to full
           } else {
-            setInitialQuotationData(themesObject[targetThemeKey]);
+            console.warn("[AdminLayout] Could not load full data for:", targetThemeKey, fullError);
+            // Fallback: If URL param was invalid/deleted, try home/default again to avoid white screen
+            if (themesObject[targetThemeKey]) {
+              setInitialQuotationData(themesObject[targetThemeKey]);
+            } else {
+              // Absolute backup if target doesn't exist in metadata either
+              // This handles the "URL param points to deleted/non-existent project" case
+              const backupTheme = allData.find(item => item.is_home) || allData[0];
+              if (backupTheme) {
+                setActiveTheme(backupTheme.theme_key);
+                setInitialQuotationData(backupTheme);
+              }
+            }
           }
         }
 

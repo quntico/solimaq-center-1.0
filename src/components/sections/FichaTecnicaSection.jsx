@@ -97,10 +97,21 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
 
   useEffect(() => {
     if (sectionData?.content) {
-      // Re-run migration logic if props change significantly, but usually we trust local state for editing
-      // For now, we sync only if we are not editing to avoid overwriting work in progress?
-      // Actually, we should sync if the DB updates.
-      // But for now, let's keep the initial load logic.
+      const migrated = (() => {
+        const originalContent = sectionData?.content;
+        if (Array.isArray(originalContent)) {
+          return originalContent.length > 0 ? originalContent.map(tab => ({ ...defaultContentSingle, ...tab })) : [defaultContentSingle];
+        }
+        if (originalContent.technical_data || originalContent.components) {
+          return [{ ...defaultContentSingle, ...originalContent }];
+        }
+        return [defaultContentSingle];
+      })();
+
+      // JSON stringify comparison to avoid unnecessary re-renders/loops if content is identical
+      if (JSON.stringify(migrated) !== JSON.stringify(content)) {
+        setContent(migrated);
+      }
     }
   }, [sectionData]);
 

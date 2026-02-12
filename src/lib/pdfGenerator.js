@@ -253,7 +253,7 @@ export const generateCotizadorPDF = async (pdfData) => {
   cursorY = Math.max(paramsFinalY, resumenFinalY) + 20;
 
   addFooter(doc);
-  doc.save(`Radiografia_Cotizacion_${quotationData.project.replace(/\s/g, '_')}_${format(new Date(), "yyyyMMdd")}.pdf`);
+  doc.save(`Radiografia_Cotizacion_${String(quotationData.project || "Proyecto").replace(/\s/g, '_')}_${format(new Date(), "yyyyMMdd")}.pdf`);
 };
 
 

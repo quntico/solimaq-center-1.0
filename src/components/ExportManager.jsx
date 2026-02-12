@@ -13,7 +13,10 @@ import {
     ExternalLink,
     Link as LinkIcon,
     Trash2,
-    Loader2
+    Loader2,
+    Edit2,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import {
     Dialog,
@@ -138,21 +141,22 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
     const { toast } = useToast();
 
     // Resources Logic
-    const resourcesSection = quotationData?.sections_config?.find(s => s.id === DATA_SECTION_ID);
+    const safeSections = Array.isArray(quotationData?.sections_config) ? quotationData.sections_config : [];
+    const resourcesSection = safeSections.find(s => s.id === DATA_SECTION_ID);
     const resources = resourcesSection?.content || {};
 
-    const updateResource = (key, url) => {
+    const updateResource = (key, value) => {
         if (onAtomicUpdate) {
             console.log(`[ExportManager] Updating resource ${key} via atomic update`);
-            onAtomicUpdate(DATA_SECTION_ID, { [key]: url });
+            onAtomicUpdate(DATA_SECTION_ID, { [key]: value });
         } else {
             // Fallback for robustness
-            let config = quotationData.sections_config || [];
-            config = JSON.parse(JSON.stringify(config));
+            const rawConfig = Array.isArray(quotationData.sections_config) ? quotationData.sections_config : [];
+            let config = JSON.parse(JSON.stringify(rawConfig));
 
             const existingIndex = config.findIndex(s => s.id === DATA_SECTION_ID);
             const newContent = existingIndex >= 0 ? config[existingIndex].content || {} : {};
-            newContent[key] = url;
+            newContent[key] = value;
 
             const newSection = {
                 id: DATA_SECTION_ID,
@@ -172,6 +176,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
         }
     };
 
+    // ... existing handlers (handleUploadClick, handleFileChange) ...
     const handleUploadClick = (targetKey) => {
         setUploadTarget(targetKey);
         fileInputRef.current?.click();
@@ -287,6 +292,20 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
     const handleDeleteResource = (key) => {
         updateResource(key, null);
         toast({ title: "Archivo Eliminado", description: "El enlace ha sido removido." });
+    };
+
+    // NEW HANDLERS
+    const handleTitleEdit = (id, currentTitle) => {
+        const newTitle = window.prompt("Nuevo nombre para este documento:", currentTitle);
+        if (newTitle !== null) { // Allow empty string if they really want, but usually null is cancel
+            updateResource(`${id}_title`, newTitle);
+            toast({ title: "Nombre Actualizado", description: "El título se ha guardado." });
+        }
+    };
+
+    const handleVisibilityToggle = (id, currentState) => {
+        // currentState is 'isHidden'
+        updateResource(`${id}_hidden`, !currentState);
     };
 
     const runExport = async (type, customAction = null) => {
@@ -407,85 +426,130 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                         {displayItems.map((item) => {
                             const isResource = item.type === 'resource';
                             const hasFile = isResource ? !!resources[item.id] : true;
+                            // Dynamic Properties
+                            const dynamicTitle = resources[`${item.id}_title`] || item.title;
+                            const isHidden = resources[`${item.id}_hidden`] === true;
+
+                            // VISIBILITY FILTER
+                            if (!isEditorMode && isHidden) return null;
+
                             const isDisabled = !hasFile && !isEditorMode;
 
                             const handleClick = () => {
                                 if (isDisabled) return;
+                                if (isEditorMode) return; // Prevent triggering action when editing layout
 
                                 if (item.type === 'export') {
                                     item.action();
                                 } else {
                                     if (hasFile) {
-                                        // Simple direct access - open in new tab
                                         window.open(resources[item.id], '_blank');
-                                    } else if (isEditorMode) {
-                                        handleUploadClick(item.id);
                                     }
                                 }
                             };
 
+                            // Handler for non-editor mode click is simpler, but editor mode needs distinct click areas
+                            // Let's separate the main click logic
+
                             return (
                                 <div
                                     key={item.id}
-                                    onClick={handleClick}
                                     className={`relative flex flex-col gap-3 p-6 border rounded-2xl text-left transition-all duration-300 group
                                     ${item.fullWidth ? 'md:col-span-2' : ''}
                                     ${isDisabled
                                             ? 'bg-zinc-900/20 border-white/5 opacity-50 cursor-not-allowed grayscale'
-                                            : `bg-zinc-900/50 border-white/5 ${item.color} hover:bg-zinc-900 active:scale-95 cursor-pointer`
-                                        }`}
+                                            : `bg-zinc-900/50 border-white/5 ${item.color} ${!isEditorMode ? 'hover:bg-zinc-900 cursor-pointer active:scale-95' : ''}`
+                                        }
+                                    ${isHidden && isEditorMode ? 'opacity-50 border-dashed border-red-500/50' : ''}
+                                    `}
+                                    onClick={!isEditorMode ? handleClick : undefined}
                                 >
-                                    <div className="flex justify-between items-start w-full">
+                                    {/* EDITOR OVERLAY CONTROLS */}
+                                    {isEditorMode && (
+                                        <div className="absolute top-2 right-2 flex gap-2 z-20">
+                                            <div
+                                                className="p-2 bg-black/50 hover:bg-white/10 rounded-full cursor-pointer backdrop-blur-sm transition-colors"
+                                                onClick={() => handleVisibilityToggle(item.id, isHidden)}
+                                                title={isHidden ? "Mostrar Item" : "Ocultar Item"}
+                                            >
+                                                {isHidden ? <EyeOff size={16} className="text-red-400" /> : <Eye size={16} className="text-zinc-400 hover:text-white" />}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-start w-full pointer-events-none">
                                         <div className={`p-3 rounded-xl w-fit transition-transform text-white ${isDisabled ? 'bg-zinc-800' : 'bg-black/40 group-hover:scale-110'}`}>
                                             {item.icon}
                                         </div>
 
-                                        {/* Controls for Resources */}
-                                        {isResource && isEditorMode && (
-                                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                                <div
-                                                    className="p-2 hover:bg-blue-500/10 rounded-full cursor-pointer transition-colors"
-                                                    onClick={() => handleManualLink(item.id)}
-                                                    title="Vincular enlace manual"
-                                                >
-                                                    <LinkIcon size={14} className="text-zinc-500 hover:text-blue-400" />
-                                                </div>
-                                                <div
-                                                    className="p-2 hover:bg-white/10 rounded-full cursor-pointer transition-colors"
-                                                    onClick={() => handleUploadClick(item.id)}
-                                                    title="Subir archivo"
-                                                >
-                                                    <Upload size={14} className="text-zinc-500 hover:text-white" />
-                                                </div>
-                                                {hasFile && (
+                                        {/* ACTION BUTTONS (For Editor Mode - now easier to click) */}
+                                        <div className="pointer-events-auto">
+                                            {/* Disabled Badge for Users */}
+                                            {isDisabled && !isEditorMode && (
+                                                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest border border-zinc-800 px-2 py-1 rounded">
+                                                    No Disponible
+                                                </span>
+                                            )}
+
+                                            {/* Editor Controls for Resources */}
+                                            {isResource && isEditorMode && (
+                                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                                     <div
-                                                        className="p-2 hover:bg-red-500/10 rounded-full cursor-pointer transition-colors"
-                                                        onClick={() => handleDeleteResource(item.id)}
-                                                        title="Eliminar archivo"
+                                                        className="p-2 hover:bg-blue-500/10 rounded-full cursor-pointer transition-colors"
+                                                        onClick={() => handleManualLink(item.id)}
+                                                        title="Vincular enlace manual"
                                                     >
-                                                        <Trash2 size={14} className="text-zinc-500 hover:text-red-400" />
+                                                        <LinkIcon size={14} className="text-zinc-500 hover:text-blue-400" />
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        {/* Disabled Badge for Users */}
-                                        {isDisabled && (
-                                            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest border border-zinc-800 px-2 py-1 rounded">
-                                                No Disponible
-                                            </span>
-                                        )}
+                                                    <div
+                                                        className="p-2 hover:bg-white/10 rounded-full cursor-pointer transition-colors"
+                                                        onClick={() => handleUploadClick(item.id)}
+                                                        title="Subir archivo"
+                                                    >
+                                                        <Upload size={14} className="text-zinc-500 hover:text-white" />
+                                                    </div>
+                                                    {hasFile && (
+                                                        <div
+                                                            className="p-2 hover:bg-red-500/10 rounded-full cursor-pointer transition-colors"
+                                                            onClick={() => handleDeleteResource(item.id)}
+                                                            title="Eliminar archivo"
+                                                        >
+                                                            <Trash2 size={14} className="text-zinc-500 hover:text-red-400" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className={`font-bold text-lg transition-colors flex items-center gap-2 ${isDisabled ? 'text-zinc-500' : 'text-white group-hover:text-primary'}`}>
-                                            {item.title}
-                                            {hasFile && isResource && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/20">DISPONIBLE</span>}
+
+                                    <div className="relative group/title">
+                                        <h3 className={`font-bold text-lg transition-colors flex items-center gap-2 ${isDisabled ? 'text-zinc-500' : 'text-white group-hover:text-primary'} ${isHidden ? 'text-zinc-600' : ''}`}>
+                                            {dynamicTitle}
+                                            {hasFile && isResource && !isEditorMode && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/20">DISPONIBLE</span>}
+
+                                            {/* EDIT TITLE BUTTON */}
+                                            {isEditorMode && (
+                                                <span
+                                                    className="p-1 hover:bg-white/10 rounded-full cursor-pointer ml-2 opacity-100 transition-opacity"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleTitleEdit(item.id, dynamicTitle);
+                                                    }}
+                                                >
+                                                    <Edit2 size={12} className="text-zinc-400 hover:text-primary" />
+                                                </span>
+                                            )}
                                         </h3>
                                         <p className="text-sm text-zinc-500 leading-snug">{item.description}</p>
                                     </div>
+
                                     {!hasFile && isResource && isEditorMode && (
-                                        <div className="mt-2 text-[10px] items-center flex gap-1 text-primary font-bold uppercase tracking-wider">
+                                        <div
+                                            className="mt-2 text-[10px] items-center flex gap-1 text-primary font-bold uppercase tracking-wider cursor-pointer hover:underline"
+                                            onClick={() => handleUploadClick(item.id)}
+                                        >
                                             <Upload size={10} />
-                                            Click para subir
+                                            Click para subir/vincular
                                         </div>
                                     )}
                                 </div>
