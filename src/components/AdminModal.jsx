@@ -593,12 +593,14 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
       // Get QR canvas
       const qrCanvas = document.querySelector('#qr-canvas-download');
       if (!qrCanvas) {
-        toast({ title: "Error", description: "No se pudo generar el QR.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo generar el QR. Asegúrate de que el código sea visible.", variant: "destructive" });
         return;
       }
 
       const qrImage = qrCanvas.toDataURL('image/png');
       const url = `https://www.solimaq.site/cotizacion/${currentThemeData.slug}`;
+      const projectTitle = currentThemeData.project || 'Proyecto';
+      const clientName = currentThemeData.client || '';
 
       // Create PDF
       const pdf = new jsPDF({
@@ -607,36 +609,65 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
         format: 'a4'
       });
 
-      // Add title
-      pdf.setFontSize(20);
+      // --- HEADER ---
+      // Add Title (Centered, Bold)
+      pdf.setFontSize(22);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(currentThemeData.project || 'Proyecto', 105, 30, { align: 'center' });
+      pdf.setTextColor(0, 0, 0);
+      const titleLines = pdf.splitTextToSize(projectTitle, 170);
+      pdf.text(titleLines, 105, 30, { align: 'center' });
 
-      // Add subtitle
+      // Add Subtitle (Client)
+      let currentY = 30 + (titleLines.length * 10);
+      if (clientName) {
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(clientName, 105, currentY, { align: 'center' });
+        currentY += 15;
+      } else {
+        currentY += 5;
+      }
+
+      // --- QR CODE ---
+      const qrSize = 90;
+      const qrX = (210 - qrSize) / 2;
+      pdf.addImage(qrImage, 'PNG', qrX, currentY, qrSize, qrSize);
+      currentY += qrSize + 15;
+
+      // --- CLICKABLE LINK ---
       pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(currentThemeData.client || '', 105, 40, { align: 'center' });
+      pdf.setTextColor(0, 102, 204); // Blue color link
+      pdf.setFont('helvetica', 'bold');
 
-      // Add QR code (centered)
-      const qrSize = 80;
-      const qrX = (210 - qrSize) / 2; // Center on A4 width (210mm)
-      pdf.addImage(qrImage, 'PNG', qrX, 60, qrSize, qrSize);
+      const linkText = url;
+      const textWidth = pdf.getTextWidth(linkText);
+      const textX = (210 - textWidth) / 2;
 
-      // Add URL below QR
+      pdf.text(linkText, textX, currentY);
+
+      // Make it clickable
+      pdf.link(textX, currentY - 4, textWidth, 6, { url: url });
+
+      currentY += 10;
+
+      // --- INSTRUCTIONS ---
       pdf.setFontSize(10);
-      pdf.setTextColor(0, 102, 204); // Blue color for link
-      pdf.text(url, 105, 155, { align: 'center' });
-
-      // Add instructions
-      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'italic');
       pdf.setTextColor(100, 100, 100);
-      pdf.text('Escanea el código QR o visita el enlace para ver la cotización', 105, 170, { align: 'center' });
+      pdf.text('Escanea el código QR o haz clic en el enlace para acceder al proyecto.', 105, currentY, { align: 'center' });
+
+      // Add Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text('Generado por Solimaq Center', 105, 280, { align: 'center' });
 
       // Save PDF
-      const fileName = `QR_${String(currentThemeData.project || 'Proyecto').replace(/\s/g, '_')}.pdf`;
+      const safeTitle = (projectTitle).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const fileName = `QR_${safeTitle}.pdf`;
       pdf.save(fileName);
 
-      toast({ title: "¡PDF Descargado! 📄", description: `${fileName} guardado correctamente.` });
+      toast({ title: "¡PDF Descargado! 📄", description: `${fileName} guardado con enlace activo.` });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({ title: "Error", description: "No se pudo generar el PDF.", variant: "destructive" });
@@ -1019,7 +1050,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Button variant="outline" onClick={onCloneClick} className="border-primary text-primary hover:bg-primary/10 w-full"><Copy className="h-4 w-4 mr-2" />{t('adminModal.clone')}</Button>
                 <Button variant="outline" onClick={handleCopyLink} className="border-primary text-primary hover:bg-primary/10 w-full"><ClipboardCopy className="h-4 w-4 mr-2" />Link</Button>
-                <Button variant="outline" onClick={() => setShowQR(true)} className="border-primary text-primary hover:bg-primary/10 w-full"><QrCode className="h-4 w-4 mr-2" />QR</Button>
+                <Button variant="outline" onClick={handleDownloadQRPDF} className="border-primary text-primary hover:bg-primary/10 w-full"><QrCode className="h-4 w-4 mr-2" />QR</Button>
                 <Button variant="outline" onClick={handleOpenLink} className="border-primary text-primary hover:bg-primary/10 w-full"><ExternalLink className="h-4 w-4 mr-2" />Abrir</Button>
               </div>
 
@@ -1051,52 +1082,30 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                 <Button variant="outline" onClick={handleReset} disabled={isSaving} className="border-primary text-primary hover:bg-primary/10 flex-1"><Eraser className="h-4 w-4 mr-2" />{t('adminModal.reset')}</Button>
                 <Button onClick={handleSave} disabled={isSaving || isUploadingLogo || isUploadingFavicon} className="bg-primary text-white hover:bg-primary/90 shadow-[0_0_15px_hsl(var(--primary)/0.4)] flex-[2]">{isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}{"Guardar y Publicar"}</Button>
               </div>
+
+              {/* HIDDEN QR CANVAS FOR GENERATION */}
+              <div className="absolute opacity-0 pointer-events-none -z-50">
+                <QRCodeCanvas
+                  id="qr-canvas-hidden"
+                  value={`https://www.solimaq.site/cotizacion/${currentThemeData?.slug || ''}`}
+                  size={512}
+                  level="H"
+                  includeMargin={true}
+                  imageSettings={{
+                    src: currentThemeData?.favicon || "",
+                    x: undefined,
+                    y: undefined,
+                    height: 24,
+                    width: 24,
+                    excavate: true,
+                  }}
+                />
+              </div>
+
             </div>
           </motion.div>
         </motion.div>
-      )
-      }
-
-
-
-      {
-        showQR && currentThemeData && (
-          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={() => setShowQR(false)}>
-            <div className="bg-white p-8 rounded-2xl flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-
-
-
-              <h3 className="text-2xl font-bold text-black">Código QR</h3>
-              <div className="p-4 bg-white rounded-lg shadow-inner border border-gray-200">
-                <QRCodeCanvas id="qr-canvas-download" value={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`} size={256} level="H" includeMargin={true} />
-              </div>
-              <div className="text-center w-full max-w-[280px]">
-                <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2 truncate">{currentThemeData.project}</p>
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4">
-                  <a
-                    href={`https://www.solimaq.site/cotizacion/${currentThemeData.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-blue-600 hover:text-blue-800 break-all font-mono leading-relaxed underline underline-offset-2 flex items-center justify-center gap-1.5"
-                  >
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                    <span>solimaq.site/cotizacion/{currentThemeData.slug}</span>
-                  </a>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleDownloadQRPDF} className="flex-1 bg-primary text-white hover:bg-primary/90">
-                    <FileDown className="w-4 h-4 mr-2" />
-                    Descargar PDF
-                  </Button>
-                  <Button onClick={() => setShowQR(false)} variant="outline" className="flex-1">
-                    Cerrar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      )}
     </AnimatePresence>,
     document.body
   );
