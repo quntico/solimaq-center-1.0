@@ -22,16 +22,37 @@ const ClientLayout = () => {
         return;
       }
 
+      setLoading(true);
+
+      // Timeout promise to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), 15000)
+      );
+
       try {
-        setLoading(true);
-        const { data, error: fetchError } = await supabase
+        // 1. Try Exact Match First
+        const exactMatchPromise = supabase
           .from('quotations')
           .select('*')
           .eq('slug', slug)
           .single();
 
+        let response = await Promise.race([exactMatchPromise, timeoutPromise]);
+
+        // 2. If no exact match (PGRST116), try lowercase as fallback
+        if (response.error && response.error.code === 'PGRST116') {
+          const lowerCasePromise = supabase
+            .from('quotations')
+            .select('*')
+            .eq('slug', slug.toLowerCase())
+            .single();
+          response = await Promise.race([lowerCasePromise, timeoutPromise]);
+        }
+
+        const { data, error: fetchError } = response;
+
         if (fetchError) {
-          if (fetchError.code === 'PGRST116') { // PostgREST error for "exact one row" not found
+          if (fetchError.code === 'PGRST116') {
             setError(t('clientLayout.notFound'));
           } else {
             throw fetchError;
@@ -43,7 +64,11 @@ const ClientLayout = () => {
         }
       } catch (err) {
         console.error('Error fetching quotation by slug:', err);
-        setError(err.message || t('clientLayout.loadError'));
+        if (err.message === 'Timeout') {
+          setError("El servidor tardó demasiado en responder. Por favor, recarga la página.");
+        } else {
+          setError(err.message || t('clientLayout.loadError'));
+        }
       } finally {
         setLoading(false);
       }
