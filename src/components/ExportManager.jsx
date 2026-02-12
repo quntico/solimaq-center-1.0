@@ -441,6 +441,10 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                             // VISIBILITY FILTER
                             if (!isEditorMode && isHidden) return null;
 
+                            // HIDE EMPTY RESOURCES FOR USERS (REQUESTED FIX)
+                            // If it's a resource (not a generated export) and has no file, hide it completely for users.
+                            if (!isEditorMode && !hasFile) return null;
+
                             const isDisabled = !hasFile && !isEditorMode;
 
                             const handleClick = () => {
