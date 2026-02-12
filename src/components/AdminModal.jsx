@@ -591,9 +591,10 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
 
     try {
       // Get QR canvas
-      const qrCanvas = document.querySelector('#qr-canvas-download');
+      // Get QR canvas (HIDDEN ONE)
+      const qrCanvas = document.querySelector('#qr-canvas-hidden');
       if (!qrCanvas) {
-        toast({ title: "Error", description: "No se pudo generar el QR. Asegúrate de que el código sea visible.", variant: "destructive" });
+        toast({ title: "Error", description: "No se encontró el código QR para generar.", variant: "destructive" });
         return;
       }
 
@@ -610,24 +611,20 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
       });
 
       // --- HEADER ---
-      // Add Title (Centered, Bold)
-      pdf.setFontSize(22);
+      // MAIN TITLE: COTIZACIÓN DINÁMICA
+      pdf.setFontSize(24);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 0, 0);
-      const titleLines = pdf.splitTextToSize(projectTitle, 170);
-      pdf.text(titleLines, 105, 30, { align: 'center' });
+      pdf.text("COTIZACIÓN DINÁMICA", 105, 40, { align: 'center' });
 
-      // Add Subtitle (Client)
-      let currentY = 30 + (titleLines.length * 10);
-      if (clientName) {
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(80, 80, 80);
-        pdf.text(clientName, 105, currentY, { align: 'center' });
-        currentY += 15;
-      } else {
-        currentY += 5;
-      }
+      // Subtitle (Project Name)
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(projectTitle, 105, 55, { align: 'center' });
+
+      // Set Y for QR start
+      let currentY = 70;
 
       // --- QR CODE ---
       const qrSize = 90;
