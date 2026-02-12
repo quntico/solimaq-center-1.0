@@ -155,8 +155,16 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
             let config = JSON.parse(JSON.stringify(rawConfig));
 
             const existingIndex = config.findIndex(s => s.id === DATA_SECTION_ID);
-            const newContent = existingIndex >= 0 ? config[existingIndex].content || {} : {};
-            newContent[key] = value;
+
+            // CRITICAL FIX: Merge with existing content, don't just grab it.
+            // If the section doesn't exist, start empty. If it does, use its content.
+            let currentContent = existingIndex >= 0 ? config[existingIndex].content || {} : {};
+
+            // Merge the new key-value pair into the existing content object
+            const newContent = {
+                ...currentContent,
+                [key]: value
+            };
 
             const newSection = {
                 id: DATA_SECTION_ID,
@@ -575,7 +583,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                     )}
 
                     <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-500 tracking-widest uppercase font-black">
-                        <span>SOLIMAQ CENTER v3.75</span>
+                        <span>SOLIMAQ CENTER v7.70</span>
                         <span>Estructura Simplificada</span>
                     </div>
                 </DialogContent>

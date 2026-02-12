@@ -406,9 +406,14 @@ const QuotationViewer = ({
       const sectionIndex = configClone.findIndex(s => s.id === sectionId);
 
       if (sectionIndex >= 0) {
+        // CRITICAL FIX: Merge content, don't replace
+        const existingContent = configClone[sectionIndex].content || {};
         configClone[sectionIndex] = {
           ...configClone[sectionIndex],
-          content: newSectionContent
+          content: {
+            ...existingContent,
+            ...newSectionContent
+          }
         };
       } else {
         // Create if not exists (rare for atomic updates but safe)

@@ -14,18 +14,18 @@ const CronogramaSection = ({ quotationData, sectionData }) => {
   const [startDate, setStartDate] = useState(new Date());
   const { t, dateLocale } = useLanguage();
 
-  const {
-    phase1_duration = 5,
-    phase2_duration = 75,
-    phase3_duration = 10,
-    phase1_name = 'Confirmación y Orden',
-    phase2_name = 'Tiempo de Fabricación',
-    phase3_name = 'Transporte',
-    phase4_name = 'Instalación y Puesta en Marcha'
-  } = quotationData;
+  const phase1_duration = Number(quotationData.phase1_duration) || 5;
+  const phase2_duration = Number(quotationData.phase2_duration) || 75;
+  const phase3_duration = Number(quotationData.phase3_duration) || 10;
+  const phase1_name = quotationData.phase1_name || 'Confirmación y Orden';
+  const phase2_name = quotationData.phase2_name || 'Tiempo de Fabricación';
+  const phase3_name = quotationData.phase3_name || 'Transporte';
+  const phase4_name = quotationData.phase4_name || 'Instalación y Puesta en Marcha';
+
+  const totalDeliveryDays = phase1_duration + phase2_duration + phase3_duration;
 
   const calculateDates = (start) => {
-    if (!start) return [];
+    if (!start || isNaN(new Date(start).getTime())) return [];
 
     const date = new Date(start);
     const p1_start = new Date(date);
@@ -82,6 +82,11 @@ const CronogramaSection = ({ quotationData, sectionData }) => {
     }));
   };
 
+  // Safe handler for calendar that prevents undefined (unselect) from crashing if logic depended on it, though we check !start
+  const handleDateSelect = (date) => {
+    if (date) setStartDate(date);
+  };
+
   const phases = calculateDates(startDate);
 
   return (
@@ -92,39 +97,51 @@ const CronogramaSection = ({ quotationData, sectionData }) => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-7xl mx-auto"
       >
-        <p className="text-gray-400 mb-8 text-center text-lg">
-          {t('cronograma.selectDate')}
-        </p>
+        <div className="flex flex-col items-center mb-12 space-y-6">
+          <p className="text-gray-400 text-center text-lg max-w-2xl">
+            {t('cronograma.selectDate')}
+          </p>
 
-        <div className="mb-16 flex justify-center">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-[300px] justify-start text-left font-normal bg-[#0f0f0f] border-gray-800 text-white hover:bg-gray-800 hover:text-white h-14 px-4 text-lg",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-3 h-6 w-6 text-primary" />
-                {startDate ? format(startDate, 'PPP', { locale: dateLocale }) : <span>{t('cronograma.chooseDate')}</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-black border-gray-700 text-white">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                initialFocus
-                locale={dateLocale}
-                className="bg-black text-white border border-gray-800"
-              />
-            </PopoverContent>
-          </Popover>
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[300px] justify-start text-left font-normal bg-[#0f0f0f] border-gray-800 text-white hover:bg-gray-800 hover:text-white h-14 px-4 text-lg",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-3 h-6 w-6 text-primary" />
+                  {startDate ? format(startDate, 'PPP', { locale: dateLocale }) : <span>{t('cronograma.chooseDate')}</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-black border-gray-700 text-white">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                  locale={dateLocale}
+                  className="bg-black text-white border border-gray-800"
+                />
+              </PopoverContent>
+            </Popover>
+
+            <div className="bg-[#111] border border-gray-800 rounded-xl px-6 py-3 flex items-center gap-3 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <CalendarIcon className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Tiempo Total Estimado</span>
+                <span className="text-xl font-bold text-white">{totalDeliveryDays} Días Naturales</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* --- DESKTOP VIEW --- */}
-        <div className="hidden sm:flex sm:flex-row justify-between items-start relative mt-10 px-10">
+        <div className="hidden sm:flex sm:flex-row justify-between items-start relative mt-16 px-10">
           {/* Timeline Line */}
           <div className="absolute top-12 left-20 right-20 h-[2px] bg-gray-800 z-0"></div>
 
@@ -135,7 +152,7 @@ const CronogramaSection = ({ quotationData, sectionData }) => {
             >
               {/* Icon Container */}
               <motion.div
-                className="w-24 h-24 rounded-full bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.4)] mb-8 border-4 border-black"
+                className="w-24 h-24 rounded-full bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.4)] mb-8 border-4 border-black z-10"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2 + index * 0.1, type: 'spring' }}
@@ -150,16 +167,18 @@ const CronogramaSection = ({ quotationData, sectionData }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 + index * 0.1 }}
               >
-                <h3 className="text-xl font-bold text-white mb-2">{phase.title}</h3>
-                <p className="text-gray-400 text-sm font-medium mb-3 h-10 flex items-start justify-center">{phase.subtitle}</p>
-                <p className="text-primary font-bold text-sm">{phase.dateRange}</p>
+                <div className="bg-[#111] rounded-lg p-3 border border-gray-800/50 hover:border-primary/30 transition-colors">
+                  <h3 className="text-lg font-bold text-white mb-1">{phase.title}</h3>
+                  <p className="text-gray-400 text-xs font-medium mb-2 uppercase tracking-wide">{phase.subtitle}</p>
+                  <p className="text-primary font-bold text-sm bg-primary/10 py-1 px-3 rounded-md inline-block">{phase.dateRange}</p>
+                </div>
               </motion.div>
             </div>
           ))}
         </div>
 
         {/* --- MOBILE VIEW --- */}
-        <div className="sm:hidden relative px-4 space-y-10 pl-6">
+        <div className="sm:hidden relative px-4 space-y-8 pl-6">
           <div className="absolute left-[34px] top-4 bottom-4 w-0.5 bg-gray-800"></div>
           {phases.map((phase, index) => (
             <motion.div
@@ -177,9 +196,11 @@ const CronogramaSection = ({ quotationData, sectionData }) => {
                   <h3 className="text-lg font-bold text-white">{phase.title}</h3>
                 </div>
 
-                <div className="pl-[72px]">
-                  <p className="text-gray-400 text-sm font-medium mb-1">{phase.subtitle}</p>
-                  <p className="text-primary font-bold text-sm">{phase.dateRange}</p>
+                <div className="pl-[72px] relative -top-2">
+                  <div className="bg-[#111] p-3 rounded-lg border border-gray-800">
+                    <p className="text-gray-400 text-xs font-semibold uppercase mb-1">{phase.subtitle}</p>
+                    <p className="text-primary font-bold text-sm">{phase.dateRange}</p>
+                  </div>
                 </div>
               </div>
             </motion.div>
