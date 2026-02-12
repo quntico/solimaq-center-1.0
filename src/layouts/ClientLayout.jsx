@@ -27,7 +27,7 @@ const ClientLayout = () => {
         const { data, error: fetchError } = await supabase
           .from('quotations')
           .select('*')
-          .ilike('slug', slug)
+          .eq('slug', slug)
           .single();
 
         if (fetchError) {
