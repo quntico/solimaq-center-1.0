@@ -88,8 +88,45 @@ const ClientLayout = () => {
         }
       } catch (err) {
         console.error('Error fetching quotation details:', err);
+
+        // --- SAFE MODE FALLBACK ---
+        // If main fetch failed (likely timeout/size), try fetching minimal metadata
+        if (err.message === 'Timeout' || err.message.includes('JSON')) {
+          try {
+            console.log("Attempting Safe Mode fetch...");
+            const { data: safeData, error: safeError } = await supabase
+              .from('quotations')
+              .select('id, slug, project, client, theme_key')
+              .eq('slug', slug)
+              .maybeSingle();
+
+            if (!safeError && safeData) {
+              // Load with empty config to allow access
+              setQuotationData({
+                ...safeData,
+                sections_config: [], // Empty config
+                is_safe_mode: true
+              });
+              // Show persistent error toast
+              setTimeout(() => {
+                const warning = document.createElement('div');
+                warning.innerHTML = `
+                   <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 12px 24px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                     ⚠️ MODO SEGURO: El proyecto es demasiado pesado. Se cargó sin configuración.
+                   </div>
+                 `;
+                document.body.appendChild(warning);
+                setTimeout(() => warning.remove(), 8000);
+              }, 500);
+              return; // Skip final error set
+            }
+          } catch (safeErr) {
+            console.error("Safe Mode also failed:", safeErr);
+          }
+        }
+
         if (err.message === 'Timeout') {
-          setError("El proyecto es pesado y la conexión lenta. (Error: Tiempo de espera agotado)");
+          setError("El proyecto excede el tiempo límite de carga (60s). Intenta recargar.");
         } else {
           setError(err.message || t('clientLayout.loadError'));
         }
