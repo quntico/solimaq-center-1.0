@@ -57,7 +57,11 @@ const ClientLayout = () => {
 
       } catch (err) {
         console.error('Error fetching quotation:', err);
-        setError(err.message || t('clientLayout.loadError'));
+        if (err.message && (err.message.includes('fetch') || err.message.includes('network'))) {
+          setError("Error de conexión: No se pudo contactar al servidor. Verifica tu internet o intenta más tarde.");
+        } else {
+          setError(err.message || t('clientLayout.loadError'));
+        }
       } finally {
         setLoading(false);
       }
@@ -75,7 +79,12 @@ const ClientLayout = () => {
       <div className="flex flex-col items-center justify-center h-screen bg-black text-white p-4 text-center">
         <h1 className="text-3xl font-bold text-red-500 mb-4">{t('clientLayout.notFoundTitle')}</h1>
         <p className="text-lg mb-8 max-w-md">{error || t('clientLayout.notFoundText')}</p>
-        <Button onClick={() => navigate('/')}>{t('clientLayout.goHome')}</Button>
+        <div className="flex gap-4">
+          <Button onClick={() => window.location.reload()} variant="outline" className="border-white/20 text-blue-400 hover:bg-white/10 hover:text-blue-300">
+            🔄 Reintentar
+          </Button>
+          <Button onClick={() => navigate('/')}>{t('clientLayout.goHome')}</Button>
+        </div>
       </div>
     );
   }
