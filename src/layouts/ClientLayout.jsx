@@ -24,48 +24,72 @@ const ClientLayout = () => {
 
       setLoading(true);
 
-      // Timeout promise to prevent infinite loading
+      // 1. Connection/Existence Check (Lightweight)
+      try {
+        const { data: lightData, error: lightError } = await supabase
+          .from('quotations')
+          .select('id')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        // If not found, try lowercase
+        let exists = !!lightData;
+        if (!exists && !lightError) {
+          const { data: lowerData } = await supabase
+            .from('quotations')
+            .select('id')
+            .eq('slug', slug.toLowerCase())
+            .maybeSingle();
+          exists = !!lowerData;
+        }
+
+        if (!exists) {
+          setError(t('clientLayout.notFound'));
+          setLoading(false);
+          return;
+        }
+      } catch (checkErr) {
+        console.error("Existence check failed:", checkErr);
+      }
+
+      // 2. Full Data Load (with longer timeout)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), 15000)
+        setTimeout(() => reject(new Error('Timeout')), 60000)
       );
 
       try {
-        // 1. Try Exact Match First
+        // Try Exact Match First (Full Data)
         const exactMatchPromise = supabase
           .from('quotations')
           .select('*')
           .eq('slug', slug)
-          .single();
+          .maybeSingle();
 
         let response = await Promise.race([exactMatchPromise, timeoutPromise]);
 
-        // 2. If no exact match (PGRST116), try lowercase as fallback
-        if (response.error && response.error.code === 'PGRST116') {
+        // Fallback to lowercase if needed
+        if (!response.data && !response.error) {
           const lowerCasePromise = supabase
             .from('quotations')
             .select('*')
             .eq('slug', slug.toLowerCase())
-            .single();
+            .maybeSingle();
           response = await Promise.race([lowerCasePromise, timeoutPromise]);
         }
 
         const { data, error: fetchError } = response;
 
         if (fetchError) {
-          if (fetchError.code === 'PGRST116') {
-            setError(t('clientLayout.notFound'));
-          } else {
-            throw fetchError;
-          }
+          throw fetchError;
         } else if (data) {
           setQuotationData(data);
         } else {
           setError(t('clientLayout.notFound'));
         }
       } catch (err) {
-        console.error('Error fetching quotation by slug:', err);
+        console.error('Error fetching quotation details:', err);
         if (err.message === 'Timeout') {
-          setError("El servidor tardó demasiado en responder. Por favor, recarga la página.");
+          setError("El proyecto es pesado y la conexión lenta. (Error: Tiempo de espera agotado)");
         } else {
           setError(err.message || t('clientLayout.loadError'));
         }
