@@ -23,113 +23,45 @@ const ClientLayout = () => {
       }
 
       setLoading(true);
-
-      // 1. Connection/Existence Check (Lightweight)
       try {
-        const { data: lightData, error: lightError } = await supabase
-          .from('quotations')
-          .select('id')
-          .eq('slug', slug)
-          .maybeSingle();
-
-        // If not found, try lowercase
-        let exists = !!lightData;
-        if (!exists && !lightError) {
-          const { data: lowerData } = await supabase
-            .from('quotations')
-            .select('id')
-            .eq('slug', slug.toLowerCase())
-            .maybeSingle();
-          exists = !!lowerData;
-        }
-
-        if (!exists) {
-          setError(t('clientLayout.notFound'));
-          setLoading(false);
-          return;
-        }
-      } catch (checkErr) {
-        console.error("Existence check failed:", checkErr);
-      }
-
-      // 2. Full Data Load (with longer timeout)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), 60000)
-      );
-
-      try {
-        // Try Exact Match First (Full Data)
-        const exactMatchPromise = supabase
+        // 1. Try Exact Match
+        let { data, error } = await supabase
           .from('quotations')
           .select('*')
           .eq('slug', slug)
-          .maybeSingle();
+          .single();
 
-        let response = await Promise.race([exactMatchPromise, timeoutPromise]);
-
-        // Fallback to lowercase if needed
-        if (!response.data && !response.error) {
-          const lowerCasePromise = supabase
+        // 2. If 'Row not found' (PGRST116), try lowercase fallback
+        if (error && error.code === 'PGRST116') {
+          const { data: lowerData, error: lowerError } = await supabase
             .from('quotations')
             .select('*')
             .eq('slug', slug.toLowerCase())
-            .maybeSingle();
-          response = await Promise.race([lowerCasePromise, timeoutPromise]);
+            .single();
+
+          // If fallback succeeded, use it
+          if (!lowerError && lowerData) {
+            data = lowerData;
+            error = null;
+          } else {
+            // If fallback also failed, stick to original error (or just not found)
+            // But if lowerError is something else (network), we might want that.
+            // Generally, if both fail, it's just not found.
+          }
         }
 
-        const { data, error: fetchError } = response;
-
-        if (fetchError) {
-          throw fetchError;
+        if (error) {
+          if (error.code === 'PGRST116') setError(t('clientLayout.notFound'));
+          else throw error;
         } else if (data) {
           setQuotationData(data);
         } else {
           setError(t('clientLayout.notFound'));
         }
+
       } catch (err) {
-        console.error('Error fetching quotation details:', err);
-
-        // --- SAFE MODE FALLBACK ---
-        // If main fetch failed (likely timeout/size), try fetching minimal metadata
-        if (err.message === 'Timeout' || err.message.includes('JSON')) {
-          try {
-            console.log("Attempting Safe Mode fetch...");
-            const { data: safeData, error: safeError } = await supabase
-              .from('quotations')
-              .select('id, slug, project, client, theme_key')
-              .eq('slug', slug)
-              .maybeSingle();
-
-            if (!safeError && safeData) {
-              // Load with empty config to allow access
-              setQuotationData({
-                ...safeData,
-                sections_config: [], // Empty config
-                is_safe_mode: true
-              });
-              // Show persistent error toast
-              setTimeout(() => {
-                const warning = document.createElement('div');
-                warning.innerHTML = `
-                   <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 12px 24px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-                     ⚠️ MODO SEGURO: El proyecto es demasiado pesado. Se cargó sin configuración.
-                   </div>
-                 `;
-                document.body.appendChild(warning);
-                setTimeout(() => warning.remove(), 8000);
-              }, 500);
-              return; // Skip final error set
-            }
-          } catch (safeErr) {
-            console.error("Safe Mode also failed:", safeErr);
-          }
-        }
-
-        if (err.message === 'Timeout') {
-          setError("El proyecto excede el tiempo límite de carga (60s). Intenta recargar.");
-        } else {
-          setError(err.message || t('clientLayout.loadError'));
-        }
+        console.error('Error fetching quotation:', err);
+        setError(err.message || t('clientLayout.loadError'));
       } finally {
         setLoading(false);
       }
