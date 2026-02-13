@@ -43,10 +43,6 @@ const ClientLayout = () => {
           if (!lowerError && lowerData) {
             data = lowerData;
             error = null;
-          } else {
-            // If fallback also failed, stick to original error (or just not found)
-            // But if lowerError is something else (network), we might want that.
-            // Generally, if both fail, it's just not found.
           }
         }
 
