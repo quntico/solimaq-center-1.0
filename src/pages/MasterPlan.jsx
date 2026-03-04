@@ -124,6 +124,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [isPriceEditMode, setIsPriceEditMode] = useState(false);
     const [targetAmountModalOpen, setTargetAmountModalOpen] = useState(false);
     const [targetAmountValue, setTargetAmountValue] = useState(0);
+    const [isExportFilenameModalOpen, setIsExportFilenameModalOpen] = useState(false);
+    const [exportFilename, setExportFilename] = useState("");
+    const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
 
 
     const [pdfSettings, setPdfSettings] = useState(() => {
@@ -824,7 +827,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         reader.readAsBinaryString(file);
     };
 
-    const generateDirectPDF = () => {
+    const generateDirectPDF = (customFilename = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
 
@@ -847,11 +850,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "bold");
                 doc.text("CLIENTE:", metaPos.x, metaPos.y + topMargin);
                 doc.setFont("helvetica", "normal");
-                doc.text(clientName.toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
+                doc.text(String(clientName || "CLIENTE").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
                 doc.setFont("helvetica", "bold");
                 doc.text("PROYECTO:", metaPos.x, metaPos.y + topMargin + 5);
                 doc.setFont("helvetica", "normal");
-                doc.text(projectName.toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
+                doc.text(String(projectName || "PROYECTO").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
                 doc.setFont("helvetica", "bold");
                 doc.text("FECHA:", metaPos.x, metaPos.y + topMargin + 10);
                 doc.setFont("helvetica", "normal");
@@ -879,8 +882,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     modSum += r.totalVenta;
                     tableData.push([
                         { content: globalIdx++, styles: { textColor: pdfSettings.primaryColor, fontStyle: 'bold' } },
-                        it.equipo.toUpperCase(),
-                        it.descripcion.substring(0, 350),
+                        String(it.equipo || "N/A").toUpperCase(),
+                        String(it.descripcion || "").substring(0, 350),
                         { content: "", image: it.media_url && it.media_type !== 'video' ? it.media_url : null },
                         it.qty,
                         money(r.ventaUnitFinal),
@@ -926,7 +929,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 }
             });
 
-            const finalY = doc.lastAutoTable.finalY + 8;
+            const finalY = (doc.lastAutoTable?.finalY || 40) + 8;
             if (finalY < 185) {
                 const totalBoxWidth = pdfSettings.colWidths.total + pdfSettings.colWidths.unit + 45;
                 const tableRightPos = 282;
@@ -948,7 +951,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.text("(Precios más 16% de I.V.A.)", tableRightPos - 5, finalY + 16, { align: 'right' });
             }
 
-            doc.save(`SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}.pdf`);
+            const cleanName = String(customFilename || `SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
+            const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
+            doc.save(finalFilename);
             toast({ title: "PDF Generado Correctamente" });
         };
 
@@ -978,11 +983,133 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         }
     };
 
+    const generateEquipmentListPDF = (customFilename = "") => {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText, logoPos, metaPos, headerBox } = pdfSettings;
+
+        const logoImg = new Image();
+        logoImg.src = logoUrl;
+        logoImg.crossOrigin = "Anonymous";
+
+        const start = () => {
+            const topMargin = 8;
+            const drawHeader = () => {
+                doc.setFillColor(headerBg);
+                doc.rect(15, 10 + topMargin, 180, 15, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(16);
+                doc.setTextColor(headerText);
+                doc.text("LISTADO DE EQUIPOS", 105, 17 + topMargin + 3, { align: 'center' });
+
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", 15, 35 + topMargin);
+                doc.setFont("helvetica", "normal");
+                doc.text((clientName || "").toUpperCase(), 40, 35 + topMargin);
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", 15, 40 + topMargin);
+                doc.setFont("helvetica", "normal");
+                doc.text((projectName || "").toUpperCase(), 40, 40 + topMargin);
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", 15, 45 + topMargin);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), 40, 45 + topMargin);
+
+                try {
+                    doc.addImage(logoImg, 'PNG', 165, 33 + topMargin, 30, 15, undefined, 'FAST');
+                } catch (e) { console.error("Logo PDF Draw Error", e); }
+            };
+
+            let tableData = [];
+            let globalIdx = 1;
+
+            sections.forEach((s) => {
+                const activeItems = (s.items || []).filter(it => it.activo);
+                if (activeItems.length === 0) return;
+
+                activeItems.forEach(it => {
+                    const r = calcItem(it);
+                    tableData.push([
+                        globalIdx++,
+                        String(it.equipo || "N/A").toUpperCase(),
+                        String(it.descripcion || ""),
+                        it.qty,
+                        money(r.ventaUnitFinal),
+                        money(r.totalVenta)
+                    ]);
+                });
+            });
+
+            doc.autoTable({
+                startY: 60,
+                head: [['#', 'EQUIPO', 'DESCRIPCIÓN', 'CANT', 'P. UNITARIO', 'SUBTOTAL']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+                styles: { fontSize: 7, cellPadding: 2, valign: 'middle' },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 8 },
+                    1: { fontStyle: 'bold', cellWidth: 35 },
+                    2: { cellWidth: 'auto' },
+                    3: { halign: 'center', cellWidth: 12 },
+                    4: { halign: 'right', cellWidth: 25 },
+                    5: { halign: 'right', cellWidth: 25 }
+                },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    doc.setFontSize(7);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`Página ${data.pageNumber} | www.solimaq.site`, 105, 285, { align: 'center' });
+                }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("TOTAL GENERAL:", 140, finalY);
+            doc.text(money(grandTotals.totalVenta) + " USD", 195, finalY, { align: 'right' });
+
+            const cleanName = String(customFilename || `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
+            const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
+            doc.save(finalFilename);
+            toast({ title: "Listado de Equipos Exportado" });
+        };
+
+        let isStarted = false;
+        const safeStart = () => { if (!isStarted) { isStarted = true; start(); } };
+        if (logoImg.complete) {
+            safeStart();
+        } else {
+            logoImg.onload = safeStart;
+            logoImg.onerror = safeStart;
+            setTimeout(safeStart, 2000);
+        }
+    };
+
+    const triggerExportWithFilename = (type) => {
+        setPdfExportType(type);
+        const defaultName = type === 'master'
+            ? `SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`
+            : `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        setExportFilename(defaultName);
+        setIsExportFilenameModalOpen(true);
+    };
+
+    const handleConfirmExport = () => {
+        if (pdfExportType === 'master') {
+            generateDirectPDF(exportFilename);
+        } else {
+            generateEquipmentListPDF(exportFilename);
+        }
+        setIsExportFilenameModalOpen(false);
+    };
+
     const handleExportPDF = () => {
         if (isAdmin) {
             setIsTemplateEditorOpen(true);
         } else {
-            generateDirectPDF();
+            triggerExportWithFilename('master');
         }
     };
 
@@ -1194,11 +1321,19 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </button>
 
                             <button
-                                onClick={handleExportPDF}
+                                onClick={() => triggerExportWithFilename('master')}
                                 className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
                             >
                                 <Download size={14} className="text-primary group-hover:scale-110 transition-transform" />
                                 EXPORTAR PDF
+                            </button>
+
+                            <button
+                                onClick={() => triggerExportWithFilename('equipment-list')}
+                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                            >
+                                <FileSpreadsheet size={14} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                EXPORTAR LISTADO
                             </button>
 
                             {(isAdminAuthenticated || isAdmin) && (
@@ -1352,7 +1487,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         )}
 
                         <div className="flex items-center gap-2 pr-2 ml-auto">
-                            <button onClick={handleExportPDF} className="px-6 py-2 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase text-center flex items-center justify-center hover:scale-105 transition-all">Exportar PDF</button>
+                            <button onClick={() => triggerExportWithFilename('master')} className="px-6 py-2 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase text-center flex items-center justify-center hover:scale-105 transition-all">Exportar PDF</button>
                             <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 gap-1">
                                 <button onClick={() => toggleAllSections(false)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all"><Maximize2 size={12} /></button>
                                 <button onClick={() => toggleAllSections(true)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all"><AlignJustify size={12} /></button>
@@ -1737,6 +1872,33 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         }}
                         onCancel={() => setShowPasswordPrompt(false)}
                     />
+                )
+            }
+            {
+                isExportFilenameModalOpen && (
+                    <Dialog open={isExportFilenameModalOpen} onOpenChange={setIsExportFilenameModalOpen}>
+                        <DialogContent className="max-w-md bg-zinc-950 border-white/10 text-white">
+                            <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Nombre del Archivo</DialogTitle></DialogHeader>
+                            <div className="py-6 space-y-6">
+                                <p className="text-xs text-gray-400">Personaliza el nombre con el que se guardará tu documento PDF.</p>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Nombre del PDF</label>
+                                    <input
+                                        type="text"
+                                        value={exportFilename}
+                                        onChange={e => setExportFilename(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmExport(); }}
+                                        autoFocus
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-lg font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                    />
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setIsExportFilenameModalOpen(false)} className="flex-1 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest rounded-xl hover:bg-zinc-800 transition-all border border-white/5">Cancelar</button>
+                                    <button onClick={handleConfirmExport} className="flex-2 px-8 py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(155,212,40,0.3)]">Exportar</button>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 )
             }
         </div >
