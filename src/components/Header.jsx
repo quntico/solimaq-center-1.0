@@ -38,36 +38,22 @@ const Header = ({
   const brandId = brand_color || DEFAULT_BRAND;
   const brandConfig = BRANDS[brandId] || BRANDS[DEFAULT_BRAND];
 
-  // Force fallback if logo is the generic favicon and we want the brand logo
   let potentialLogo = logo;
 
-  // STRICT MODE: For Solimaq brand, ALWAYS use the default corporate logo.
-  // This overrides any garbage data (old export headers, fragments, favicon) in the DB 'logo' field.
-  if (brandId === 'solimaq') {
-    potentialLogo = null;
-  } else {
-    // For other brands, allow custom logos but filter known bad ones
-    if (potentialLogo && potentialLogo.includes('favicon.png')) {
-      potentialLogo = null;
-    }
+  // STRICT FILTER: If logo is missing or is the generic favicon, use the brand default
+  if (!potentialLogo || potentialLogo.includes('favicon.png')) {
+    potentialLogo = brandConfig.defaultLogo;
   }
 
-  const finalLogoUrl = potentialLogo || brandConfig.defaultLogo;
+  const finalLogoUrl = potentialLogo;
 
-  const finalLogoSize = logo_size && logo_size > 0 ? logo_size : 250; // Larger default
+  const finalLogoSize = logo_size && logo_size > 0 ? logo_size : 250;
   const logoContainerStyle = {
     '--logo-width': `${finalLogoSize}px`
   };
 
   // Show banner if not hidden in settings, and if the idle/initial timer says it should be visible.
   const showBanner = !hide_banner && isBannerVisible;
-
-  const [isLogoLoaded, setIsLogoLoaded] = React.useState(false);
-
-  // Reset loading state when url changes
-  React.useEffect(() => {
-    setIsLogoLoaded(false);
-  }, [finalLogoUrl]);
 
   return (
     <>
@@ -94,20 +80,14 @@ const Header = ({
                   className="header-logo-container scale-75 sm:scale-100 origin-left relative overflow-hidden"
                   style={logoContainerStyle}
                 >
-                  {/* Black Overlay for clean transition */}
-                  <div
-                    className={cn(
-                      "absolute inset-0 bg-black z-20 transition-opacity duration-300 pointer-events-none",
-                      isLogoLoaded ? "opacity-0" : "opacity-100"
-                    )}
-                  />
+                  {/* Dynamic hover effect */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                   <img
                     key={finalLogoUrl}
                     src={finalLogoUrl}
                     alt={`${company} Logo`}
-                    className="header-logo block"
-                    onLoad={() => setIsLogoLoaded(true)}
+                    className="header-logo block relative z-10"
                   />
                 </div>
                 {/* Version LED Indicator */}
@@ -125,7 +105,7 @@ const Header = ({
                     isLoadingData ? "bg-yellow-400 animate-spin" : "bg-green-500 animate-pulse"
                   )} />
                   <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
-                    {isLoadingData ? "SYNCING..." : "VER 7.72"}
+                    {isLoadingData ? "SYNCING..." : "VER 7.73"}
                   </span>
 
                   {isLoadingData && <Loader2 className="w-2.5 h-2.5 text-yellow-500 animate-spin ml-1" />}

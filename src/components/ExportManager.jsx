@@ -590,7 +590,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                     )}
 
                     <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-500 tracking-widest uppercase font-black">
-                        <span>SOLIMAQ CENTER v7.72</span>
+                        <span>SOLIMAQ CENTER v7.73</span>
                         <span>Estructura Simplificada</span>
                     </div>
                 </DialogContent>

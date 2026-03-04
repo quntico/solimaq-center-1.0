@@ -10,7 +10,7 @@ import { getActiveBucket } from "@/lib/bucketResolver";
 import { sanitizeFileName } from "@/lib/utils";
 import SectionHeader from '@/components/SectionHeader';
 
-import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
+import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -487,12 +487,83 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const toggleAllSections = (val) => setSections(prev => prev.map(s => ({ ...s, collapsed: val })));
 
     const addSection = () => {
-        const newSec = { id: `sec_${uid()}`, collapsed: false, titulo: "NUEVO MÓDULO", tag: "BORRADOR", items: [{ id: uid(), activo: true, codigo: "1.1", equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: 10 }] };
-        setSections(prev => [...prev, newSec]);
+        const nextSecIdx = sections.length + 1;
+        const newSec = {
+            id: `sec_${uid()}`,
+            collapsed: false,
+            titulo: "NUEVO MÓDULO",
+            tag: "BORRADOR",
+            items: [{
+                id: uid(),
+                activo: true,
+                codigo: `${nextSecIdx}.1`,
+                equipo: "NUEVO EQUIPO",
+                descripcion: "",
+                potencia: 0,
+                qty: 1,
+                costoUSD: 0,
+                utilidad: 10
+            }]
+        };
+        const newSections = [...sections, newSec];
+        setSections(newSections);
+        saveToCloud(newSections);
+    };
+
+    const reindexAll = () => {
+        const newSections = sections.map((s, sIdx) => {
+            let activeCount = 0;
+            return {
+                ...s,
+                items: (s.items || []).map((it) => {
+                    if (it.activo !== false) {
+                        activeCount++;
+                        return { ...it, codigo: `${sIdx + 1}.${activeCount}` };
+                    }
+                    return { ...it, codigo: "-" };
+                })
+            };
+        });
+        setSections(newSections);
+        saveToCloud(newSections);
+        toast({ title: "Numeración Normalizada", description: "Todos los ítems han sido renumerados correctamente." });
+    };
+
+    const toggleItemActive = (sId, iId) => {
+        const sIdx = sections.findIndex(x => x.id === sId);
+        if (sIdx === -1) return;
+
+        let activeCount = 0;
+        const newItems = (sections[sIdx].items || []).map(it => {
+            const isTarget = it.id === iId;
+            const newStatus = isTarget ? !it.activo : it.activo;
+
+            if (newStatus !== false) {
+                activeCount++;
+                return { ...it, activo: newStatus, codigo: `${sIdx + 1}.${activeCount}` };
+            }
+            return { ...it, activo: newStatus, codigo: "-" };
+        });
+
+        const newSections = sections.map(sec => sec.id === sId ? { ...sec, items: newItems } : sec);
+        setSections(newSections);
+        saveToCloud(newSections);
     };
 
     const removeSection = (id) => {
-        if (window.confirm("¿Eliminar este módulo completo?")) setSections(prev => prev.filter(s => s.id !== id));
+        if (window.confirm("¿Eliminar este módulo completo?")) {
+            const filtered = sections.filter(s => s.id !== id);
+            // Reindex everything after removal
+            const reindexed = filtered.map((s, sIdx) => ({
+                ...s,
+                items: (s.items || []).map((it, iIdx) => ({
+                    ...it,
+                    codigo: `${sIdx + 1}.${iIdx + 1}`
+                }))
+            }));
+            setSections(reindexed);
+            saveToCloud(reindexed);
+        }
     };
 
     const updateItem = (sId, iId, fields) => {
@@ -511,20 +582,129 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     };
 
     const addItem = (sId) => {
-        const s = sections.find(x => x.id === sId);
-        if (!s) return;
-        const items = s.items || [];
-        const lastCode = items.length > 0 ? items[items.length - 1].codigo : "1.0";
-        let nextCode = lastCode;
-        if (lastCode.includes(".")) {
-            const parts = lastCode.split(".");
-            nextCode = `${parts[0]}.${n(parts[1]) + 1}`;
-        }
-        updateSection(sId, { items: [...items, { id: uid(), activo: true, codigo: nextCode, equipo: "NUEVO EQUIPO", descripcion: "", potencia: 0, qty: 1, costoUSD: 0, utilidad: globalUtilVal }] });
+        const sIdx = sections.findIndex(x => x.id === sId);
+        if (sIdx === -1) return;
+        const s = sections[sIdx];
+        const oldItems = [...(s.items || [])];
+
+        const newItem = {
+            id: uid(),
+            activo: true,
+            codigo: "", // will be set below
+            equipo: "NUEVO EQUIPO",
+            descripcion: "",
+            potencia: 0,
+            qty: 1,
+            costoUSD: 0,
+            utilidad: globalUtilVal
+        };
+
+        const tempItems = [...oldItems, newItem];
+        let activeCount = 0;
+        const newItems = tempItems.map(it => {
+            if (it.activo !== false) {
+                activeCount++;
+                return { ...it, codigo: `${sIdx + 1}.${activeCount}` };
+            }
+            return { ...it, codigo: "-" };
+        });
+
+        updateSection(sId, { items: newItems });
     };
 
     const removeItem = (sId, iId) => {
-        updateSection(sId, { items: sections.find(s => s.id === sId).items.filter(it => it.id !== iId) });
+        const sIdx = sections.findIndex(x => x.id === sId);
+        if (sIdx === -1) return;
+        const filtered = (sections[sIdx].items || []).filter(it => it.id !== iId);
+
+        // REINDEX AFTER REMOVE
+        let activeCount = 0;
+        const reindexed = filtered.map((it) => {
+            if (it.activo !== false) {
+                activeCount++;
+                return { ...it, codigo: `${sIdx + 1}.${activeCount}` };
+            }
+            return { ...it, codigo: "-" };
+        });
+
+        const newSections = sections.map(sec => sec.id === sId ? { ...sec, items: reindexed } : sec);
+        setSections(newSections);
+        saveToCloud(newSections);
+    };
+
+    const moveItem = (sId, iId, direction) => {
+        const sIdx = sections.findIndex(x => x.id === sId);
+        if (sIdx === -1) return;
+        const items = [...(sections[sIdx].items || [])];
+        const idx = items.findIndex(it => it.id === iId);
+        if (idx === -1) return;
+        const nextIdx = idx + direction;
+        if (nextIdx < 0 || nextIdx >= items.length) return;
+
+        const [removed] = items.splice(idx, 1);
+        items.splice(nextIdx, 0, removed);
+
+        // REINDEX
+        let activeCount = 0;
+        const reindexed = items.map((it) => {
+            if (it.activo !== false) {
+                activeCount++;
+                return { ...it, codigo: `${sIdx + 1}.${activeCount}` };
+            }
+            return { ...it, codigo: "-" };
+        });
+
+        const newSections = sections.map(sec => sec.id === sId ? { ...sec, items: reindexed } : sec);
+        setSections(newSections);
+        saveToCloud(newSections);
+    };
+
+    const moveItemToStart = (sId, iId) => {
+        const sIdx = sections.findIndex(x => x.id === sId);
+        if (sIdx === -1) return;
+        const items = [...(sections[sIdx].items || [])];
+        const idx = items.findIndex(it => it.id === iId);
+        if (idx <= 0) return;
+        const [removed] = items.splice(idx, 1);
+        items.unshift(removed);
+
+        // REINDEX
+        let activeCount = 0;
+        const reindexed = items.map((it) => {
+            if (it.activo !== false) {
+                activeCount++;
+                return { ...it, codigo: `${sIdx + 1}.${activeCount}` };
+            }
+            return { ...it, codigo: "-" };
+        });
+
+        const newSections = sections.map(sec => sec.id === sId ? { ...sec, items: reindexed } : sec);
+        setSections(newSections);
+        saveToCloud(newSections);
+    };
+
+    const moveItemToEnd = (sId, iId) => {
+        const sIdx = sections.findIndex(x => x.id === sId);
+        if (sIdx === -1) return;
+        const items = [...(sections[sIdx].items || [])];
+        const idx = items.findIndex(it => it.id === iId);
+        if (idx === -1 || idx === items.length - 1) return;
+        const [removed] = items.splice(idx, 1);
+        items.push(removed);
+
+        // REINDEX
+        let activeCount = 0;
+        const reindexed = items.map((it) => {
+            if (it.activo !== false) {
+                activeCount++;
+                return { ...it, codigo: `${sIdx + 1}.${activeCount}` };
+            }
+            return { ...it, codigo: "-" };
+        });
+
+        const newSections = sections.map(sec => sec.id === sId ? { ...sec, items: reindexed } : sec);
+        setSections(newSections);
+        saveToCloud(newSections);
     };
 
     const justifyAllDescriptions = () => {
@@ -868,13 +1048,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.text(new Date().toLocaleDateString('es-MX'), metaPos.x + 23, metaPos.y + topMargin + 10);
 
                 try {
+                    const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
                     if (preloadedLogo) {
                         doc.addImage(preloadedLogo, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
                     } else {
                         // Safe Check for Dynamic Loading if not ready
                         const img = new Image();
                         img.crossOrigin = "Anonymous";
-                        img.src = logoUrl;
+                        img.src = finalLogo;
                         doc.addImage(img, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
                     }
                 } catch (e) { console.error("Logo PDF Draw Error", e); }
@@ -984,7 +1165,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         // Force the use of the new horizontal grey logo
         const logo = new Image();
         logo.crossOrigin = "Anonymous";
-        logo.src = "/solimaq_logo_horizontal.png?v=" + new Date().getTime();
+        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
+        logo.src = finalLogo + "?v=" + new Date().getTime();
 
         const start = () => {
             const drawHeader = () => {
@@ -1017,7 +1199,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         // Positioned slightly higher to balance the larger size
                         doc.addImage(logo, 'PNG', xPos, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
                     } else {
-                        const finalLogo = preloadedLogo || logoUrl;
+                        const finalLogo = preloadedLogo || '/solimaq_logo.png'; // Fallback to default Solimaq logo
                         if (finalLogo) doc.addImage(finalLogo, 'PNG', 155, headerStart + 2, 40, 16, undefined, 'FAST');
                     }
                 } catch (e) { console.error("Logo PDF Draw Error", e); }
@@ -1128,7 +1310,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
         const logo = new Image();
         logo.crossOrigin = "Anonymous";
-        logo.src = "/solimaq_logo_horizontal.png?v=" + new Date().getTime();
+        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
+        logo.src = finalLogo + "?v=" + new Date().getTime();
 
         const start = () => {
             const drawHeader = () => {
@@ -1319,6 +1502,118 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         else { logo.onload = start; logo.onerror = start; }
     };
 
+    const generateModulePDF = (s, sIdx) => {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText } = pdfSettings;
+
+        const logo = new Image();
+        logo.crossOrigin = "Anonymous";
+        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
+        logo.src = finalLogo + "?v=" + new Date().getTime();
+
+        const start = () => {
+            const drawHeader = () => {
+                const headerStart = 10;
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", 15, headerStart + 4);
+                doc.setFont("helvetica", "normal");
+                doc.text((clientName || "").toUpperCase(), 45, headerStart + 4);
+
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", 15, headerStart + 9);
+                doc.setFont("helvetica", "normal");
+                doc.text((projectName || "").toUpperCase(), 45, headerStart + 9);
+
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", 15, headerStart + 14);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
+
+                try {
+                    if (logo.complete && logo.naturalWidth > 0) {
+                        const ratio = logo.naturalWidth / logo.naturalHeight;
+                        const targetHeight = 16;
+                        const targetWidth = targetHeight * ratio;
+                        doc.addImage(logo, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    }
+                } catch (e) { }
+
+                const titleY = headerStart + 21;
+                doc.setFillColor(headerBg);
+                doc.rect(15, titleY, 180, 10, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.setTextColor(headerText);
+                doc.text(s.titulo.toUpperCase(), 105, titleY + 7, { align: 'center' });
+            };
+
+            let tableData = [];
+            const activeItems = (s.items || []).filter(it => it.activo);
+
+            let moduleTotal = 0;
+            activeItems.forEach((it, idx) => {
+                const r = calcItem(it);
+                moduleTotal += r.totalVenta;
+                tableData.push([
+                    idx + 1,
+                    String(it.equipo || "N/A").toUpperCase(),
+                    String(it.descripcion || ""),
+                    it.qty,
+                    money(r.ventaUnitFinal),
+                    money(r.totalVenta)
+                ]);
+            });
+
+            doc.autoTable({
+                startY: 50,
+                margin: { top: 50, bottom: 20 },
+                head: [['#', 'EQUIPO', 'DESCRIPCIÓN', 'QTY', 'P. UNITARIO', 'SUBTOTAL']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+                styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 10 },
+                    1: { fontStyle: 'bold', cellWidth: 40 },
+                    2: { cellWidth: 'auto' },
+                    3: { halign: 'center', cellWidth: 15 },
+                    4: { halign: 'right', cellWidth: 25 },
+                    5: { halign: 'right', cellWidth: 25 }
+                },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    doc.setFontSize(7);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`Módulo ${sIdx + 1} | Página ${data.pageNumber} | www.solimaq.site`, 105, 285, { align: 'center' });
+                }
+            });
+
+            let finalY = (doc.lastAutoTable?.finalY || 50) + 15;
+            if (finalY > 270) { doc.addPage(); drawHeader(); finalY = 65; }
+
+            doc.setFillColor(60, 60, 60);
+            doc.rect(15, finalY - 8, 180, 16, 'F');
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            doc.text("TOTAL MÓDULO:", 20, finalY);
+            doc.text(money(moduleTotal) + " USD", 190, finalY, { align: 'right' });
+
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.text("MÁS 16% DE I.V.A.", 190, finalY + 5, { align: 'right' });
+
+            const cleanName = `LISTADO_${sIdx + 1}_${String(s.titulo).replace(/\s+/g, '_')}`.replace(/[/\\?%*:|"<>]/g, '-');
+            doc.save(`${cleanName.toLowerCase()}.pdf`);
+            toast({ title: `Módulo ${sIdx + 1} Exportado como PDF` });
+        };
+
+        if (logo.complete && logo.naturalWidth > 0) start();
+        else { logo.onload = start; logo.onerror = start; }
+    };
+
     const triggerExportWithFilename = (type) => {
         setPdfExportType(type);
         let defaultName = "";
@@ -1428,13 +1723,20 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     <div className="max-w-[1800px] mx-auto px-6 md:px-12 flex items-center justify-between">
                         <div className="flex items-center gap-8 group cursor-pointer" onClick={() => navigate('/')}>
                             <div className="relative overflow-hidden rounded-2xl bg-white/5 p-2 border border-white/10 group-hover:border-primary/50 transition-all duration-500">
-                                <img src={logoUrl} alt="Logo" className="h-10 md:h-14 w-auto object-contain group-hover:scale-105 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <img src={logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png'} alt="Logo" className="h-10 md:h-14 w-auto object-contain group-hover:scale-105 transition-transform duration-500" />
                             </div>
                             <div className="flex flex-col">
-                                <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
-                                    {mpTitle} <span className="text-xs font-mono text-primary align-top opacity-50 ml-1">v7.50</span>
-                                </h1>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-white leading-none uppercase">
+                                        {mpTitle}
+                                    </h1>
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-zinc-900 border border-white/10 rounded-full cursor-default">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
+                                        <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
+                                            {isLoadingData ? "SYNCING..." : "VER 7.73"}
+                                        </span>
+                                    </div>
+                                </div>
                                 <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mt-1 group-hover:text-primary/70 transition-colors">
                                     {mpSubTitle}
                                 </span>
@@ -1660,6 +1962,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     </button>
 
                                     <button
+                                        onClick={reindexAll}
+                                        className="h-8 md:h-10 px-4 bg-zinc-800 text-zinc-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all active:scale-95 flex items-center gap-2"
+                                        title="Corregir Numeración en todo el proyecto"
+                                    >
+                                        <Activity size={12} />
+                                        NORMALIZA
+                                    </button>
+                                    <button
                                         onClick={() => saveToCloud()}
                                         disabled={isCloudSyncing}
                                         className={`px-8 py-3 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase transition-all flex items-center gap-2 hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_0_20px_rgba(155,212,40,0.3)]`}
@@ -1748,7 +2058,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 <button onClick={() => toggleAllSections(false)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all"><Maximize2 size={12} /></button>
                                 <button onClick={() => toggleAllSections(true)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all"><AlignJustify size={12} /></button>
                             </div>
-                            {isAdmin && <button onClick={addSection} className="px-6 py-2 bg-white/5 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-white/10">+ Módulo</button>}
+                            {isAdmin && (
+                                <div className="flex gap-1">
+                                    <button onClick={reindexAll} className="px-5 py-2 bg-zinc-800 text-zinc-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-700 transition-all">Normaliza</button>
+                                    <button onClick={addSection} className="px-6 py-2 bg-white/5 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-white/10">+ Módulo</button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1805,7 +2120,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                         {s.titulo}
                                                     </h3>
                                                 )}
-                                                <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded uppercase tracking-widest w-fit">{s.tag}</span>
+                                                {isAdmin ? (
+                                                    <input
+                                                        value={s.tag || ""}
+                                                        onChange={(e) => updateSection(s.id, { tag: e.target.value.toUpperCase() })}
+                                                        className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded uppercase tracking-widest w-fit min-w-[80px] outline-none focus:bg-primary/20 transition-colors"
+                                                        placeholder="FASE / ESTADO"
+                                                    />
+                                                ) : (
+                                                    <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded uppercase tracking-widest w-fit">{s.tag}</span>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-6">
@@ -1819,8 +2143,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             )}
                                             {isAdmin && !s.collapsed && (
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => handleExportSectionExcel(s)} className="p-2 bg-green-500/10 border border-green-500/30 text-green-500 rounded-lg hover:bg-green-500/20"><Download size={16} /></button>
-                                                    <button onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx, .xls'; inp.onchange = (e) => handleImportSectionExcel(s.id, e.target.files[0]); inp.click(); }} className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-lg hover:bg-blue-500/20"><FileSpreadsheet size={16} /></button>
+                                                    <button onClick={() => generateModulePDF(s, sIdx)} className="p-2 bg-primary/10 border border-primary/30 text-primary rounded-lg hover:bg-primary/20" title="Exportar Módulo PDF"><FileText size={16} /></button>
+                                                    <button onClick={() => handleExportSectionExcel(s)} className="p-2 bg-green-500/10 border border-green-500/30 text-green-500 rounded-lg hover:bg-green-500/20" title="Exportar Módulo Excel"><Download size={16} /></button>
+                                                    <button onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx, .xls'; inp.onchange = (e) => handleImportSectionExcel(s.id, e.target.files[0]); inp.click(); }} className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-lg hover:bg-blue-500/20" title="Importar Módulo Excel"><FileSpreadsheet size={16} /></button>
                                                     <button onClick={() => removeSection(s.id)} className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20">Eliminar</button>
                                                 </div>
                                             )}
@@ -1877,24 +2202,66 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                         if (!it) return null;
                                                         const r = calcItem(it);
                                                         return (
-                                                            <tr key={it.id} className={`border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors ${!it.activo && 'opacity-30'}`}>
+                                                            <tr key={it.id} className={`border-b border-white/[0.02] transition-colors ${!it.activo ? 'bg-zinc-950/20' : 'hover:bg-white/[0.01]'}`}>
                                                                 {visibleCols.map(colId => {
                                                                     const w = colWidths[colId] || initialColWidths[colId] || 100;
                                                                     const cellStyle = { width: w, minWidth: w };
+                                                                    const contentOpacity = !it.activo ? 'opacity-40' : 'opacity-100';
 
                                                                     if (colId === 'item') return (
                                                                         <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
-                                                                            <div className="flex flex-col items-center gap-2">
-                                                                                <button onClick={() => updateItem(s.id, it.id, { activo: !it.activo })} className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${it.activo ? 'bg-primary border-primary text-black' : 'bg-transparent border-white/20 text-white/10'}`}>
+                                                                            <div className="flex flex-col items-center gap-2 relative group/item">
+                                                                                {/* REORDER CONTROLS (Only for Admin) */}
+                                                                                {isAdmin && (
+                                                                                    <div className="absolute -left-1 flex flex-col items-center opacity-0 group-hover/item:opacity-100 transition-all scale-75">
+                                                                                        <button
+                                                                                            onClick={() => moveItemToStart(s.id, it.id)}
+                                                                                            className="p-0.5 hover:text-primary transition-colors mb-0.5"
+                                                                                            title="Mover al inicio"
+                                                                                        >
+                                                                                            <ChevronsUp size={14} />
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => moveItem(s.id, it.id, -1)}
+                                                                                            className="p-1 hover:text-primary transition-colors"
+                                                                                            title="Subir"
+                                                                                        >
+                                                                                            <ChevronUp size={16} />
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => moveItem(s.id, it.id, 1)}
+                                                                                            className="p-1 hover:text-primary transition-colors"
+                                                                                            title="Bajar"
+                                                                                        >
+                                                                                            <ChevronDown size={16} />
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => moveItemToEnd(s.id, it.id)}
+                                                                                            className="p-0.5 hover:text-primary transition-colors mt-0.5"
+                                                                                            title="Mover al final"
+                                                                                        >
+                                                                                            <ChevronsDown size={14} />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                <button
+                                                                                    onClick={() => toggleItemActive(s.id, it.id)}
+                                                                                    className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all shadow-lg ${it.activo ? 'bg-primary border-primary text-black' : 'bg-white/5 border-white/70 hover:border-primary/80 hover:bg-white/10'}`}
+                                                                                >
                                                                                     {it.activo && <Check size={14} strokeWidth={4} />}
                                                                                 </button>
-                                                                                {isAdmin ? <input value={it.codigo} onChange={(e) => updateItem(s.id, it.id, { codigo: e.target.value })} className="bg-transparent border-b border-white/5 text-[11px] font-mono text-gray-400 w-full text-center focus:border-primary/50 outline-none" /> : <span className="text-[11px] font-mono text-gray-400">{it.codigo}</span>}
+                                                                                <div className={contentOpacity}>
+                                                                                    {isAdmin ? <input value={it.codigo} onChange={(e) => updateItem(s.id, it.id, { codigo: e.target.value })} className="bg-transparent border-b border-white/5 text-[11px] font-mono text-gray-400 w-full text-center focus:border-primary/50 outline-none" /> : <span className="text-[11px] font-mono text-gray-400">{it.codigo}</span>}
+                                                                                </div>
                                                                             </div>
                                                                         </td>
                                                                     );
                                                                     if (colId === 'equipo') return (
                                                                         <td key={colId} style={cellStyle} className="p-4 border-r border-white/[0.02]">
-                                                                            {isAdmin ? <textarea value={it.equipo} onChange={(e) => updateItem(s.id, it.id, { equipo: e.target.value })} className="bg-transparent text-sm font-black text-white w-full border-b border-white/5 outline-none focus:border-primary/50 resize-none overflow-hidden" rows={1} style={{ fieldSizing: "content" }} /> : <span className={`text-sm font-black text-white uppercase tracking-tight ${!it.activo ? 'line-through text-white/40' : ''}`}>{it.equipo}</span>}
+                                                                            <div className={contentOpacity}>
+                                                                                {isAdmin ? <textarea value={it.equipo} onChange={(e) => updateItem(s.id, it.id, { equipo: e.target.value })} className="bg-transparent text-sm font-black text-white w-full border-b border-white/5 outline-none focus:border-primary/50 resize-none overflow-hidden" rows={1} style={{ fieldSizing: "content" }} /> : <span className={`text-sm font-black text-white uppercase tracking-tight ${!it.activo ? 'line-through' : ''}`}>{it.equipo}</span>}
+                                                                            </div>
                                                                         </td>
                                                                     );
                                                                     if (colId === 'potencia') return (
@@ -1988,6 +2355,21 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                         );
                     })}
+
+                    {isAdmin && (
+                        <button
+                            onClick={addSection}
+                            className="w-full py-12 border-2 border-dashed border-white/5 rounded-[2.5rem] bg-zinc-950/20 text-gray-600 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all duration-500 group flex flex-col items-center justify-center gap-4"
+                        >
+                            <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:scale-110 group-hover:border-primary/20 transition-all duration-500">
+                                <Plus size={32} className="text-gray-700 group-hover:text-primary transition-colors" />
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-black uppercase tracking-[0.3em]">Añadir Nuevo Módulo</span>
+                                <span className="text-[10px] text-gray-700 font-bold uppercase tracking-widest">Crear sección {sections.length + 1} del Plan Maestro</span>
+                            </div>
+                        </button>
+                    )}
                 </div>
 
                 {/* Footer Totals */}
@@ -2055,7 +2437,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             {
                 isParamsModalOpen && (
                     <Dialog open={isParamsModalOpen} onOpenChange={setIsParamsModalOpen}>
-                        <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 text-white">
+                        <DialogContent className="max-w-2xl bg-black/60 backdrop-blur-3xl border-white/20 text-white shadow-2xl rounded-[2.5rem] z-[1000]">
                             <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-widest text-primary">⚙️ Parámetros Globales</DialogTitle></DialogHeader>
                             <div className="space-y-8 py-4">
                                 <div className="grid grid-cols-2 gap-8">
@@ -2089,7 +2471,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             {
                 targetAmountModalOpen && (
                     <Dialog open={targetAmountModalOpen} onOpenChange={setTargetAmountModalOpen}>
-                        <DialogContent className="max-w-md bg-zinc-950 border-white/10 text-white">
+                        <DialogContent className="max-w-md bg-black/60 backdrop-blur-3xl border-white/20 text-white shadow-2xl rounded-[2.5rem] z-[1000]">
                             <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Ajustar Monto de Venta</DialogTitle></DialogHeader>
                             <div className="py-6 space-y-6">
                                 <p className="text-xs text-gray-400">Ingresa el monto total objetivo. El sistema redistribuirá las utilidades proporcionalmente.</p>
@@ -2133,7 +2515,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             {
                 isExportFilenameModalOpen && (
                     <Dialog open={isExportFilenameModalOpen} onOpenChange={setIsExportFilenameModalOpen}>
-                        <DialogContent className="max-w-md bg-zinc-950 border-white/10 text-white">
+                        <DialogContent className="max-w-md bg-black/60 backdrop-blur-3xl border-white/20 text-white shadow-2xl rounded-[2.5rem] z-[1000]">
                             <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Nombre del Archivo</DialogTitle></DialogHeader>
                             <div className="py-6 space-y-6">
                                 <p className="text-xs text-gray-400">Personaliza el nombre con el que se guardará tu documento PDF.</p>
