@@ -33,7 +33,7 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
         if (initialSettings) setSettings(initialSettings);
     }, [initialSettings]);
 
-    const [logoUrl, setLogoUrl] = useState(initialLogoUrl || initialSettings?.logoUrl || "/solimaq_logo.png");
+    const [logoUrl, setLogoUrl] = useState(initialLogoUrl || initialSettings?.logoUrl || "/solimaq_logo_horizontal.png");
 
     useEffect(() => {
         // Prioritize the prop, but fallback to settings if prop is missing (legacy support)

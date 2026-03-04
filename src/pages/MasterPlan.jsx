@@ -1048,7 +1048,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.text(new Date().toLocaleDateString('es-MX'), metaPos.x + 23, metaPos.y + topMargin + 10);
 
                 try {
-                    const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
+                    const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
                     if (preloadedLogo) {
                         doc.addImage(preloadedLogo, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
                     } else {
@@ -1199,7 +1199,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         // Positioned slightly higher to balance the larger size
                         doc.addImage(logo, 'PNG', xPos, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
                     } else {
-                        const finalLogo = preloadedLogo || '/solimaq_logo.png'; // Fallback to default Solimaq logo
+                        const finalLogo = preloadedLogo || '/solimaq_logo_horizontal.png'; // Fallback to default Solimaq logo
                         if (finalLogo) doc.addImage(finalLogo, 'PNG', 155, headerStart + 2, 40, 16, undefined, 'FAST');
                     }
                 } catch (e) { console.error("Logo PDF Draw Error", e); }
@@ -1310,7 +1310,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
         const logo = new Image();
         logo.crossOrigin = "Anonymous";
-        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
+        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
         logo.src = finalLogo + "?v=" + new Date().getTime();
 
         const start = () => {
@@ -1508,7 +1508,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
         const logo = new Image();
         logo.crossOrigin = "Anonymous";
-        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo.png';
+        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
         logo.src = finalLogo + "?v=" + new Date().getTime();
 
         const start = () => {
@@ -1733,7 +1733,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-zinc-900 border border-white/10 rounded-full cursor-default">
                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
                                         <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
-                                            {isLoadingData ? "SYNCING..." : "VER 7.73"}
+                                            {isLoadingData ? "SYNCING..." : "VER 7.74"}
                                         </span>
                                     </div>
                                 </div>

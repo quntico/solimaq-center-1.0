@@ -262,7 +262,7 @@ const PropuestaEconomicaSection = ({
   const [preloadedLogo, setPreloadedLogo] = useState(null);
 
   useEffect(() => {
-    const logoUrl = quotationData?.logo || '/solimaq_logo.png';
+    const logoUrl = quotationData?.logo || '/solimaq_logo_horizontal.png';
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = logoUrl;
@@ -479,7 +479,7 @@ const PropuestaEconomicaSection = ({
         doc.addImage(preloadedLogo, 'PNG', 14, (32 - logoHeight) / 2, logoWidth, logoHeight);
       } else {
         // Fallback for case where it's not preloaded yet (rare)
-        const logoUrl = quotationData?.logo || '/solimaq_logo.png';
+        const logoUrl = quotationData?.logo || '/solimaq_logo_horizontal.png';
         const logoImg = await new Promise((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = "anonymous";
