@@ -10,7 +10,7 @@ import { getActiveBucket } from "@/lib/bucketResolver";
 import { sanitizeFileName } from "@/lib/utils";
 import SectionHeader from '@/components/SectionHeader';
 
-import { Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
+import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -126,7 +126,18 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [targetAmountValue, setTargetAmountValue] = useState(0);
     const [isExportFilenameModalOpen, setIsExportFilenameModalOpen] = useState(false);
     const [exportFilename, setExportFilename] = useState("");
+    const [exportTitle, setExportTitle] = useState("");
+    const [exportTC, setExportTC] = useState(18.5);
     const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
+    const [preloadedLogo, setPreloadedLogo] = useState(null);
+
+    useEffect(() => {
+        if (!logoUrl) return;
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = logoUrl;
+        img.onload = () => setPreloadedLogo(img);
+    }, [logoUrl]);
 
 
     const [pdfSettings, setPdfSettings] = useState(() => {
@@ -831,10 +842,6 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
 
-        const logoImg = new Image();
-        logoImg.src = logoUrl;
-        logoImg.crossOrigin = "Anonymous";
-
         const start = () => {
             const topMargin = 8;
             const drawHeader = () => {
@@ -861,7 +868,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.text(new Date().toLocaleDateString('es-MX'), metaPos.x + 23, metaPos.y + topMargin + 10);
 
                 try {
-                    doc.addImage(logoImg, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
+                    if (preloadedLogo) {
+                        doc.addImage(preloadedLogo, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
+                    } else {
+                        // Safe Check for Dynamic Loading if not ready
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        img.src = logoUrl;
+                        doc.addImage(img, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
+                    }
                 } catch (e) { console.error("Logo PDF Draw Error", e); }
             };
 
@@ -957,76 +972,78 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             toast({ title: "PDF Generado Correctamente" });
         };
 
-        // IMAGE LOADING WITH TIMEOUT
-        let isStarted = false;
-        const safeStart = () => {
-            if (isStarted) return;
-            isStarted = true;
-            start();
-        };
-
-        if (logoUrl) {
-            logoImg.onload = safeStart;
-            logoImg.onerror = () => {
-                console.warn("Logo failed to load for PDF, generating without it.");
-                safeStart();
-            };
-            // Failsafe timeout: 2 seconds
-            setTimeout(() => {
-                if (!isStarted) {
-                    console.warn("Logo load timed out, forcing PDF generation.");
-                    safeStart();
-                }
-            }, 2000);
-        } else {
-            safeStart();
-        }
+        // IMMEDIATE START (Preloaded or Failsafe)
+        start();
     };
 
-    const generateEquipmentListPDF = (customFilename = "") => {
+    const generateEquipmentListPDF = (customFilename = "", customTitle = "") => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText, logoPos, metaPos, headerBox } = pdfSettings;
+        const { headerBg, headerText } = pdfSettings;
+        const titleText = customTitle || pdfSettings.titleText;
 
-        const logoImg = new Image();
-        logoImg.src = logoUrl;
-        logoImg.crossOrigin = "Anonymous";
+        // Force the use of the new horizontal grey logo
+        const logo = new Image();
+        logo.crossOrigin = "Anonymous";
+        logo.src = "/solimaq_logo_horizontal.png?v=" + new Date().getTime();
 
         const start = () => {
-            const topMargin = 8;
             const drawHeader = () => {
-                doc.setFillColor(headerBg);
-                doc.rect(15, 10 + topMargin, 180, 15, 'F');
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(16);
-                doc.setTextColor(headerText);
-                doc.text("LISTADO DE EQUIPOS", 105, 17 + topMargin + 3, { align: 'center' });
+                const headerStart = 10;
 
+                // 1. INFO DEL CLIENTE & LOGO (ARRIBA)
                 doc.setTextColor(40, 40, 40);
                 doc.setFontSize(8);
                 doc.setFont("helvetica", "bold");
-                doc.text("CLIENTE:", 15, 35 + topMargin);
+                doc.text("CLIENTE:", 15, headerStart + 4);
                 doc.setFont("helvetica", "normal");
-                doc.text((clientName || "").toUpperCase(), 40, 35 + topMargin);
+                doc.text((clientName || "").toUpperCase(), 45, headerStart + 4);
+
                 doc.setFont("helvetica", "bold");
-                doc.text("PROYECTO:", 15, 40 + topMargin);
+                doc.text("PROYECTO:", 15, headerStart + 9);
                 doc.setFont("helvetica", "normal");
-                doc.text((projectName || "").toUpperCase(), 40, 40 + topMargin);
+                doc.text((projectName || "").toUpperCase(), 45, headerStart + 9);
+
                 doc.setFont("helvetica", "bold");
-                doc.text("FECHA:", 15, 45 + topMargin);
+                doc.text("FECHA:", 15, headerStart + 14);
                 doc.setFont("helvetica", "normal");
-                doc.text(new Date().toLocaleDateString('es-MX'), 40, 45 + topMargin);
+                doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
 
                 try {
-                    doc.addImage(logoImg, 'PNG', 165, 33 + topMargin, 30, 15, undefined, 'FAST');
+                    if (logo.complete && logo.naturalWidth > 0) {
+                        const ratio = logo.naturalWidth / logo.naturalHeight;
+                        const targetHeight = 16; // Grown 30% from 12mm
+                        const targetWidth = targetHeight * ratio;
+                        const xPos = 195 - targetWidth;
+                        // Positioned slightly higher to balance the larger size
+                        doc.addImage(logo, 'PNG', xPos, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } else {
+                        const finalLogo = preloadedLogo || logoUrl;
+                        if (finalLogo) doc.addImage(finalLogo, 'PNG', 155, headerStart + 2, 40, 16, undefined, 'FAST');
+                    }
                 } catch (e) { console.error("Logo PDF Draw Error", e); }
+
+                // 2. FRANJA DE TÍTULO (ABAJO) - REDUCED GAP
+                const titleY = headerStart + 21;
+                doc.setFillColor(headerBg);
+                doc.rect(15, titleY, 180, 10, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.setTextColor(headerText);
+                const displayTitle = titleText === 'CONCENTRADO' ? "CONCENTRADO DE EQUIPOS" : titleText;
+                doc.text(displayTitle, 105, titleY + 7, { align: 'center' });
             };
 
             let tableData = [];
             let globalIdx = 1;
 
-            sections.forEach((s) => {
+            sections.forEach((s, sIdx) => {
                 const activeItems = (s.items || []).filter(it => it.activo);
                 if (activeItems.length === 0) return;
+
+                // Headers with Grey box and White text for Modules
+                tableData.push([
+                    { content: `MÓDULO ${sIdx + 1}: ${s.titulo}`, colSpan: 6, styles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 10 } }
+                ]);
 
                 activeItems.forEach(it => {
                     const r = calcItem(it);
@@ -1042,17 +1059,18 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             });
 
             doc.autoTable({
-                startY: 60,
-                head: [['#', 'EQUIPO', 'DESCRIPCIÓN', 'CANT', 'P. UNITARIO', 'SUBTOTAL']],
+                startY: 50, // Reduced from 58 to tighten space
+                margin: { top: 50, bottom: 20 },
+                head: [['#', 'EQUIPO', 'DESCRIPCIÓN', 'QTY', 'P. UNITARIO', 'SUBTOTAL']],
                 body: tableData,
                 theme: 'striped',
-                headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
-                styles: { fontSize: 7, cellPadding: 2, valign: 'middle' },
+                headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+                styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                 columnStyles: {
-                    0: { halign: 'center', cellWidth: 8 },
-                    1: { fontStyle: 'bold', cellWidth: 35 },
+                    0: { halign: 'center', cellWidth: 13 }, // Increased from 8 to prevent overlap on 2-digit numbers
+                    1: { fontStyle: 'bold', cellWidth: 40 },
                     2: { cellWidth: 'auto' },
-                    3: { halign: 'center', cellWidth: 12 },
+                    3: { halign: 'center', cellWidth: 15 }, // Increased and renamed to QTY
                     4: { halign: 'right', cellWidth: 25 },
                     5: { halign: 'right', cellWidth: 25 }
                 },
@@ -1064,11 +1082,29 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 }
             });
 
-            const finalY = doc.lastAutoTable.finalY + 10;
-            doc.setFontSize(10);
+            let finalY = (doc.lastAutoTable?.finalY || 50) + 15;
+
+            // Handle page break for total box
+            if (finalY > 270) {
+                doc.addPage();
+                drawHeader();
+                finalY = 65;
+            }
+
+            // TOTAL SECTION IN GREY BOX WITH WHITE TEXT
+            doc.setFillColor(60, 60, 60);
+            doc.rect(15, finalY - 8, 180, 16, 'F');
+
+            doc.setFontSize(11);
             doc.setFont("helvetica", "bold");
-            doc.text("TOTAL GENERAL:", 140, finalY);
-            doc.text(money(grandTotals.totalVenta) + " USD", 195, finalY, { align: 'right' });
+            doc.setTextColor(255, 255, 255);
+            doc.text("TOTAL GENERAL:", 20, finalY);
+            doc.text(money(grandTotals.totalVenta) + " USD", 190, finalY, { align: 'right' });
+
+            // IVA Legend
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.text("MÁS 16% DE I.V.A.", 190, finalY + 5, { align: 'right' });
 
             const cleanName = String(customFilename || `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
             const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
@@ -1076,31 +1112,243 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             toast({ title: "Listado de Equipos Exportado" });
         };
 
-        let isStarted = false;
-        const safeStart = () => { if (!isStarted) { isStarted = true; start(); } };
-        if (logoImg.complete) {
-            safeStart();
-        } else {
-            logoImg.onload = safeStart;
-            logoImg.onerror = safeStart;
-            setTimeout(safeStart, 2000);
+        // Wait for logo to load to get dimensions
+        if (logo.complete && logo.naturalWidth > 0) start();
+        else {
+            logo.onload = start;
+            logo.onerror = start;
         }
+    };
+
+    const generateInternalRadiographyPDF = (customFilename = "", customTitle = "", customTC = null) => {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText } = pdfSettings;
+        const titleText = customTitle || "RADIOGRAFÍA INTERNA";
+        const finalTC = n(customTC || tipoCambio);
+
+        const logo = new Image();
+        logo.crossOrigin = "Anonymous";
+        logo.src = "/solimaq_logo_horizontal.png?v=" + new Date().getTime();
+
+        const start = () => {
+            const drawHeader = () => {
+                const headerStart = 10;
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", 15, headerStart + 4);
+                doc.setFont("helvetica", "normal");
+                doc.text((clientName || "").toUpperCase(), 45, headerStart + 4);
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", 15, headerStart + 9);
+                doc.setFont("helvetica", "normal");
+                doc.text((projectName || "").toUpperCase(), 45, headerStart + 9);
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", 15, headerStart + 14);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
+
+                try {
+                    if (logo.complete && logo.naturalWidth > 0) {
+                        const ratio = logo.naturalWidth / logo.naturalHeight;
+                        const targetHeight = 16;
+                        const targetWidth = targetHeight * ratio;
+                        doc.addImage(logo, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    }
+                } catch (e) { }
+
+                const titleY = headerStart + 21;
+                doc.setFillColor(headerBg);
+                doc.rect(15, titleY, 180, 10, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.setTextColor(headerText);
+                doc.text(titleText, 105, titleY + 7, { align: 'center' });
+            };
+
+            let tableData = [];
+            let globalIdx = 1;
+            let totalCost = 0;
+            let totalSell = 0;
+            let totalProfit = 0;
+
+            sections.forEach((s, sIdx) => {
+                const activeItems = (s.items || []).filter(it => it.activo);
+                if (activeItems.length === 0) return;
+
+                tableData.push([
+                    { content: `MÓDULO ${sIdx + 1}: ${s.titulo}`, colSpan: 8, styles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 10 } }
+                ]);
+
+                activeItems.forEach(it => {
+                    const r = calcItem(it);
+                    const cost = n(it.costoUSD);
+                    const qty = n(it.qty);
+                    const sellUnit = r.ventaUnitFinal;
+                    const subtotalSell = r.totalVenta;
+                    const itemProfit = (sellUnit - cost) * qty;
+
+                    totalCost += cost * qty;
+                    totalSell += subtotalSell;
+                    totalProfit += itemProfit;
+
+                    tableData.push([
+                        globalIdx++,
+                        String(it.equipo || "N/A").toUpperCase(),
+                        qty,
+                        money(cost),
+                        n(it.utilidad).toFixed(1) + "%",
+                        money(sellUnit),
+                        money(subtotalSell),
+                        money(itemProfit)
+                    ]);
+                });
+            });
+
+            doc.autoTable({
+                startY: 50,
+                margin: { top: 50, bottom: 20 },
+                head: [['#', 'EQUIPO', 'QTY', 'COSTO UNIT', '% UTIL', 'P. VENTA UNIT', 'SUBT. VENTA', 'UTILIDAD']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+                styles: { fontSize: 7, cellPadding: 2, valign: 'middle' },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 8 },
+                    1: { fontStyle: 'bold', cellWidth: 40 },
+                    2: { halign: 'center', cellWidth: 10 },
+                    3: { halign: 'right' },
+                    4: { halign: 'center', cellWidth: 13 },
+                    5: { halign: 'right' },
+                    6: { halign: 'right' },
+                    7: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] }
+                },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    doc.setFontSize(7);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`Radiografía Interna | Página ${data.pageNumber}`, 105, 285, { align: 'center' });
+                }
+            });
+
+            // FINAL SUMMARY BOX (INTERNAL USE)
+            const boxHeight = 68;
+            let finalY = (doc.lastAutoTable?.finalY || 50) + 12;
+
+            // Handle page break for the full box
+            if (finalY + boxHeight > 280) {
+                doc.addPage();
+                drawHeader();
+                finalY = 60;
+            }
+
+            doc.setFillColor(40, 40, 40);
+            doc.rect(15, finalY - 8, 180, boxHeight, 'F');
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+
+            // --- SECCIÓN USD ---
+            doc.text("TOTAL COSTO PROYECTO:", 20, finalY - 1);
+            doc.text(money(totalCost) + " USD", 190, finalY - 1, { align: 'right' });
+
+            doc.text("TOTAL VENTA (SIN IVA):", 20, finalY + 5);
+            doc.text(money(totalSell) + " USD", 190, finalY + 5, { align: 'right' });
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(155, 212, 40); // Solimaq Green
+            doc.text("UTILIDAD BRUTA ESTIMADA:", 20, finalY + 11);
+            doc.text(money(totalProfit) + " USD", 190, finalY + 11, { align: 'right' });
+
+            doc.setFontSize(9);
+            doc.setTextColor(250, 219, 20); // Bright Yellow
+            doc.text("UTILIDAD DIVIDIDA (ENTRE 2):", 20, finalY + 17);
+            doc.text(money(totalProfit / 2) + " USD", 190, finalY + 17, { align: 'right' });
+
+            // --- SECCIÓN MXN UTILIDADES ---
+            doc.setDrawColor(80, 80, 80);
+            doc.line(20, finalY + 21, 190, finalY + 21);
+
+            doc.setTextColor(200, 200, 200);
+            doc.setFontSize(7.5);
+            doc.setFont("helvetica", "italic");
+            doc.text(`T.C. UTILIZADO: ${finalTC.toFixed(2)} MXN/USD`, 105, finalY + 24, { align: 'center' });
+
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            const profitMXN = totalProfit * finalTC;
+            doc.text("TOTAL UTILIDAD BRUTA (MXN):", 20, finalY + 29);
+            doc.text("$" + profitMXN.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN", 190, finalY + 29, { align: 'right' });
+
+            doc.setTextColor(250, 219, 20); // Bright Yellow
+            doc.text("UTILIDAD COMPARTIDA (ENTRE 2 - MXN):", 20, finalY + 34);
+            doc.text("$" + (profitMXN / 2).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN", 190, finalY + 34, { align: 'right' });
+
+            // --- SECCIÓN MXN IVA & TOTALES ---
+            doc.line(20, finalY + 38, 190, finalY + 38);
+
+            const sellMXN = totalSell * finalTC;
+            const ivaMXN = sellMXN * 0.16;
+            const grandTotalMXN = sellMXN + ivaMXN;
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.setTextColor(255, 255, 255);
+            doc.text("MONTO I.V.A. (16%) MXN:", 20, finalY + 43);
+            doc.text("$" + ivaMXN.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN", 190, finalY + 43, { align: 'right' });
+
+            doc.setTextColor(250, 219, 20); // Bright Yellow
+            doc.text("I.V.A. COMPARTIDO (ENTRE 2 - MXN):", 20, finalY + 48);
+            doc.text("$" + (ivaMXN / 2).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN", 190, finalY + 48, { align: 'right' });
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10.5);
+            doc.setTextColor(255, 255, 255);
+            doc.text("TOTAL PROYECTO (CON IVA) MXN:", 20, finalY + 55);
+            doc.text("$" + grandTotalMXN.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN", 190, finalY + 55, { align: 'right' });
+
+            const cleanName = String(customFilename || `RADIOGRAFIA_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
+            doc.save(cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
+            toast({ title: "Radiografía Interna Generada" });
+        };
+
+        if (logo.complete && logo.naturalWidth > 0) start();
+        else { logo.onload = start; logo.onerror = start; }
     };
 
     const triggerExportWithFilename = (type) => {
         setPdfExportType(type);
-        const defaultName = type === 'master'
-            ? `SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`
-            : `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        let defaultName = "";
+
+        if (type === 'master') {
+            defaultName = `SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        } else if (type === 'equipment-list') {
+            defaultName = `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        } else if (type === 'radiography') {
+            defaultName = `RADIOGRAFIA_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        }
+
         setExportFilename(defaultName);
+        setExportTitle(type === 'radiography' ? "RADIOGRAFÍA INTERNA" : pdfSettings.titleText);
+        setExportTC(tipoCambio);
         setIsExportFilenameModalOpen(true);
     };
 
     const handleConfirmExport = () => {
+        const currentTC = n(exportTC);
+        if (currentTC && currentTC > 0) {
+            setTipoCambio(currentTC);
+        }
+
         if (pdfExportType === 'master') {
             generateDirectPDF(exportFilename);
-        } else {
-            generateEquipmentListPDF(exportFilename);
+        } else if (pdfExportType === 'equipment-list') {
+            generateEquipmentListPDF(exportFilename, exportTitle);
+        } else if (pdfExportType === 'radiography') {
+            generateInternalRadiographyPDF(exportFilename, exportTitle, n(exportTC));
         }
         setIsExportFilenameModalOpen(false);
     };
@@ -1338,6 +1586,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                             {(isAdminAuthenticated || isAdmin) && (
                                 <>
+                                    <button
+                                        onClick={() => triggerExportWithFilename('radiography')}
+                                        className="px-6 py-3 bg-zinc-900 border border-purple-500/30 text-purple-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-purple-500/10 hover:border-purple-500/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Activity size={14} className="group-hover:animate-pulse" />
+                                        EXPORTAR RADIOGRAFÍA
+                                    </button>
+
                                     <button
                                         onClick={() => setIsTemplateEditorOpen(true)}
                                         className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
@@ -1891,6 +2147,28 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         autoFocus
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-lg font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Título del Documento (Franja Verde)</label>
+                                    <input
+                                        type="text"
+                                        value={exportTitle}
+                                        onChange={e => setExportTitle(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-lg font-bold text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo de Cambio (T.C.)</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={exportTC}
+                                            onChange={e => setExportTC(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-2xl font-black text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                        />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-500 tracking-widest">MXN/USD</span>
+                                    </div>
                                 </div>
                                 <div className="flex gap-3">
                                     <button onClick={() => setIsExportFilenameModalOpen(false)} className="flex-1 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest rounded-xl hover:bg-zinc-800 transition-all border border-white/5">Cancelar</button>

@@ -581,7 +581,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
           <SectionHeader sectionData={sectionData} />
           <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-12 w-full sm:w-auto">
             {selectedQuotation && (
-              <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+              <a href={downloadUrl || pdfUrl} download={`${selectedQuotation.name}.pdf`} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2 w-full sm:w-auto shadow-[0_0_15px_rgba(34,197,94,0.3)]">
                   <FileDown className="w-4 h-4 text-white" />
                   Exportar PDF
@@ -736,7 +736,7 @@ const PDFSection = ({ isEditorMode, setIsEditorMode, activeTheme, sectionData })
                       <Maximize className="w-4 h-4" />
                     </Button>
 
-                    <a href={downloadUrl || pdfUrl} download target="_blank" rel="noopener noreferrer">
+                    <a href={downloadUrl || pdfUrl} download={`${selectedQuotation.name}.pdf`} target="_blank" rel="noopener noreferrer">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary hover:bg-primary/20 transition-all rounded-full ml-1" title="Descargar PDF">
                         <Download className="w-4 h-4" />
                       </Button>

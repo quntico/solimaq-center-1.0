@@ -317,6 +317,14 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
     };
 
     const runExport = async (type, customAction = null) => {
+        // TRICK: Trigger the actual export logic IMMEDIATELY in the same call stack as the click.
+        // This avoids browser blocks on doc.save() or window.open() that occur after async delays.
+        if (customAction) {
+            customAction();
+        } else {
+            onExport(type);
+        }
+
         setExportType(type);
         setIsExporting(true);
         setProgress(0);
@@ -335,12 +343,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
             setStatus(step.s);
         }
 
-        if (customAction) {
-            await customAction();
-        } else {
-            onExport(type);
-        }
-
+        // We already called it above, so we just wait a bit and close.
         await new Promise(r => setTimeout(r, 800));
         setIsExporting(false);
         onClose();
@@ -587,7 +590,7 @@ const ExportManager = ({ isOpen, onClose, onExport, isEditorMode, quotationData,
                     )}
 
                     <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-500 tracking-widest uppercase font-black">
-                        <span>SOLIMAQ CENTER v7.71</span>
+                        <span>SOLIMAQ CENTER v7.72</span>
                         <span>Estructura Simplificada</span>
                     </div>
                 </DialogContent>

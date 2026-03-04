@@ -259,6 +259,15 @@ const PropuestaEconomicaSection = ({
   const [expandedGroups, setExpandedGroups] = useState({});
   const [activeSelection, setActiveSelection] = useState({ type: 'general', id: 'general' });
   const [localAdminMode, setLocalAdminMode] = useState(false);
+  const [preloadedLogo, setPreloadedLogo] = useState(null);
+
+  useEffect(() => {
+    const logoUrl = quotationData?.logo || '/solimaq_logo.png';
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = logoUrl;
+    img.onload = () => setPreloadedLogo(img);
+  }, [quotationData?.logo]);
 
   const isModeAdmin = isEditorMode || localAdminMode || isAdminAuthenticated;
 
@@ -464,19 +473,25 @@ const PropuestaEconomicaSection = ({
 
     // Logo
     try {
-      // Prioritize dynamic logo from DB, fallback to local solimaq_logo.png
-      const logoUrl = quotationData?.logo || '/solimaq_logo.png';
-
-      const logoImg = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.src = logoUrl;
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-      });
-
-      const logoWidth = 40;
-      const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-      doc.addImage(logoImg, 'PNG', 14, (32 - logoHeight) / 2, logoWidth, logoHeight);
+      if (preloadedLogo) {
+        const logoWidth = 40;
+        const logoHeight = (preloadedLogo.height / preloadedLogo.width) * logoWidth;
+        doc.addImage(preloadedLogo, 'PNG', 14, (32 - logoHeight) / 2, logoWidth, logoHeight);
+      } else {
+        // Fallback for case where it's not preloaded yet (rare)
+        const logoUrl = quotationData?.logo || '/solimaq_logo.png';
+        const logoImg = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = logoUrl;
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          setTimeout(() => reject(new Error("Timeout")), 2000);
+        });
+        const logoWidth = 40;
+        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+        doc.addImage(logoImg, 'PNG', 14, (32 - logoHeight) / 2, logoWidth, logoHeight);
+      }
     } catch (error) {
       console.error("Error loading logo for PDF", error);
     }
