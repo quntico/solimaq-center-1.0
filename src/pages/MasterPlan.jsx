@@ -132,12 +132,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [preloadedLogo, setPreloadedLogo] = useState(null);
 
     useEffect(() => {
-        if (!logoUrl) return;
         const img = new Image();
         img.crossOrigin = "Anonymous";
-        img.src = logoUrl;
+        // Always use the physical logo from public folder for exports
+        img.src = "/solimaq_logo.png?v=" + Date.now();
         img.onload = () => setPreloadedLogo(img);
-    }, [logoUrl]);
+    }, []);
 
 
     const [pdfSettings, setPdfSettings] = useState(() => {
@@ -1018,9 +1018,21 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         reader.readAsBinaryString(file);
     };
 
-    const generateDirectPDF = (customFilename = "") => {
+    const generateDirectPDF = async (customFilename = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
+
+        // Always use the physical logo from public folder for exports to ensure it's the latest dark version
+        const finalUrl = "/solimaq_logo.png";
+
+        // Load image first to ensure it's available and dimensions are known
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
 
         const start = () => {
             const topMargin = 8;
@@ -1047,24 +1059,18 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "normal");
                 doc.text(new Date().toLocaleDateString('es-MX'), metaPos.x + 23, metaPos.y + topMargin + 10);
 
-                try {
-                    const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
-                    const drawLogo = (img) => {
-                        const ratio = img.naturalWidth / img.naturalHeight;
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
                         const targetHeight = 16;
                         const targetWidth = targetHeight * ratio;
-                        doc.addImage(img, 'PNG', logoPos.x + logoPos.width - targetWidth, logoPos.y + topMargin, targetWidth, targetHeight, undefined, 'FAST');
-                    };
-
-                    if (preloadedLogo) {
-                        drawLogo(preloadedLogo);
-                    } else {
-                        const img = new Image();
-                        img.crossOrigin = "Anonymous";
-                        img.src = finalLogo;
-                        img.onload = () => drawLogo(img);
+                        // Align to the RIGHT of the original logo box
+                        const xPos = logoPos.x + logoPos.width - targetWidth;
+                        doc.addImage(logoImg, 'PNG', xPos, logoPos.y + topMargin, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) {
+                        console.error("Direct PDF Logo Draw Error", e);
                     }
-                } catch (e) { console.error("Logo PDF Draw Error", e); }
+                }
             };
 
             let tableData = [];
@@ -1159,20 +1165,24 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             toast({ title: "PDF Generado Correctamente" });
         };
 
-        // IMMEDIATE START (Preloaded or Failsafe)
         start();
     };
 
-    const generateEquipmentListPDF = (customFilename = "", customTitle = "") => {
+    const generateEquipmentListPDF = async (customFilename = "", customTitle = "") => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const { headerBg, headerText } = pdfSettings;
         const titleText = customTitle || pdfSettings.titleText;
 
-        // Force the use of the new horizontal grey logo
-        const logo = new Image();
-        logo.crossOrigin = "Anonymous";
-        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
-        logo.src = finalLogo + "?v=" + new Date().getTime();
+        // Always use the physical logo from public folder for exports to ensure it's the latest dark version
+        const finalUrl = "/solimaq_logo.png";
+
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
 
         const start = () => {
             const drawHeader = () => {
@@ -1196,19 +1206,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "normal");
                 doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
 
-                try {
-                    if (logo.complete && logo.naturalWidth > 0) {
-                        const ratio = logo.naturalWidth / logo.naturalHeight;
-                        const targetHeight = 16; // Grown 30% from 12mm
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+                        const targetHeight = 16;
                         const targetWidth = targetHeight * ratio;
                         const xPos = 195 - targetWidth;
-                        // Positioned slightly higher to balance the larger size
-                        doc.addImage(logo, 'PNG', xPos, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
-                    } else {
-                        const finalLogo = preloadedLogo || '/solimaq_logo_horizontal.png'; // Fallback to default Solimaq logo
-                        if (finalLogo) doc.addImage(finalLogo, 'PNG', 155, headerStart + 2, 40, 16, undefined, 'FAST');
+                        doc.addImage(logoImg, 'PNG', xPos, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) {
+                        console.error("Equipment List Logo Draw Error", e);
                     }
-                } catch (e) { console.error("Logo PDF Draw Error", e); }
+                }
 
                 // 2. FRANJA DE TÍTULO (ABAJO) - REDUCED GAP
                 const titleY = headerStart + 21;
@@ -1300,24 +1308,25 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             toast({ title: "Listado de Equipos Exportado" });
         };
 
-        // Wait for logo to load to get dimensions
-        if (logo.complete && logo.naturalWidth > 0) start();
-        else {
-            logo.onload = start;
-            logo.onerror = start;
-        }
+        start();
     };
 
-    const generateInternalRadiographyPDF = (customFilename = "", customTitle = "", customTC = null) => {
+    const generateInternalRadiographyPDF = async (customFilename = "", customTitle = "", customTC = null) => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const { headerBg, headerText } = pdfSettings;
         const titleText = customTitle || "RADIOGRAFÍA INTERNA";
         const finalTC = n(customTC || tipoCambio);
 
-        const logo = new Image();
-        logo.crossOrigin = "Anonymous";
-        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
-        logo.src = finalLogo + "?v=" + new Date().getTime();
+        // Always use the physical logo from public folder for exports to ensure it's the latest dark version
+        const finalUrl = "/solimaq_logo.png";
+
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
 
         const start = () => {
             const drawHeader = () => {
@@ -1337,14 +1346,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "normal");
                 doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
 
-                try {
-                    if (logo.complete && logo.naturalWidth > 0) {
-                        const ratio = logo.naturalWidth / logo.naturalHeight;
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
                         const targetHeight = 16;
                         const targetWidth = targetHeight * ratio;
-                        doc.addImage(logo, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
-                    }
-                } catch (e) { }
+                        doc.addImage(logoImg, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) { console.error("Radiography Logo Draw Error", e); }
+                }
 
                 const titleY = headerStart + 21;
                 doc.setFillColor(headerBg);
@@ -1504,18 +1513,24 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             toast({ title: "Radiografía Interna Generada" });
         };
 
-        if (logo.complete && logo.naturalWidth > 0) start();
-        else { logo.onload = start; logo.onerror = start; }
+        if (logoImg) start();
+        else start(); // Fallback if image failed to load
     };
 
-    const generateModulePDF = (s, sIdx) => {
+    const generateModulePDF = async (s, sIdx) => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const { headerBg, headerText } = pdfSettings;
 
-        const logo = new Image();
-        logo.crossOrigin = "Anonymous";
-        const finalLogo = logoUrl && !logoUrl.includes('favicon.png') ? logoUrl : '/solimaq_logo_horizontal.png';
-        logo.src = finalLogo + "?v=" + new Date().getTime();
+        // Always use the physical logo from public folder for exports to ensure it's the latest dark version
+        const finalUrl = "/solimaq_logo.png";
+
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
 
         const start = () => {
             const drawHeader = () => {
@@ -1537,14 +1552,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "normal");
                 doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
 
-                try {
-                    if (logo.complete && logo.naturalWidth > 0) {
-                        const ratio = logo.naturalWidth / logo.naturalHeight;
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
                         const targetHeight = 16;
                         const targetWidth = targetHeight * ratio;
-                        doc.addImage(logo, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                        doc.addImage(logoImg, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) {
+                        console.error("Module PDF Logo Draw Error", e);
                     }
-                } catch (e) { }
+                }
 
                 const titleY = headerStart + 21;
                 doc.setFillColor(headerBg);
@@ -1616,8 +1633,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             toast({ title: `Módulo ${sIdx + 1} Exportado como PDF` });
         };
 
-        if (logo.complete && logo.naturalWidth > 0) start();
-        else { logo.onload = start; logo.onerror = start; }
+        if (logoImg) start();
+        else start(); // Fallback if image failed to load
     };
 
     const triggerExportWithFilename = (type) => {
@@ -1739,7 +1756,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-zinc-900 border border-white/10 rounded-full cursor-default">
                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
                                         <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
-                                            {isLoadingData ? "SYNCING..." : "VER 7.75"}
+                                            {isLoadingData ? "SYNCING..." : "VER 7.80"}
                                         </span>
                                     </div>
                                 </div>

@@ -471,23 +471,19 @@ const PropuestaEconomicaSection = ({
     doc.setFillColor(0, 0, 0);
     doc.rect(0, 0, 210, 32, 'F');
 
-    // Logo
+    // Logo - Force dark logo
     try {
-      if (preloadedLogo) {
-        const logoWidth = 40;
-        const logoHeight = (preloadedLogo.height / preloadedLogo.width) * logoWidth;
-        doc.addImage(preloadedLogo, 'PNG', 14, (32 - logoHeight) / 2, logoWidth, logoHeight);
-      } else {
-        // Fallback for case where it's not preloaded yet (rare)
-        const logoUrl = quotationData?.logo || '/solimaq_logo_horizontal.png';
-        const logoImg = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = logoUrl;
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          setTimeout(() => reject(new Error("Timeout")), 2000);
-        });
+      const finalLogoUrl = "/solimaq_logo.png";
+      const logoImg = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = finalLogoUrl + "?v=" + Date.now();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        setTimeout(() => resolve(null), 3000);
+      });
+
+      if (logoImg) {
         const logoWidth = 40;
         const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
         doc.addImage(logoImg, 'PNG', 14, (32 - logoHeight) / 2, logoWidth, logoHeight);

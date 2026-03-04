@@ -36,7 +36,6 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
     const [logoUrl, setLogoUrl] = useState(initialLogoUrl || initialSettings?.logoUrl || "/solimaq_logo_horizontal.png");
 
     useEffect(() => {
-        // Prioritize the prop, but fallback to settings if prop is missing (legacy support)
         if (initialLogoUrl) setLogoUrl(initialLogoUrl);
         else if (initialSettings?.logoUrl) setLogoUrl(initialSettings.logoUrl);
     }, [initialSettings?.logoUrl, initialLogoUrl]);
@@ -69,14 +68,10 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                 const ratio = img.width / img.height;
                 setLogoAspectRatio(ratio);
                 setLogoUrl(event.target.result);
-                // Clean logoUrl from settings if it exists there to avoid conflicts
-                setSettings(p => {
-                    const { logoUrl, ...rest } = p;
-                    return {
-                        ...rest,
-                        logoPos: { ...p.logoPos, height: p.logoPos.width / ratio }
-                    };
-                });
+                setSettings(p => ({
+                    ...p,
+                    logoPos: { ...p.logoPos, height: p.logoPos.width / ratio }
+                }));
                 setIsUploading(false);
             };
         };
@@ -85,20 +80,26 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
 
     const handleSaveSettings = () => {
         if (onSave) {
-            // CRITICAL: Remove logoUrl from settings before saving to prevent dual source of truth
-            // The logo is saved as a separate column/field in the DB
-            const { logoUrl, ...cleanSettings } = settings;
+            const { logoUrl: sLogoUrl, ...cleanSettings } = settings;
             onSave(cleanSettings, editableClient, editableProject, logoUrl);
         }
     };
 
-    const generatePDF = () => {
+    const generatePDF = async () => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = settings;
 
-        const logoImg = new Image();
-        logoImg.src = logoUrl;
-        logoImg.crossOrigin = "Anonymous";
+        // Explicitly force the dark logo for all exports
+        const finalUrl = "/solimaq_logo.png";
+
+        const robustLogo = new Image();
+        robustLogo.crossOrigin = "Anonymous";
+        robustLogo.src = finalUrl + "?v=" + Date.now();
+
+        await new Promise((resolve) => {
+            robustLogo.onload = resolve;
+            robustLogo.onerror = resolve;
+        });
 
         const start = () => {
             const topMargin = 8;
@@ -116,26 +117,34 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                 doc.setFont("helvetica", "bold");
                 doc.text("CLIENTE:", metaPos.x, metaPos.y + topMargin);
                 doc.setFont("helvetica", "normal");
-                doc.text(editableClient.toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
+                doc.text(String(editableClient || "").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
                 doc.setFont("helvetica", "bold");
                 doc.text("PROYECTO:", metaPos.x, metaPos.y + topMargin + 5);
                 doc.setFont("helvetica", "normal");
-                doc.text(editableProject.toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
+                doc.text(String(editableProject || "").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
                 doc.setFont("helvetica", "bold");
                 doc.text("FECHA:", metaPos.x, metaPos.y + topMargin + 10);
                 doc.setFont("helvetica", "normal");
                 doc.text(new Date().toLocaleDateString('es-MX'), metaPos.x + 23, metaPos.y + topMargin + 10);
 
-                try {
-                    doc.addImage(logoImg, 'PNG', logoPos.x, logoPos.y + topMargin, logoPos.width, logoPos.height, undefined, 'FAST');
-                } catch (e) { console.error("Logo PDF Draw Error", e); }
+                if (robustLogo.complete && robustLogo.naturalWidth > 0) {
+                    try {
+                        const ratio = robustLogo.naturalWidth / robustLogo.naturalHeight;
+                        const targetHeight = settings.logoPos.height || 16;
+                        const targetWidth = targetHeight * ratio;
+                        const xPos = settings.logoPos.x + settings.logoPos.width - targetWidth;
+                        doc.addImage(robustLogo, 'PNG', xPos, settings.logoPos.y + topMargin, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) {
+                        console.error("Editor Logo Draw Error", e);
+                    }
+                }
             };
 
             let tableData = [];
             let globalIdx = 1;
 
             sections.forEach((s, sIdx) => {
-                const activeItems = s.items.filter(it => it.activo);
+                const activeItems = (s.items || []).filter(it => it.activo);
                 if (activeItems.length === 0) return;
 
                 tableData.push([
@@ -148,8 +157,8 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                     modSum += r.totalVenta;
                     tableData.push([
                         { content: globalIdx++, styles: { textColor: settings.primaryColor, fontStyle: 'bold' } },
-                        it.equipo.toUpperCase(),
-                        it.descripcion.substring(0, 350),
+                        String(it.equipo || "").toUpperCase(),
+                        String(it.descripcion || "").substring(0, 350),
                         { content: "", image: it.media_url && it.media_type !== 'video' ? it.media_url : null },
                         it.qty,
                         money(r.ventaUnitFinal),
@@ -195,40 +204,28 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                 }
             });
 
-            // TOTAL GENERAL ALIGNED TO THE LAST COLUMN (WIDTH OF THE TABLE)
-            const finalY = doc.lastAutoTable.finalY + 8;
+            const finalY = (doc.lastAutoTable?.finalY || 40) + 8;
             if (finalY < 185) {
-                const totalBoxWidth = settings.colWidths.total + settings.colWidths.unit + 45; // Extend width to prevent overlap
-                const tableRightPos = 282; // Matches page margin
-
+                const totalBoxWidth = settings.colWidths.total + settings.colWidths.unit + 45;
+                const tableRightPos = 282;
                 doc.setFillColor(0, 0, 0);
-                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 20, 'F'); // Increased height for legend
-
+                doc.rect(tableRightPos - totalBoxWidth, finalY, totalBoxWidth, 20, 'F');
                 doc.setTextColor(255, 255, 255);
-
-                // Label
                 doc.setFontSize(10);
                 doc.setFont("helvetica", "bold");
                 doc.text("TOTAL GENERAL", tableRightPos - totalBoxWidth + 5, finalY + 9);
-
-                // Amount
-                doc.setFontSize(14); // Slightly smaller to ensure fit
+                doc.setFontSize(14);
                 doc.text(money(grandTotals.totalVenta) + " USD", tableRightPos - 5, finalY + 9, { align: 'right' });
-
-                // VAT Legend
                 doc.setFontSize(7);
                 doc.setFont("helvetica", "normal");
                 doc.text("(Precios más 16% de I.V.A.)", tableRightPos - 5, finalY + 16, { align: 'right' });
             }
 
-            doc.save(`SOLIMAQ_MP_${editableProject.replace(/\s+/g, '_')}.pdf`);
+            const safeProjectName = String(editableProject || "Proyecto").replace(/\s+/g, '_');
+            doc.save(`PREVIEW_MASTERPLAN_${safeProjectName}.pdf`);
         };
 
-        if (logoImg.complete) start();
-        else {
-            logoImg.onload = start;
-            logoImg.onerror = () => start();
-        }
+        start();
     };
 
     if (!isOpen) return null;
@@ -237,160 +234,224 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
     const toMm = (px) => px / scale;
 
     return createPortal(
-        <div className="fixed inset-0 z-[5000] bg-black/90 backdrop-blur-xl flex flex-col">
-            <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-zinc-900/50">
-                <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-                        <Settings2 className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                        <h2 className="text-white font-bold leading-none">Editor Pro v11.5</h2>
-                        <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">Plantilla de Exportacion</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={handleSaveSettings} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all text-xs font-bold border border-white/10">
-                        <Save className="w-4 h-4" /> Guardar
-                    </button>
-                    <button onClick={generatePDF} className="flex items-center gap-2 px-5 py-2 bg-primary text-black rounded-xl hover:scale-105 transition-all text-xs font-black uppercase tracking-tighter">
-                        <Download className="w-4 h-4" /> Exportar PDF
-                    </button>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex-1 flex overflow-hidden">
-                <div className="w-80 border-r border-white/10 bg-zinc-900/30 overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar">
-                    <section>
-                        <h3 className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Palette className="w-3 h-3" /> Marca
-                        </h3>
-                        <div className="grid gap-4">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs text-white/70">Color Acento</label>
-                                <input type="color" value={settings.primaryColor} onChange={e => setSettings(p => ({ ...p, primaryColor: e.target.value, headerBg: e.target.value }))} className="w-8 h-8 rounded bg-transparent cursor-pointer" />
-                            </div>
-                            <button onClick={() => fileRef.current.click()} className="w-full py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white flex items-center justify-center gap-2 hover:bg-white/10">
-                                <Upload size={14} className="text-primary" /> Actualizar Logo
+        <AnimatePresence>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-950">
+                        <div className="flex items-center gap-3">
+                            <Layout className="w-5 h-5 text-primary" />
+                            <h2 className="text-lg font-bold text-white">Editor de Plantilla de Exportación</h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button onClick={generatePDF} className="bg-zinc-800 hover:bg-zinc-700 text-white gap-2 h-9 px-4 rounded-lg">
+                                <Download className="w-4 h-4" /> Exportar PDF
+                            </Button>
+                            <Button onClick={handleSaveSettings} className="bg-primary hover:bg-primary/90 text-black font-bold gap-2 h-9 px-4 rounded-lg">
+                                <Save className="w-4 h-4" /> Guardar Plantilla
+                            </Button>
+                            <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors">
+                                <X className="w-5 h-5" />
                             </button>
-                            <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                         </div>
-                    </section>
+                    </div>
 
-                    <section>
-                        <h3 className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Type className="w-3 h-3" /> Editar Textos
-                        </h3>
-                        <div className="grid gap-4">
-                            <div>
-                                <label className="text-[10px] text-white/40 uppercase mb-1">Título</label>
-                                <input type="text" value={settings.titleText} onChange={e => setSettings(p => ({ ...p, titleText: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded px-2 py-2 text-xs text-white" />
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-white/40 uppercase mb-1">Cliente</label>
-                                <input type="text" value={editableClient} onChange={e => setEditableClient(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-2 py-2 text-xs text-white" />
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-white/40 uppercase mb-1">Proyecto</label>
-                                <input type="text" value={editableProject} onChange={e => setEditableProject(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-2 py-2 text-xs text-white" />
-                            </div>
-                        </div>
-                    </section>
-                </div>
-
-                <div className="flex-1 bg-zinc-950 p-12 overflow-auto flex justify-center custom-scrollbar">
-                    <div
-                        ref={previewRef}
-                        className="w-[297mm] h-[210mm] bg-white text-black shadow-2xl relative select-none origin-top overflow-hidden pt-[8mm]"
-                        style={{ minWidth: '297mm' }}
-                    >
-                        <div className="relative w-full h-full">
-                            <div className="absolute top-0 left-0 right-0 h-[8mm] border-b border-dotted border-zinc-200 pointer-events-none opacity-50" />
-
-                            <Rnd
-                                size={{ width: toPx(settings.headerBox.width), height: toPx(settings.headerBox.height) }}
-                                position={{ x: toPx(settings.headerBox.x), y: toPx(settings.headerBox.y) }}
-                                onDragStop={(e, d) => setSettings(p => ({ ...p, headerBox: { ...p.headerBox, x: toMm(d.x), y: toMm(d.y) } }))}
-                                onResizeStop={(e, dir, ref, delta, pos) => setSettings(p => ({ ...p, headerBox: { x: toMm(pos.x), y: toMm(pos.y), width: toMm(ref.offsetWidth), height: toMm(ref.offsetHeight) } }))}
-                                className="z-20 group"
-                            >
-                                <div className="w-full h-full flex items-center justify-center font-bold text-2xl uppercase border border-dashed border-transparent group-hover:border-black/20" style={{ backgroundColor: settings.headerBg, color: settings.headerText }}>
-                                    {settings.titleText}
+                    <div className="flex-1 flex overflow-hidden">
+                        <div className="w-80 border-r border-zinc-800 p-6 overflow-y-auto custom-scrollbar space-y-8 bg-zinc-950/50">
+                            <section className="space-y-4">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-primary/70 mb-4 flex items-center gap-2">
+                                    <Type className="w-3 h-3" /> Contenido Principal
+                                </h3>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-zinc-500 ml-1">Proyecto</label>
+                                    <input value={editableProject} onChange={e => setEditableProject(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-primary outline-none" />
                                 </div>
-                            </Rnd>
-
-                            <Rnd
-                                position={{ x: toPx(settings.metaPos.x), y: toPx(settings.metaPos.y) }}
-                                onDragStop={(e, d) => setSettings(p => ({ ...p, metaPos: { x: toMm(d.x), y: toMm(d.y) } }))}
-                                className="z-10 group"
-                            >
-                                <div className="text-[10px] py-1 px-2 border border-dashed border-transparent group-hover:border-black/20 bg-white/10">
-                                    <p><strong>CLIENTE:</strong> {editableClient.toUpperCase()}</p>
-                                    <p><strong>PROYECTO:</strong> {editableProject.toUpperCase()}</p>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-zinc-500 ml-1">Cliente</label>
+                                    <input value={editableClient} onChange={e => setEditableClient(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-primary outline-none" />
                                 </div>
-                            </Rnd>
-
-                            <Rnd
-                                size={{ width: toPx(settings.logoPos.width), height: toPx(settings.logoPos.height) }}
-                                position={{ x: toPx(settings.logoPos.x), y: toPx(settings.logoPos.y) }}
-                                lockAspectRatio={logoAspectRatio}
-                                onDragStop={(e, d) => setSettings(p => ({ ...p, logoPos: { ...p.logoPos, x: toMm(d.x), y: toMm(d.y) } }))}
-                                onResizeStop={(e, dir, ref, delta, pos) => setSettings(p => ({ ...p, logoPos: { x: toMm(pos.x), y: toMm(pos.y), width: toMm(ref.offsetWidth), height: toMm(ref.offsetHeight) } }))}
-                                className="z-30 group"
-                            >
-                                <div className="w-full h-full border border-dashed border-transparent group-hover:border-black/20">
-                                    <img src={logoUrl} className="w-full h-full object-contain pointer-events-none" />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-zinc-500 ml-1">Título de Exportación</label>
+                                    <input value={settings.titleText} onChange={e => setSettings(p => ({ ...p, titleText: e.target.value.toUpperCase() }))} className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-primary outline-none font-bold" />
                                 </div>
-                            </Rnd>
+                            </section>
 
-                            <div className="mx-[15mm]" style={{ marginTop: '32mm' }}>
-                                <div className="flex font-extrabold text-[10px] uppercase text-center border border-black/10" style={{ backgroundColor: settings.primaryColor }}>
-                                    <div style={{ width: `${settings.colWidths.item}mm` }} className="py-2.5 border-r border-black/10">Item</div>
-                                    <div style={{ width: `${settings.colWidths.equipo}mm` }} className="py-2.5 border-r border-black/10">Equipo</div>
-                                    <div style={{ flex: 1 }} className="py-2.5 border-r border-black/10 text-left px-3">Descripción</div>
-                                    <div style={{ width: `${settings.colWidths.foto}mm` }} className="py-2.5 border-r border-black/10">Foto</div>
-                                    <div style={{ width: `${settings.colWidths.qty}mm` }} className="py-2.5 border-r border-black/10">Qty</div>
-                                    <div style={{ width: `${settings.colWidths.unit}mm` }} className="py-2.5 border-r border-black/10">Unitario</div>
-                                    <div style={{ width: `${settings.colWidths.total}mm` }} className="py-2.5 text-right px-3">Total</div>
-                                </div>
-
-                                <div className="flex border border-t-0 border-black/10 bg-[#787878] text-white font-bold text-[9px] h-7 items-center justify-center uppercase tracking-widest">
-                                    Módulo de Prueba: Refinamiento de Estilos
-                                </div>
-
-                                <div className="flex border border-t-0 border-black/10 font-medium" style={{ fontSize: `${settings.fontSize}px`, minHeight: `${settings.rowHeight}mm` }}>
-                                    <div style={{ width: `${settings.colWidths.item}mm`, color: settings.primaryColor }} className="p-2 border-r border-black/10 flex items-center justify-center font-black">1</div>
-                                    <div style={{ width: `${settings.colWidths.equipo}mm` }} className="p-3 border-r border-black/10 flex items-center font-bold px-3 uppercase">Items Normales</div>
-                                    <div style={{ flex: 1 }} className="p-3 border-r border-black/10 flex items-center leading-tight">Visualización de subtotales y total general.</div>
-                                    <div style={{ width: `${settings.colWidths.foto}mm` }} className="p-2 border-r border-black/10 flex items-center justify-center">
-                                        <div className="bg-zinc-100" style={{ width: `${settings.imgSize}mm`, height: `${settings.imgSize}mm` }} />
+                            <section className="space-y-4">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-primary/70 mb-4 flex items-center gap-2">
+                                    <Palette className="w-3 h-3" /> Estilo del Encabezado
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 ml-1">Fondo Caja</label>
+                                        <input type="color" value={settings.headerBg} onChange={e => setSettings(p => ({ ...p, headerBg: e.target.value }))} className="w-full h-10 bg-zinc-900 border border-zinc-800 rounded-lg p-1 cursor-pointer" />
                                     </div>
-                                    <div style={{ width: `${settings.colWidths.qty}mm` }} className="p-2 border-r border-black/10 flex items-center justify-center">1</div>
-                                    <div style={{ width: `${settings.colWidths.unit}mm` }} className="p-2 border-r border-black/10 flex items-center justify-end px-3">$0.00</div>
-                                    <div style={{ width: `${settings.colWidths.total}mm` }} className="p-2 flex items-center justify-end px-3 font-mono text-primary">$0,000.00</div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 ml-1">Texto Caja</label>
+                                        <input type="color" value={settings.headerText} onChange={e => setSettings(p => ({ ...p, headerText: e.target.value }))} className="w-full h-10 bg-zinc-900 border border-zinc-800 rounded-lg p-1 cursor-pointer" />
+                                    </div>
                                 </div>
+                            </section>
 
-                                <div className="flex border-b border-black/10 font-black h-12 items-center justify-end px-6 gap-4" style={{ fontSize: `${settings.fontSize + 2}px` }}>
-                                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Subtotal Módulo</span>
-                                    <span className="text-zinc-700">$0,000.00</span>
+                            <section className="space-y-4">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-primary/70 mb-4 flex items-center gap-2">
+                                    <ImageIcon className="w-3 h-3" /> Logotipo
+                                </h3>
+                                <div className="flex gap-2">
+                                    <Button onClick={() => fileRef.current?.click()} disabled={isUploading} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs gap-2 py-5">
+                                        {isUploading ? <Settings2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Subir Logo
+                                    </Button>
+                                    <input type="file" ref={fileRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
                                 </div>
+                                <div className="flex items-center gap-2 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                                    <ImageIcon className="w-4 h-4 text-zinc-500" />
+                                    <span className="text-[10px] text-zinc-400 truncate">{logoUrl.substring(0, 30)}...</span>
+                                </div>
+                            </section>
 
-                                <div className="flex justify-end mt-4">
-                                    <div className="bg-black text-white h-12 flex items-center px-6 gap-8" style={{ width: '80mm' }}>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest">Total General</span>
-                                        <span className="text-xl font-black ml-auto">$0,000.00</span>
+                            <section className="space-y-4">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-primary/70 mb-4 flex items-center gap-2">
+                                    <Columns className="w-3 h-3" /> Dimensiones de Tabla
+                                </h3>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500">
+                                        <span>Alto de Fila</span>
+                                        <span className="text-white">{settings.rowHeight}mm</span>
+                                    </div>
+                                    <input type="range" min="15" max="60" value={settings.rowHeight} onChange={e => setSettings(p => ({ ...p, rowHeight: parseInt(e.target.value) }))} className="w-full accent-primary" />
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500">
+                                        <span>Tamaño Imagen</span>
+                                        <span className="text-white">{settings.imgSize}mm</span>
+                                    </div>
+                                    <input type="range" min="10" max="50" value={settings.imgSize} onChange={e => setSettings(p => ({ ...p, imgSize: parseInt(e.target.value) }))} className="w-full accent-primary" />
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500">
+                                        <span>Tamaño Fuente</span>
+                                        <span className="text-white">{settings.fontSize}pt</span>
+                                    </div>
+                                    <input type="range" min="6" max="14" value={settings.fontSize} onChange={e => setSettings(p => ({ ...p, fontSize: parseInt(e.target.value) }))} className="w-full accent-primary" />
+                                </div>
+                            </section>
+                        </div>
+
+                        <div className="flex-1 bg-[#121212] p-8 overflow-y-auto custom-scrollbar flex items-start justify-center relative group">
+                            <div className="absolute top-4 left-4 flex gap-4 text-[10px] uppercase tracking-widest font-black text-zinc-600 bg-black/20 py-2 px-4 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="flex items-center gap-1.5"><Move className="w-3 h-3" /> Arrastra elementos</span>
+                                <span className="flex items-center gap-1.5"><Maximize2 className="w-3 h-3" /> Ajusta tamaños</span>
+                            </div>
+
+                            <div
+                                ref={previewRef}
+                                className="bg-white shadow-2xl relative shrink-0 overflow-hidden text-black"
+                                style={{
+                                    width: '297mm',
+                                    height: '210mm',
+                                    transformOrigin: 'top center',
+                                    transform: `scale(${scale})`
+                                }}
+                            >
+                                <div className="relative w-full h-full">
+                                    <div className="absolute top-0 left-0 right-0 h-[8mm] border-b border-dotted border-zinc-200 pointer-events-none opacity-50" />
+
+                                    <Rnd
+                                        size={{ width: toPx(settings.headerBox.width), height: toPx(settings.headerBox.height) }}
+                                        position={{ x: toPx(settings.headerBox.x), y: toPx(settings.headerBox.y) }}
+                                        onDragStop={(e, d) => setSettings(p => ({ ...p, headerBox: { ...p.headerBox, x: toMm(d.x), y: toMm(d.y) } }))}
+                                        onResizeStop={(e, dir, ref, delta, pos) => setSettings(p => ({ ...p, headerBox: { x: toMm(pos.x), y: toMm(pos.y), width: toMm(ref.offsetWidth), height: toMm(ref.offsetHeight) } }))}
+                                        className="z-20 group"
+                                    >
+                                        <div className="w-full h-full flex items-center justify-center font-bold text-2xl uppercase border border-dashed border-transparent group-hover:border-black/20" style={{ backgroundColor: settings.headerBg, color: settings.headerText }}>
+                                            {settings.titleText}
+                                        </div>
+                                    </Rnd>
+
+                                    <Rnd
+                                        position={{ x: toPx(settings.metaPos.x), y: toPx(settings.metaPos.y) }}
+                                        onDragStop={(e, d) => setSettings(p => ({ ...p, metaPos: { x: toMm(d.x), y: toMm(d.y) } }))}
+                                        className="z-10 group"
+                                    >
+                                        <div className="text-[10px] py-1 px-2 border border-dashed border-transparent group-hover:border-black/20 bg-white/10">
+                                            <p><strong>CLIENTE:</strong> {editableClient.toUpperCase()}</p>
+                                            <p><strong>PROYECTO:</strong> {editableProject.toUpperCase()}</p>
+                                        </div>
+                                    </Rnd>
+
+                                    <Rnd
+                                        size={{ width: toPx(settings.logoPos.width), height: toPx(settings.logoPos.height) }}
+                                        position={{ x: toPx(settings.logoPos.x), y: toPx(settings.logoPos.y) }}
+                                        lockAspectRatio={logoAspectRatio}
+                                        onDragStop={(e, d) => setSettings(p => ({ ...p, logoPos: { ...p.logoPos, x: toMm(d.x), y: toMm(d.y) } }))}
+                                        onResizeStop={(e, dir, ref, delta, pos) => setSettings(p => ({ ...p, logoPos: { x: toMm(pos.x), y: toMm(pos.y), width: toMm(ref.offsetWidth), height: toMm(ref.offsetHeight) } }))}
+                                        className="z-30 group"
+                                    >
+                                        <div className="w-full h-full border border-dashed border-transparent group-hover:border-black/20">
+                                            <img src={logoUrl} className="w-full h-full object-contain pointer-events-none" />
+                                        </div>
+                                    </Rnd>
+
+                                    <div className="mx-[15mm]" style={{ marginTop: '32mm' }}>
+                                        <div className="flex font-extrabold text-[10px] uppercase text-center border border-black/10" style={{ backgroundColor: settings.primaryColor }}>
+                                            <div style={{ width: `${settings.colWidths.item}mm` }} className="py-2.5 border-r border-black/10">Item</div>
+                                            <div style={{ width: `${settings.colWidths.equipo}mm` }} className="py-2.5 border-r border-black/10">Equipo</div>
+                                            <div style={{ flex: 1 }} className="py-2.5 border-r border-black/10 text-left px-3">Descripción</div>
+                                            <div style={{ width: `${settings.colWidths.foto}mm` }} className="py-2.5 border-r border-black/10">Foto</div>
+                                            <div style={{ width: `${settings.colWidths.qty}mm` }} className="py-2.5 border-r border-black/10">Qty</div>
+                                            <div style={{ width: `${settings.colWidths.unit}mm` }} className="py-2.5 border-r border-black/10">Unitario</div>
+                                            <div style={{ width: `${settings.colWidths.total}mm` }} className="py-2.5 text-right px-3">Total</div>
+                                        </div>
+
+                                        <div className="flex border border-t-0 border-black/10 bg-[#787878] text-white font-bold text-[9px] h-7 items-center justify-center uppercase tracking-widest">
+                                            Módulo de Prueba: Refinamiento de Estilos
+                                        </div>
+
+                                        <div className="flex border border-t-0 border-black/10 font-medium" style={{ fontSize: `${settings.fontSize}px`, minHeight: `${settings.rowHeight}mm` }}>
+                                            <div style={{ width: `${settings.colWidths.item}mm`, color: settings.primaryColor }} className="p-2 border-r border-black/10 flex items-center justify-center font-black">1</div>
+                                            <div style={{ width: `${settings.colWidths.equipo}mm` }} className="p-3 border-r border-black/10 flex items-center font-bold px-3 uppercase">Items Normales</div>
+                                            <div style={{ flex: 1 }} className="p-3 border-r border-black/10 flex items-center leading-tight">Visualización de subtotales y total general.</div>
+                                            <div style={{ width: `${settings.colWidths.foto}mm` }} className="p-2 border-r border-black/10 flex items-center justify-center">
+                                                <div className="bg-zinc-100" style={{ width: `${settings.imgSize}mm`, height: `${settings.imgSize}mm` }} />
+                                            </div>
+                                            <div style={{ width: `${settings.colWidths.qty}mm` }} className="p-2 border-r border-black/10 flex items-center justify-center">1</div>
+                                            <div style={{ width: `${settings.colWidths.unit}mm` }} className="p-2 border-r border-black/10 flex items-center justify-end px-3">$0.00</div>
+                                            <div style={{ width: `${settings.colWidths.total}mm` }} className="p-2 flex items-center justify-end px-3 font-mono text-primary">$0,000.00</div>
+                                        </div>
+
+                                        <div className="flex border-b border-black/10 font-black h-12 items-center justify-end px-6 gap-4" style={{ fontSize: `${settings.fontSize + 2}px` }}>
+                                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Subtotal Módulo</span>
+                                            <span className="text-zinc-700">$0,000.00</span>
+                                        </div>
+
+                                        <div className="flex justify-end mt-4">
+                                            <div className="bg-black text-white h-12 flex items-center px-6 gap-8" style={{ width: '80mm' }}>
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">Total General</span>
+                                                <span className="text-xl font-black ml-auto">$0,000.00</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>,
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>,
         document.body
     );
 };
+
+// Internal Button component as common in our codebase or we use a primitive?
+// Explicitly define it if needed, or assume it exists. 
+// Actually, using a standard <button> to avoid import issues.
+const Button = ({ children, className, onClick, disabled, ...props }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`inline-flex items-center justify-center font-medium transition-colors disabled:opacity-50 ${className}`}
+        {...props}
+    >
+        {children}
+    </button>
+);
 
 export default ExportTemplateEditor;
