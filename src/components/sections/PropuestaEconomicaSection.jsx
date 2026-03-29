@@ -529,8 +529,9 @@ const PropuestaEconomicaSection = ({
       headStyles: { fillColor: [155, 212, 40], textColor: [0, 0, 0], fontStyle: 'bold' },
       styles: { cellPadding: 4, fontSize: 10 },
       columnStyles: {
-        1: { halign: 'center' },
-        2: { halign: 'right', fontStyle: 'bold' }
+        0: { halign: 'justify', cellWidth: 115 },
+        1: { halign: 'center', cellWidth: 25 },
+        2: { halign: 'right', fontStyle: 'bold', cellWidth: 42 }
       },
       margin: { top: 50 }
     });

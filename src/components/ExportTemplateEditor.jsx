@@ -22,7 +22,7 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
         logoPos: { x: 235, y: 0, width: 45, height: 25 },
         headerBox: { x: 15, y: 0, width: 95, height: 15 },
         metaPos: { x: 120, y: 3 },
-        colWidths: { item: 15, equipo: 45, desc: 85, foto: 35, qty: 15, unit: 32, total: 32 },
+        colWidths: { item: 10, equipo: 40, desc: 105, foto: 35, qty: 10, unit: 30, total: 30 },
         fontSize: 9,
         rowHeight: 25,
         showImages: true,
@@ -182,7 +182,7 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                 columnStyles: {
                     0: { halign: 'center', cellWidth: colWidths.item },
                     1: { fontStyle: 'bold', cellWidth: colWidths.equipo },
-                    2: { cellWidth: colWidths.desc },
+                    2: { halign: 'justify', cellWidth: colWidths.desc },
                     3: { halign: 'center', cellWidth: colWidths.foto },
                     4: { halign: 'center', cellWidth: colWidths.qty },
                     5: { halign: 'right', cellWidth: colWidths.unit },
@@ -408,7 +408,7 @@ const ExportTemplateEditor = ({ isOpen, onClose, sections, grandTotals, clientNa
                                         <div className="flex border border-t-0 border-black/10 font-medium" style={{ fontSize: `${settings.fontSize}px`, minHeight: `${settings.rowHeight}mm` }}>
                                             <div style={{ width: `${settings.colWidths.item}mm`, color: settings.primaryColor }} className="p-2 border-r border-black/10 flex items-center justify-center font-black">1</div>
                                             <div style={{ width: `${settings.colWidths.equipo}mm` }} className="p-3 border-r border-black/10 flex items-center font-bold px-3 uppercase">Items Normales</div>
-                                            <div style={{ flex: 1 }} className="p-3 border-r border-black/10 flex items-center leading-tight">Visualización de subtotales y total general.</div>
+                                            <div style={{ flex: 1, textAlign: 'justify' }} className="p-3 border-r border-black/10 flex items-center leading-tight">Visualización de subtotales y total general.</div>
                                             <div style={{ width: `${settings.colWidths.foto}mm` }} className="p-2 border-r border-black/10 flex items-center justify-center">
                                                 <div className="bg-zinc-100" style={{ width: `${settings.imgSize}mm`, height: `${settings.imgSize}mm` }} />
                                             </div>

@@ -10,7 +10,7 @@ import { getActiveBucket } from "@/lib/bucketResolver";
 import { sanitizeFileName } from "@/lib/utils";
 import SectionHeader from '@/components/SectionHeader';
 
-import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp } from "lucide-react";
+import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp, Zap, Trash } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -127,6 +127,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [isExportFilenameModalOpen, setIsExportFilenameModalOpen] = useState(false);
     const [exportFilename, setExportFilename] = useState("");
     const [exportTitle, setExportTitle] = useState("");
+    const [exportClient, setExportClient] = useState("");
+    const [exportProject, setExportProject] = useState("");
     const [exportTC, setExportTC] = useState(18.5);
     const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
     const [preloadedLogo, setPreloadedLogo] = useState(null);
@@ -550,12 +552,37 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         saveToCloud(newSections);
     };
 
+    const moveSection = (id, direction) => {
+        const idx = sections.findIndex(s => s.id === id);
+        if (idx === -1) return;
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= sections.length) return;
+
+        const newSections = [...sections];
+        const [moved] = newSections.splice(idx, 1);
+        newSections.splice(newIdx, 0, moved);
+
+        // Reindex item codes (like 1.1, 1.2) for the affected blocks
+        const reindexed = newSections.map((s, sIdx) => ({
+            ...s,
+            numero: sIdx + 1, // Reset manual number to follow new order
+            items: (s.items || []).map((it, iIdx) => ({
+                ...it,
+                codigo: `${sIdx + 1}.${iIdx + 1}`
+            }))
+        }));
+
+        setSections(reindexed);
+        saveToCloud(reindexed);
+    };
+
     const removeSection = (id) => {
         if (window.confirm("¿Eliminar este módulo completo?")) {
             const filtered = sections.filter(s => s.id !== id);
             // Reindex everything after removal
             const reindexed = filtered.map((s, sIdx) => ({
                 ...s,
+                numero: sIdx + 1,
                 items: (s.items || []).map((it, iIdx) => ({
                     ...it,
                     codigo: `${sIdx + 1}.${iIdx + 1}`
@@ -1018,9 +1045,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         reader.readAsBinaryString(file);
     };
 
-    const generateDirectPDF = async (customFilename = "") => {
+    const generateDirectPDF = async (customFilename = "", customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
+
+        const activeClient = customClient || clientName;
+        const activeProject = customProject || projectName;
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
         const finalUrl = "/solimaq_logo.png";
@@ -1049,11 +1079,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "bold");
                 doc.text("CLIENTE:", metaPos.x, metaPos.y + topMargin);
                 doc.setFont("helvetica", "normal");
-                doc.text(String(clientName || "CLIENTE").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
+                doc.text(String(activeClient || "CLIENTE").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin);
                 doc.setFont("helvetica", "bold");
                 doc.text("PROYECTO:", metaPos.x, metaPos.y + topMargin + 5);
                 doc.setFont("helvetica", "normal");
-                doc.text(String(projectName || "PROYECTO").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
+                doc.text(String(activeProject || "PROYECTO").toUpperCase(), metaPos.x + 23, metaPos.y + topMargin + 5);
                 doc.setFont("helvetica", "bold");
                 doc.text("FECHA:", metaPos.x, metaPos.y + topMargin + 10);
                 doc.setFont("helvetica", "normal");
@@ -1115,7 +1145,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 columnStyles: {
                     0: { halign: 'center', cellWidth: colWidths.item },
                     1: { fontStyle: 'bold', cellWidth: colWidths.equipo },
-                    2: { cellWidth: colWidths.desc },
+                    2: { halign: 'justify', cellWidth: colWidths.desc },
                     3: { halign: 'center', cellWidth: colWidths.foto },
                     4: { halign: 'center', cellWidth: colWidths.qty },
                     5: { halign: 'right', cellWidth: colWidths.unit },
@@ -1168,10 +1198,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         start();
     };
 
-    const generateEquipmentListPDF = async (customFilename = "", customTitle = "") => {
+    const generateEquipmentListPDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const { headerBg, headerText } = pdfSettings;
         const titleText = customTitle || pdfSettings.titleText;
+
+        const activeClient = customClient || clientName;
+        const activeProject = customProject || projectName;
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
         const finalUrl = "/solimaq_logo.png";
@@ -1194,12 +1227,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "bold");
                 doc.text("CLIENTE:", 15, headerStart + 4);
                 doc.setFont("helvetica", "normal");
-                doc.text((clientName || "").toUpperCase(), 45, headerStart + 4);
+                doc.text((activeClient || "").toUpperCase(), 45, headerStart + 4);
 
                 doc.setFont("helvetica", "bold");
                 doc.text("PROYECTO:", 15, headerStart + 9);
                 doc.setFont("helvetica", "normal");
-                doc.text((projectName || "").toUpperCase(), 45, headerStart + 9);
+                doc.text((activeProject || "").toUpperCase(), 45, headerStart + 9);
 
                 doc.setFont("helvetica", "bold");
                 doc.text("FECHA:", 15, headerStart + 14);
@@ -1263,11 +1296,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
                 styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                 columnStyles: {
-                    0: { halign: 'center', cellWidth: 13 }, // Increased from 8 to prevent overlap on 2-digit numbers
-                    1: { fontStyle: 'bold', cellWidth: 40 },
-                    2: { cellWidth: 'auto' },
-                    3: { halign: 'center', cellWidth: 15 }, // Increased and renamed to QTY
-                    4: { halign: 'right', cellWidth: 25 },
+                    0: { halign: 'center', cellWidth: 10 },
+                    1: { fontStyle: 'bold', cellWidth: 35 },
+                    2: { halign: 'justify', cellWidth: 'auto' },
+                    3: { halign: 'center', cellWidth: 12 },
+                    4: { halign: 'right', cellWidth: 23 },
                     5: { halign: 'right', cellWidth: 25 }
                 },
                 didDrawPage: (data) => {
@@ -1311,11 +1344,148 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         start();
     };
 
-    const generateInternalRadiographyPDF = async (customFilename = "", customTitle = "", customTC = null) => {
+    const generateEquipmentListMXNPDF = async (customFilename = "", customTitle = "", customTC = null, customClient = "", customProject = "") => {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText } = pdfSettings;
+        const titleText = customTitle || "LISTADO DE EQUIPOS (MXN)";
+        const tc = n(customTC || tipoCambio);
+
+        const activeClient = customClient || clientName;
+        const activeProject = customProject || projectName;
+
+        const moneyMXN = (v) => {
+            const val = n(v);
+            return "$" + val.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN";
+        };
+
+        const finalUrl = "/solimaq_logo.png";
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
+
+        const start = () => {
+            const drawHeader = () => {
+                const headerStart = 10;
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", 15, headerStart + 4);
+                doc.setFont("helvetica", "normal");
+                doc.text((activeClient || "").toUpperCase(), 45, headerStart + 4);
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", 15, headerStart + 9);
+                doc.setFont("helvetica", "normal");
+                doc.text((activeProject || "").toUpperCase(), 45, headerStart + 9);
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", 15, headerStart + 14);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
+
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+                        const targetHeight = 16;
+                        const targetWidth = targetHeight * ratio;
+                        doc.addImage(logoImg, 'PNG', 195 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) { }
+                }
+
+                const titleY = headerStart + 21;
+                doc.setFillColor(headerBg);
+                doc.rect(15, titleY, 180, 10, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.setTextColor(headerText);
+                doc.text(titleText, 105, titleY + 7, { align: 'center' });
+            };
+
+            let tableData = [];
+            let globalIdx = 1;
+            let grandTotalMXN = 0;
+
+            sections.forEach((s, sIdx) => {
+                const activeItems = (s.items || []).filter(it => it.activo);
+                if (activeItems.length === 0) return;
+
+                tableData.push([
+                    { content: `MÓDULO ${sIdx + 1}: ${s.titulo}`, colSpan: 6, styles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 10 } }
+                ]);
+
+                activeItems.forEach(it => {
+                    const r = calcItem(it);
+                    const sellUnitMXN = r.ventaUnitFinal * tc;
+                    const totalSellMXN = r.totalVenta * tc;
+                    grandTotalMXN += totalSellMXN;
+
+                    tableData.push([
+                        globalIdx++,
+                        String(it.equipo || "N/A").toUpperCase(),
+                        String(it.descripcion || ""),
+                        it.qty,
+                        moneyMXN(sellUnitMXN),
+                        moneyMXN(totalSellMXN)
+                    ]);
+                });
+            });
+
+            doc.autoTable({
+                startY: 50,
+                margin: { top: 50, bottom: 20 },
+                head: [['#', 'EQUIPO', 'DESCRIPCIÓN', 'QTY', 'P. UNITARIO', 'SUBTOTAL']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+                styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 10 },
+                    1: { fontStyle: 'bold', cellWidth: 35 },
+                    2: { halign: 'justify', cellWidth: 'auto' },
+                    3: { halign: 'center', cellWidth: 12 },
+                    4: { halign: 'right', cellWidth: 32 },
+                    5: { halign: 'right', cellWidth: 32 }
+                },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    doc.setFontSize(7);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`T.C. Pagina: ${tc.toFixed(2)} | Página ${data.pageNumber}`, 105, 285, { align: 'center' });
+                }
+            });
+
+            let finalY = (doc.lastAutoTable?.finalY || 50) + 15;
+            if (finalY > 270) { doc.addPage(); drawHeader(); finalY = 65; }
+
+            doc.setFillColor(60, 60, 60);
+            doc.rect(15, finalY - 8, 180, 16, 'F');
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            doc.text("TOTAL GENERAL:", 20, finalY);
+            doc.text(moneyMXN(grandTotalMXN), 190, finalY, { align: 'right' });
+
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.text(`MÁS 16% DE I.V.A. (T.C. ${tc.toFixed(2)})`, 190, finalY + 5, { align: 'right' });
+
+            const cleanName = String(customFilename || `LISTADO_MXN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
+            doc.save(cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
+            toast({ title: "Listado MXN Exportado" });
+        };
+        start();
+    };
+
+    const generateInternalRadiographyPDF = async (customFilename = "", customTitle = "", customTC = null, customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const { headerBg, headerText } = pdfSettings;
         const titleText = customTitle || "RADIOGRAFÍA INTERNA";
         const finalTC = n(customTC || tipoCambio);
+
+        const activeClient = customClient || clientName;
+        const activeProject = customProject || projectName;
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
         const finalUrl = "/solimaq_logo.png";
@@ -1336,11 +1506,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 doc.setFont("helvetica", "bold");
                 doc.text("CLIENTE:", 15, headerStart + 4);
                 doc.setFont("helvetica", "normal");
-                doc.text((clientName || "").toUpperCase(), 45, headerStart + 4);
+                doc.text((activeClient || "").toUpperCase(), 45, headerStart + 4);
                 doc.setFont("helvetica", "bold");
                 doc.text("PROYECTO:", 15, headerStart + 9);
                 doc.setFont("helvetica", "normal");
-                doc.text((projectName || "").toUpperCase(), 45, headerStart + 9);
+                doc.text((activeProject || "").toUpperCase(), 45, headerStart + 9);
                 doc.setFont("helvetica", "bold");
                 doc.text("FECHA:", 15, headerStart + 14);
                 doc.setFont("helvetica", "normal");
@@ -1412,7 +1582,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
                 styles: { fontSize: 7, cellPadding: 2, valign: 'middle' },
                 columnStyles: {
-                    0: { halign: 'center', cellWidth: 8 },
+                    0: { halign: 'center', cellWidth: 10 },
                     1: { fontStyle: 'bold', cellWidth: 40 },
                     2: { halign: 'center', cellWidth: 10 },
                     3: { halign: 'right' },
@@ -1599,10 +1769,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                 columnStyles: {
                     0: { halign: 'center', cellWidth: 10 },
-                    1: { fontStyle: 'bold', cellWidth: 40 },
-                    2: { cellWidth: 'auto' },
-                    3: { halign: 'center', cellWidth: 15 },
-                    4: { halign: 'right', cellWidth: 25 },
+                    1: { fontStyle: 'bold', cellWidth: 35 },
+                    2: { halign: 'justify', cellWidth: 'auto' },
+                    3: { halign: 'center', cellWidth: 12 },
+                    4: { halign: 'right', cellWidth: 23 },
                     5: { halign: 'right', cellWidth: 25 }
                 },
                 didDrawPage: (data) => {
@@ -1645,12 +1815,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             defaultName = `SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         } else if (type === 'equipment-list') {
             defaultName = `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        } else if (type === 'equipment-list-mxn') {
+            defaultName = `LISTADO_MXN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         } else if (type === 'radiography') {
             defaultName = `RADIOGRAFIA_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         }
 
         setExportFilename(defaultName);
-        setExportTitle(type === 'radiography' ? "RADIOGRAFÍA INTERNA" : pdfSettings.titleText);
+        setExportTitle(type === 'radiography' ? "RADIOGRAFÍA INTERNA" : type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" : pdfSettings.titleText);
+        setExportClient(clientName);
+        setExportProject(projectName);
         setExportTC(tipoCambio);
         setIsExportFilenameModalOpen(true);
     };
@@ -1661,12 +1835,26 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             setTipoCambio(currentTC);
         }
 
+        // Actualizar estados principales para que los cambios permanezcan
+        setClientName(exportClient);
+        setProjectName(exportProject);
+
+        if (isAdmin) {
+            saveToCloud(sections, {
+                client: exportClient,
+                project: exportProject,
+                pdfSettings: { ...pdfSettings, titleText: exportTitle }
+            });
+        }
+
         if (pdfExportType === 'master') {
-            generateDirectPDF(exportFilename);
+            generateDirectPDF(exportFilename, exportClient, exportProject);
         } else if (pdfExportType === 'equipment-list') {
-            generateEquipmentListPDF(exportFilename, exportTitle);
+            generateEquipmentListPDF(exportFilename, exportTitle, exportClient, exportProject);
+        } else if (pdfExportType === 'equipment-list-mxn') {
+            generateEquipmentListMXNPDF(exportFilename, exportTitle, n(exportTC), exportClient, exportProject);
         } else if (pdfExportType === 'radiography') {
-            generateInternalRadiographyPDF(exportFilename, exportTitle, n(exportTC));
+            generateInternalRadiographyPDF(exportFilename, exportTitle, n(exportTC), exportClient, exportProject);
         }
         setIsExportFilenameModalOpen(false);
     };
@@ -1756,7 +1944,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-zinc-900 border border-white/10 rounded-full cursor-default">
                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
                                         <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
-                                            {isLoadingData ? "SYNCING..." : "VER 7.80"}
+                                            {isLoadingData ? "SYNCING..." : "VER 7.01"}
                                         </span>
                                     </div>
                                 </div>
@@ -1907,6 +2095,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             >
                                 <FileSpreadsheet size={14} className="text-blue-400 group-hover:scale-110 transition-transform" />
                                 EXPORTAR LISTADO
+                            </button>
+
+                            <button
+                                onClick={() => triggerExportWithFilename('equipment-list-mxn')}
+                                className="px-6 py-3 bg-zinc-900 border border-green-500/30 text-green-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-green-500/10 hover:border-green-500/50 transition-all flex items-center gap-2 group"
+                            >
+                                <Zap size={14} className="text-green-400 group-hover:scale-110 transition-transform" />
+                                EXPORTAR MXN
                             </button>
 
                             {(isAdminAuthenticated || isAdmin) && (
@@ -2130,7 +2326,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             <div className="flex flex-col">
                                                 {isAdmin ? (
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-xl font-black text-primary">{sIdx + 1}.</span>
+                                                        <div className="flex flex-col items-center scale-90 -mr-1">
+                                                            <button onClick={(e) => { e.stopPropagation(); moveSection(s.id, -1); }} className="hover:text-primary transition-colors mb-0.5" disabled={sIdx === 0}><ChevronUp size={16} /></button>
+                                                            <button onClick={(e) => { e.stopPropagation(); moveSection(s.id, 1); }} className="hover:text-primary transition-colors" disabled={sIdx === sections.length - 1}><ChevronDown size={16} /></button>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={s.numero || (sIdx + 1)}
+                                                            onChange={(e) => updateSection(s.id, { numero: e.target.value })}
+                                                            className="bg-transparent border-b border-primary/20 text-xl font-black text-primary w-12 text-center focus:outline-none focus:border-primary"
+                                                        />
                                                         <input
                                                             value={s.titulo}
                                                             onChange={(e) => updateSectionTitle(s.id, e.target.value)}
@@ -2139,7 +2344,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     </div>
                                                 ) : (
                                                     <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-                                                        <span className="text-primary">{sIdx + 1}.</span>
+                                                        <span className="text-primary">{s.numero || (sIdx + 1)}.</span>
                                                         {s.titulo}
                                                     </h3>
                                                 )}
@@ -2164,12 +2369,25 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     </span>
                                                 </div>
                                             )}
-                                            {isAdmin && !s.collapsed && (
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => generateModulePDF(s, sIdx)} className="p-2 bg-primary/10 border border-primary/30 text-primary rounded-lg hover:bg-primary/20" title="Exportar Módulo PDF"><FileText size={16} /></button>
-                                                    <button onClick={() => handleExportSectionExcel(s)} className="p-2 bg-green-500/10 border border-green-500/30 text-green-500 rounded-lg hover:bg-green-500/20" title="Exportar Módulo Excel"><Download size={16} /></button>
-                                                    <button onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx, .xls'; inp.onchange = (e) => handleImportSectionExcel(s.id, e.target.files[0]); inp.click(); }} className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-lg hover:bg-blue-500/20" title="Importar Módulo Excel"><FileSpreadsheet size={16} /></button>
-                                                    <button onClick={() => removeSection(s.id)} className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20">Eliminar</button>
+                                            {isAdmin && (
+                                                <div className="flex gap-2 items-center">
+                                                    {s.collapsed && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); removeSection(s.id); }}
+                                                            className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/20 transition-all mr-2"
+                                                            title="Eliminar Módulo"
+                                                        >
+                                                            <Trash size={16} />
+                                                        </button>
+                                                    )}
+                                                    {!s.collapsed && (
+                                                        <>
+                                                            <button onClick={() => generateModulePDF(s, sIdx)} className="p-2 bg-primary/10 border border-primary/30 text-primary rounded-lg hover:bg-primary/20" title="Exportar Módulo PDF"><FileText size={16} /></button>
+                                                            <button onClick={() => handleExportSectionExcel(s)} className="p-2 bg-green-500/10 border border-green-500/30 text-green-500 rounded-lg hover:bg-green-500/20" title="Exportar Módulo Excel"><Download size={16} /></button>
+                                                            <button onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx, .xls'; inp.onchange = (e) => handleImportSectionExcel(s.id, e.target.files[0]); inp.click(); }} className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-lg hover:bg-blue-500/20" title="Importar Módulo Excel"><FileSpreadsheet size={16} /></button>
+                                                            <button onClick={() => removeSection(s.id)} className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20">Eliminar</button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -2561,6 +2779,26 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         onChange={e => setExportTitle(e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-lg font-bold text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
                                     />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Cliente</label>
+                                        <input
+                                            type="text"
+                                            value={exportClient}
+                                            onChange={e => setExportClient(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Proyecto</label>
+                                        <input
+                                            type="text"
+                                            value={exportProject}
+                                            onChange={e => setExportProject(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo de Cambio (T.C.)</label>
