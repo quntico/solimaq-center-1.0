@@ -48,12 +48,13 @@ const MainContent = (props) => {
 
         // Map section ID to component
         let Component = section.Component || GenericSection;
-        if (section.id === 'master_plan') {
+        if (section.id === 'master_plan' || section.id === 'balance_masas') {
           Component = MasterPlan;
         }
 
         const sectionProps = {
           sectionData: section,
+          setActiveSection,
           quotationData,
           isEditorMode,
           isAdminAuthenticated,
@@ -61,17 +62,17 @@ const MainContent = (props) => {
           activeTheme,
           onContentChange: (newContent) => handleSectionContentChange(section.id, newContent),
           onDataChange: (newData) => handleSectionDataChange(section.id, newData),
-          activeTab: activeTabMap ? activeTabMap[section.id] : undefined,
+          activeTab: section.id === 'balance_masas' ? 'balance_masas' : (activeTabMap ? activeTabMap[section.id] : undefined),
           ...(section.id === 'propuesta' && { sections: allSectionsData }),
           ...(section.id === 'video' && { onVideoUrlUpdate }),
-          isStandalone: section.id !== 'master_plan',
+          isStandalone: section.id !== 'master_plan' && section.id !== 'balance_masas',
           parentSlug: quotationData?.slug,
           slug: quotationData?.slug
         };
 
         return (
           <section id={section.id} key={section.id}>
-            {section.id === 'master_plan' ? (
+            {(section.id === 'master_plan' || section.id === 'balance_masas') ? (
               // Render MasterPlan without motion wrapper to avoid visibility issues
               <Component {...sectionProps} />
             ) : (

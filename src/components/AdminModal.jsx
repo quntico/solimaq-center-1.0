@@ -259,6 +259,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
   };
 
   const handleInputChange = (e) => {
+    e.stopPropagation(); // Prevent bubbling to parent containers that might have click/key listeners
     const { name, value, type } = e.target;
     const processedValue = type === 'number' ? parseInt(value, 10) || 0 : value;
     updateState({ [name]: processedValue });
@@ -927,7 +928,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                   )}
                 </div>
 
-                <div><Label htmlFor="company" className="text-primary mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                <div><Label htmlFor="company" className="text-primary mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
 
 
                 <div className="flex flex-col gap-2 mt-4 p-3 rounded-xl border border-gray-800 bg-gray-950/50">
@@ -955,12 +956,12 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
                   </button>
                 </div>
 
-                <div><Label htmlFor="project" className="text-primary mb-2 block font-semibold">{t('adminModal.project')}</Label><Input id="project" name="project" value={currentThemeData.project || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div><Label htmlFor="client" className="text-primary mb-2 block font-semibold">{t('adminModal.client')}</Label><Input id="client" name="client" value={currentThemeData.client || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div><Label htmlFor="title" className="text-primary mb-2 block font-semibold">{t('adminModal.title')}</Label><Input id="title" name="title" value={currentThemeData.title || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-2"><Label htmlFor="subtitle" className="text-primary mb-2 block font-semibold">{t('adminModal.subtitle')}</Label><Input id="subtitle" name="subtitle" value={currentThemeData.subtitle || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-2"><Label htmlFor="slug" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><LinkIcon className="w-4 h-4" />{t('adminModal.slug')}</Label><Input id="slug" name="slug" value={currentThemeData.slug || ''} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-2"><Label htmlFor="description" className="text-primary mb-2 block font-semibold">{t('adminModal.description')}</Label><textarea id="description" name="description" value={currentThemeData.description || ''} onChange={handleInputChange} rows="3" className="flex w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" /></div>
+                <div><Label htmlFor="project" className="text-primary mb-2 block font-semibold">{t('adminModal.project')}</Label><Input id="project" name="project" value={currentThemeData.project || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                <div><Label htmlFor="client" className="text-primary mb-2 block font-semibold">{t('adminModal.client')}</Label><Input id="client" name="client" value={currentThemeData.client || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                <div><Label htmlFor="title" className="text-primary mb-2 block font-semibold">{t('adminModal.title')}</Label><Input id="title" name="title" value={currentThemeData.title || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                <div className="md:col-span-2"><Label htmlFor="subtitle" className="text-primary mb-2 block font-semibold">{t('adminModal.subtitle')}</Label><Input id="subtitle" name="subtitle" value={currentThemeData.subtitle || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                <div className="md:col-span-2"><Label htmlFor="slug" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><LinkIcon className="w-4 h-4" />{t('adminModal.slug')}</Label><Input id="slug" name="slug" value={currentThemeData.slug || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                <div className="md:col-span-2"><Label htmlFor="description" className="text-primary mb-2 block font-semibold">{t('adminModal.description')}</Label><textarea id="description" name="description" value={currentThemeData.description || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} rows="3" className="flex w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" /></div>
 
                 <div className="pt-4 border-t border-white/10 space-y-4">
                   <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">

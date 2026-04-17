@@ -74,7 +74,20 @@ const componentMap = {
 const defaultSections = [
   { id: 'descripcion', label: 'Descripción', icon: 'FileText', isVisible: true, component: 'descripcion' },
   { id: 'normatividad', label: 'Normatividad', icon: 'ShieldCheck', isVisible: true, component: 'normatividad' },
-  { id: 'master_plan', label: 'Master Plan', icon: 'Target', isVisible: true, component: 'master_plan' },
+  { 
+    id: 'master_plan', 
+    label: 'Master Plan', 
+    icon: 'Target', 
+    isVisible: true, 
+    component: 'master_plan'
+  },
+  { 
+    id: 'balance_masas', 
+    label: 'Balance de Masas', 
+    icon: 'Calculator', 
+    isVisible: true, 
+    component: 'master_plan'
+  },
   { id: 'ficha', label: 'Ficha Técnica', icon: 'ListChecks', isVisible: true, component: 'ficha' },
   { id: 'cronograma', label: 'Cronograma', icon: 'Calendar', isVisible: true, component: 'cronograma' },
   { id: 'servicios', label: 'Servicios Incluidos', icon: 'Package', isVisible: true, component: 'servicios' },
@@ -137,8 +150,12 @@ const mergeWithDefaults = (config) => {
         merged.component = 'normatividad';
       }
 
-      if (['ia', 'layout', 'video', 'calculadora_prod'].includes(merged.id)) {
+      if (['ia', 'layout', 'video', 'calculadora_prod', 'master_plan', 'balance_masas'].includes(merged.id)) {
         merged.isLocked = false;
+        // Force injection of subItems for Master Plan if missing from DB
+        if (merged.id === 'master_plan' && defaultSection.subItems) {
+          merged.subItems = defaultSection.subItems;
+        }
       }
       return merged;
     });

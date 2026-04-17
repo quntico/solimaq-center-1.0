@@ -59,6 +59,13 @@ const SidebarItem = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef(null);
 
+  // FORCE SUBMENU FOR MASTER PLAN
+  const effectiveSubItems = section.id === 'master_plan' 
+    ? [{ id: 'balance_masas', label: 'Balance de Masas', icon: 'Calculator' }]
+    : subItems;
+
+  const hasSubItems = effectiveSubItems && effectiveSubItems.length > 0;
+
   // Logic to determine display label:
   // Prioritize saved label from DB/State first (so user rename works).
   // If no saved label, try translation.
@@ -118,7 +125,7 @@ const SidebarItem = ({
 
   const handleMainClick = (e) => {
     if (!isEditingLabel) {
-      if (subItems && subItems.length > 0) {
+      if (effectiveSubItems && effectiveSubItems.length > 0) {
         setIsExpanded(!isExpanded);
         onClick(e); // Still trigger main selection
       } else {
@@ -127,7 +134,6 @@ const SidebarItem = ({
     }
   };
 
-  const hasSubItems = subItems && subItems.length > 0;
 
   const itemContent = (
     <div className="w-full">
@@ -291,7 +297,7 @@ const SidebarItem = ({
       {/* Sub-items Render - Glassmorphism Effect */}
       {!isCollapsed && isExpanded && hasSubItems && (
         <div className="ml-6 mt-2 mb-2 p-2 space-y-1 bg-white/5 backdrop-blur-md border border-white/10 border-l-2 border-l-primary/50 rounded-r-xl rounded-bl-xl shadow-lg shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] overflow-hidden transition-all duration-300">
-          {subItems.map((subItem, idx) => {
+          {effectiveSubItems.map((subItem, idx) => {
             const SubIcon = subItem.icon && iconMap[subItem.icon] ? iconMap[subItem.icon] : iconMap['FileText'];
             return (
               <div

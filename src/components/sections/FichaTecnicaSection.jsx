@@ -64,6 +64,15 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const fileInputRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
 
   // Sync external active tab
   useEffect(() => {
@@ -132,12 +141,22 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
     }
   }, [content, activeTab]);
 
-  const updateAllContent = (newContent) => {
+  const updateAllContent = (newContent, syncNow = false) => {
     setContent(newContent);
+
     if (onContentChange && isModeAdmin) {
-      onContentChange(newContent);
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+      if (syncNow) {
+        onContentChange(newContent);
+      } else {
+        saveTimeoutRef.current = setTimeout(() => {
+          onContentChange(newContent);
+        }, 1500); // 1.5 seconds debounce for typing
+      }
     }
   };
+
 
   const updateCurrentTab = (newData) => {
     const newContent = [...content];
@@ -153,7 +172,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
     const newComponents = mainTabTemplate.components.map(item => ({ ...item, id: `comp_${Date.now()}_${Math.random()}` }));
     const newTab = { ...defaultContentSingle, tabTitle: `Nueva Ficha`, technical_data: newTechnicalData, components: newComponents, image: '' };
     const newContent = [...content, newTab];
-    updateAllContent(newContent);
+    updateAllContent(newContent, true); // Sync immediately for structural changes
+
     setExpandedFichas(prev => ({ ...prev, [newContent.length - 1]: true }));
     setActiveSelection({ type: 'ficha', index: newContent.length - 1 });
     toast({ title: 'Nueva ficha creada' });
@@ -168,7 +188,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
     newTab.components.forEach(item => item.id = `comp_dup_${Date.now()}_${Math.random()}`);
     const newContent = [...content];
     newContent.splice(index + 1, 0, newTab);
-    updateAllContent(newContent);
+    updateAllContent(newContent, true);
+
     toast({ title: 'Ficha duplicada' });
   };
 
@@ -179,7 +200,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
     const newContent = [...content];
     const [movedFicha] = newContent.splice(index, 1);
     newContent.splice(newIndex, 0, movedFicha);
-    updateAllContent(newContent);
+    updateAllContent(newContent, true);
+
     // Update selection index if needed
     if (activeSelection.type === 'ficha' && activeSelection.index === index) {
       setActiveSelection({ ...activeSelection, index: newIndex });
@@ -202,7 +224,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
       return;
     }
     const newContent = content.filter((_, i) => i !== index);
-    updateAllContent(newContent);
+    updateAllContent(newContent, true);
+
     if (activeSelection.index === index) setActiveSelection({ type: 'general', id: 'general' });
     toast({ title: 'Ficha eliminada' });
   };
@@ -221,7 +244,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
     };
     const newContent = [...content];
     newContent[fichaIndex][category] = [...(newContent[fichaIndex][category] || []), newItem];
-    updateAllContent(newContent);
+    updateAllContent(newContent, true);
+
   };
 
   const handleUpdateItem = (fichaIndex, category, itemIndex, field, value) => {
@@ -236,7 +260,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
   const handleRemoveItem = (fichaIndex, category, itemIndex) => {
     const newContent = [...content];
     newContent[fichaIndex][category] = newContent[fichaIndex][category].filter((_, i) => i !== itemIndex);
-    updateAllContent(newContent);
+    updateAllContent(newContent, true);
+
   };
 
   const handleMoveItem = (fichaIndex, category, itemIndex, direction) => {
@@ -246,7 +271,7 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
     if (newIndex < 0 || newIndex >= list.length) return;
     const [movedItem] = list.splice(itemIndex, 1);
     list.splice(newIndex, 0, movedItem);
-    updateAllContent(newContent);
+    updateAllContent(newContent, true);
   };
 
   const handleImageUpload = async (event, fichaIndex) => {
@@ -266,7 +291,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
 
       const newContent = [...content];
       newContent[fichaIndex].image = publicUrl;
-      updateAllContent(newContent);
+      updateAllContent(newContent, true);
+
       toast({ title: 'Imagen subida con éxito!' });
     } catch (error) {
       console.error("Upload error:", error);
@@ -337,7 +363,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
                         onChange={(newIcon) => {
                           const newContent = [...content];
                           newContent[index].icon = newIcon;
-                          updateAllContent(newContent);
+                          updateAllContent(newContent, true);
+
                         }}
                         isEditorMode={true}
                       >
@@ -433,7 +460,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
                     onChange={(newIcon) => {
                       const newContent = [...content];
                       newContent[fichaIndex].icon = newIcon;
-                      updateAllContent(newContent);
+                      updateAllContent(newContent, true);
+
                     }}
                     isEditorMode={true}
                   >
@@ -466,11 +494,12 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
                   variant="destructive"
                   size="icon"
                   className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => {
-                    const newContent = [...content];
-                    newContent[fichaIndex].image = '';
-                    updateAllContent(newContent);
-                  }}
+                    onClick={() => {
+                      const newContent = [...content];
+                      newContent[fichaIndex].image = '';
+                      updateAllContent(newContent, true);
+                    }}
+
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -682,7 +711,8 @@ const FichaTecnicaSection = ({ sectionData, quotationData, isEditorMode, isAdmin
                       <Button
                         className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-8 text-xs"
                         onClick={() => {
-                          updateAllContent(content);
+                          updateAllContent(content, true);
+
                           toast({ title: "Guardado", description: "Cambios guardados correctamente." });
                         }}
                       >

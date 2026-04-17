@@ -28,7 +28,9 @@ const EditableText = ({
   const applyFormatting = rawText => {
     let formattedText = String(rawText || '');
     if (projectId) {
-      const projectRegex = new RegExp(`(${projectId})`, 'gi');
+      // Escape special regex characters in projectId to prevent crashes (e.g. if projectId is ".")
+      const escapedProjectId = String(projectId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const projectRegex = new RegExp(`(${escapedProjectId})`, 'gi');
       formattedText = formattedText.replace(projectRegex, `<span class="font-bold text-white">${projectId}</span>`);
     }
     const keywordsRegex = new RegExp(`(mezclado, formado, enfriamiento y empaquetado)`, 'gi');
