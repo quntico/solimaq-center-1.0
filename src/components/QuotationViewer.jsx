@@ -40,6 +40,7 @@ import CotizadorPage from '@/components/CotizadorPage';
 import CotizadorSMQ from '@/components/CotizadorSMQ';
 import CalculadoraProduccion from '@/components/CalculadoraProduccion';
 import MasterPlan from '@/pages/MasterPlan';
+import SimuladorSection from '@/components/sections/SimuladorSection';
 
 const componentMap = {
   ventajas: VentajasSection,
@@ -69,6 +70,7 @@ const componentMap = {
   master_plan: MasterPlan,
   admin: GenericSection,
   servicios_adicionales: GenericSection,
+  simulador: SimuladorSection,
 };
 
 const defaultSections = [

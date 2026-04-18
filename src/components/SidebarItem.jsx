@@ -11,7 +11,8 @@ import {
   MoreVertical,
   Edit2,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { iconMap } from '@/lib/iconMap';
 import { cn } from '@/lib/utils';
@@ -106,7 +107,10 @@ const SidebarItem = ({
   const forceUnlockedIds = ['ia', 'layout', 'video', 'calculadora_prod', 'master_plan'];
   const isLocked = section.isLocked && !forceUnlockedIds.includes(section.id);
 
-  const handleSaveLabel = () => {
+  const handleSaveLabel = (e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     if (tempLabel.trim() !== "" && tempLabel !== displayLabel) {
       onLabelChange(tempLabel);
     }
@@ -115,7 +119,7 @@ const SidebarItem = ({
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      handleSaveLabel();
+      handleSaveLabel(e);
     } else if (e.key === 'Escape') {
       setTempLabel(displayLabel);
       setIsEditingLabel(false);
@@ -179,15 +183,34 @@ const SidebarItem = ({
         {!isCollapsed && (
           <div className="ml-3 flex-1 overflow-hidden relative flex items-center justify-between">
             {isEditorMode && isEditingLabel ? (
-              <input
-                ref={inputRef}
-                value={tempLabel}
-                onChange={(e) => setTempLabel(e.target.value)}
-                onBlur={handleSaveLabel}
-                onKeyDown={handleKeyDown}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full bg-gray-900 text-white text-sm px-2 py-1 rounded border border-primary outline-none shadow-lg z-50 relative"
-              />
+              <div className="flex w-full items-center gap-1 z-50">
+                <input
+                  ref={inputRef}
+                  value={tempLabel}
+                  onChange={(e) => setTempLabel(e.target.value)}
+                  onBlur={(e) => {
+                    // Prevent blur from immediately hiding if clicking the check button
+                    if (!e.relatedTarget?.closest('.save-label-btn')) {
+                      handleSaveLabel(e);
+                    }
+                  }}
+                  onKeyDown={handleKeyDown}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full bg-gray-900 text-white text-sm px-2 py-1 rounded border border-primary outline-none shadow-lg"
+                />
+                <button
+                  type="button"
+                  className="save-label-btn p-1.5 text-green-400 hover:text-green-300 hover:bg-white/10 rounded-md transition-colors shadow-lg bg-gray-900 border border-green-500/30"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevents input blur
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => handleSaveLabel(e)}
+                  title="Guardar"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              </div>
             ) : (
               <span
                 className={cn(
@@ -198,7 +221,7 @@ const SidebarItem = ({
                   isEditorMode && !isLocked && "hover:text-green-300 cursor-text"
                 )}
                 onDoubleClick={(e) => {
-                  if (isEditorMode && !isLocked) {
+                  if (isEditorMode) { // Removed !isLocked restriction so users can rename anything
                     e.preventDefault();
                     e.stopPropagation();
                     setIsEditingLabel(true);
@@ -230,16 +253,14 @@ const SidebarItem = ({
         {isEditorMode && !isCollapsed && (
           <div className="ml-auto flex items-center gap-1 opacity-100 transition-opacity bg-black/90 backdrop-blur-sm rounded-l-md pl-1 shadow-xl border-l border-gray-800/50 absolute right-0 h-full pr-1">
 
-            {/* Rename Button (Direct Access) */}
-            {!isLocked && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsEditingLabel(true); }}
-                className="p-1.5 hover:text-primary text-gray-400 transition-colors rounded-md hover:bg-white/5"
-                title="Renombrar"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {/* Rename Button (Direct Access) - Always allow renaming */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsEditingLabel(true); }}
+              className="p-1.5 hover:text-primary text-gray-400 transition-colors rounded-md hover:bg-white/5"
+              title="Renombrar"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
 
             {/* Delete Button (Direct Access) */}
             {!isLocked && (
@@ -258,7 +279,7 @@ const SidebarItem = ({
                 onClick={(e) => { e.stopPropagation(); onVisibilityToggle(); }}
                 className={cn(
                   "p-1.5 transition-colors rounded-md hover:bg-white/5",
-                  isVisible ? "hover:text-primary text-gray-400" : "text-gray-600"
+                  isVisible ? "text-primary hover:brightness-110" : "text-gray-600 hover:text-gray-400"
                 )}
                 title={isVisible ? "Ocultar" : "Mostrar"}
               >

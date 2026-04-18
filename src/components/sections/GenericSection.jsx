@@ -1,18 +1,52 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { Edit, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import PropuestaEconomicaSection from '@/components/sections/PropuestaEconomicaSection';
+import SimuladorSection from '@/components/sections/SimuladorSection';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-10 border border-red-500 text-red-500 m-10 rounded">
+          <h2>Crash Error in Simulador</h2>
+          <pre>{String(this.state.error)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const GenericSection = ({ sectionData = {}, isEditorMode, onContentChange, ...props }) => {
   const type = sectionData.type?.toLowerCase() || '';
   const id = sectionData.id?.toLowerCase() || '';
   const title = sectionData.title?.toLowerCase() || '';
+  const label = sectionData.label?.toLowerCase() || '';
+  const titulo = sectionData.titulo?.toLowerCase() || '';
 
   const isPropuestaEconomica = 
     type === 'propuesta_economica' || 
     type === 'propuesta-economica' || 
     id.includes('propuesta') ||
-    title.includes('propuesta económica');
+    title.includes('propuesta económica') ||
+    titulo.includes('propuesta');
+
+  const isSimulador = 
+    id.includes('simulador') || 
+    title.includes('simulador') || 
+    label.includes('simulador') ||
+    titulo.includes('simulador') ||
+    label.includes('masas') ||
+    id.includes('masas') ||
+    titulo.includes('masas');
 
   if (isPropuestaEconomica) {
     return (
@@ -22,6 +56,19 @@ const GenericSection = ({ sectionData = {}, isEditorMode, onContentChange, ...pr
         onContentChange={onContentChange}
         {...props}
       />
+    );
+  }
+
+  if (isSimulador) {
+    return (
+      <ErrorBoundary>
+        <SimuladorSection
+          sectionData={sectionData}
+          isEditorMode={isEditorMode}
+          onContentChange={onContentChange}
+          {...props}
+        />
+      </ErrorBoundary>
     );
   }
 

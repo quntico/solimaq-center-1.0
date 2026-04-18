@@ -53,9 +53,14 @@ const Sidebar = ({
   };
 
   const toggleSectionVisibility = (id) => {
-    const newSections = sections.map(section =>
-      section.id === id ? { ...section, isVisible: !section.isVisible } : section
-    );
+    const newSections = sections.map(section => {
+      if (section.id === id) {
+        // Treat undefined as true, so toggling an undefined visibility makes it false
+        const currentVis = section.isVisible !== false;
+        return { ...section, isVisible: !currentVis };
+      }
+      return section;
+    });
     setSections(newSections);
 
     const updatedSection = newSections.find(s => s.id === id);
@@ -80,9 +85,19 @@ const Sidebar = ({
   };
 
   const updateSectionLabel = (id, newLabel) => {
-    const newSections = sections.map(s =>
-      s.id === id ? { ...s, label: newLabel } : s
-    );
+    const newSections = sections.map(s => {
+      if (s.id === id) {
+        return { 
+          ...s, 
+          label: newLabel,
+          content: {
+            ...(s.content || {}),
+            title: newLabel
+          }
+        };
+      }
+      return s;
+    });
     setSections(newSections);
   };
 

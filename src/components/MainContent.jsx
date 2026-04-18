@@ -1,7 +1,28 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { motion } from 'framer-motion';
 import GenericSection from './sections/GenericSection';
 import MasterPlan from '../pages/MasterPlan';
+
+class SectionErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-10 border border-red-500 text-red-500 m-10 rounded bg-red-950/20">
+          <h2 className="text-xl font-bold">Error rendering section "{this.props.sectionId}"</h2>
+          <pre className="text-xs whitespace-pre-wrap mt-4">{String(this.state.error)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const MainContent = (props) => {
   const {
@@ -44,12 +65,12 @@ const MainContent = (props) => {
   return (
     <main className="relative px-4">
       {sections.map(section => {
-        if (!section.isVisible) return null;
+        if (section.isVisible === false) return null;
 
         // Map section ID to component
-        let Component = section.Component || GenericSection;
+        let Comp = section.Component || GenericSection;
         if (section.id === 'master_plan' || section.id === 'balance_masas') {
-          Component = MasterPlan;
+          Comp = MasterPlan;
         }
 
         const sectionProps = {
@@ -65,6 +86,8 @@ const MainContent = (props) => {
           activeTab: section.id === 'balance_masas' ? 'balance_masas' : (activeTabMap ? activeTabMap[section.id] : undefined),
           ...(section.id === 'propuesta' && { sections: allSectionsData }),
           ...(section.id === 'video' && { onVideoUrlUpdate }),
+          allSectionsData,
+          onAtomicContentUpdate: props.onAtomicContentUpdate || handleSectionContentChange,
           isStandalone: section.id !== 'master_plan' && section.id !== 'balance_masas',
           parentSlug: quotationData?.slug,
           slug: quotationData?.slug
@@ -72,19 +95,9 @@ const MainContent = (props) => {
 
         return (
           <section id={section.id} key={section.id}>
-            {(section.id === 'master_plan' || section.id === 'balance_masas') ? (
-              // Render MasterPlan without motion wrapper to avoid visibility issues
-              <Component {...sectionProps} />
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.5 }}
-              >
-                <Component {...sectionProps} />
-              </motion.div>
-            )}
+            <SectionErrorBoundary sectionId={section.id}>
+              <Comp {...sectionProps} />
+            </SectionErrorBoundary>
           </section>
         );
       })}
