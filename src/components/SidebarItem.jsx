@@ -61,7 +61,7 @@ const SidebarItem = ({
   const inputRef = useRef(null);
 
   // FORCE SUBMENU FOR MASTER PLAN
-  const effectiveSubItems = section.id === 'master_plan' 
+  const effectiveSubItems = section.id === 'master_plan'
     ? [{ id: 'balance_masas', label: 'Balance de Masas', icon: 'Calculator' }]
     : subItems;
 

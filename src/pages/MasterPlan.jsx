@@ -11,7 +11,7 @@ import { getActiveBucket } from "@/lib/bucketResolver";
 import { sanitizeFileName } from "@/lib/utils";
 import SectionHeader from '@/components/SectionHeader';
 
-import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Power, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp, Zap, Trash, Percent, RotateCcw, Search, PieChart } from "lucide-react";
+import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Power, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp, Zap, Trash, Trash2, Percent, RotateCcw, Search, PieChart, DollarSign } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -132,6 +132,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [exportClient, setExportClient] = useState("");
     const [exportProject, setExportProject] = useState("");
     const [exportTC, setExportTC] = useState(18.5);
+    const [exportIncludeAmount, setExportIncludeAmount] = useState(false);
     const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
     const [backupSections, setBackupSections] = useState(null);
     const [isRestoratable, setIsRestoratable] = useState(false);
@@ -737,7 +738,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const isActive = s.activo !== false;
             const totalVenta = isActive ? items.reduce((acc, it) => it.activo !== false ? acc + calcItem(it).totalVenta : acc, 0) : 0;
             const totalCosto = isActive ? items.reduce((acc, it) => it.activo !== false ? acc + (n(it.costoUSD) * n(it.qty)) : acc, 0) : 0;
-            return { sectionId: s.id, totalVenta, totalCosto, isActive };
+            const totalKW = isActive ? items.reduce((acc, it) => it.activo !== false ? acc + (n(it.potencia) * n(it.qty)) : acc, 0) : 0;
+            return { sectionId: s.id, totalVenta, totalCosto, isActive, totalKW };
         });
     }, [sections]);
 
@@ -1071,6 +1073,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             items: (s.items || []).map(it => ({ ...it, qty: globalQtyVal }))
         })));
         toast({ title: "QTY Aplicado", description: `Se aplicó cantidad ${globalQtyVal} a todos los ítems del proyecto.` });
+    };
+
+    const applyModuleQty = (sId, qty) => {
+        const val = n(qty);
+        if (val < 0) return;
+        setSections(prev => prev.map(s => s.id === sId ? {
+            ...s,
+            items: (s.items || []).map(it => ({ ...it, qty: val }))
+        } : s));
+        saveToCloud();
+        toast({ title: "QTY Módulo Actualizado", description: `Se aplicó cantidad ${val} a todos los equipos de este módulo.` });
     };
 
     const apply50PercentUtilization = () => {
@@ -1569,11 +1582,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 body: tableData,
                 theme: 'plain',
                 headStyles: { fillColor: pdfSettings.primaryColor, textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', minCellHeight: 12 },
-                styles: { fontSize, cellPadding: 2, valign: 'middle', lineWidth: 0.1, minCellHeight: rowHeight },
+                styles: { fontSize, cellPadding: 3, valign: 'middle', lineWidth: 0.1, minCellHeight: rowHeight },
                 columnStyles: {
                     0: { halign: 'center', cellWidth: colWidths.item },
                     1: { fontStyle: 'bold', cellWidth: colWidths.equipo },
-                    2: { halign: 'justify', cellWidth: colWidths.desc },
+                    2: { halign: 'left', cellWidth: colWidths.desc },
                     3: { halign: 'center', cellWidth: colWidths.foto },
                     4: { halign: 'center', cellWidth: colWidths.qty },
                     5: { halign: 'right', cellWidth: colWidths.unit },
@@ -1751,11 +1764,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     body: moduleTableData,
                     theme: 'striped',
                     headStyles: { fillColor: [85, 85, 85], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
-                    styles: { fontSize: 8, cellPadding: 1.5, valign: 'middle' },
+                    styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                     columnStyles: {
                         0: { halign: 'center', cellWidth: 10 },
                         1: { fontStyle: 'bold', cellWidth: 35 },
-                        2: { halign: 'justify', cellWidth: 'auto' },
+                        2: { halign: 'left', cellWidth: 'auto' },
                         3: { halign: 'center', cellWidth: 15 },
                         4: { halign: 'center', cellWidth: 20 },
                         5: { halign: 'center', cellWidth: 20 },
@@ -1934,11 +1947,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     body: moduleTableData,
                     theme: 'striped',
                     headStyles: { fillColor: [85, 85, 85], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
-                    styles: { fontSize: 8, cellPadding: 1.5, valign: 'middle' },
+                    styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                     columnStyles: {
                         0: { halign: 'center', cellWidth: 10 },
                         1: { fontStyle: 'bold', cellWidth: 35 },
-                        2: { halign: 'justify', cellWidth: 'auto' },
+                        2: { halign: 'left', cellWidth: 'auto' },
                         3: { halign: 'center', cellWidth: 15 },
                         4: { halign: 'center', cellWidth: 20 },
                         5: { halign: 'center', cellWidth: 20 },
@@ -1989,6 +2002,183 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.text("MÁS 16% DE I.V.A.", 280, finalY + 14, { align: 'right' });
 
             const cleanName = String(customFilename || `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
+            const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
+            doc.save(finalFilename);
+            toast({ title: "Listado de Equipos Exportado" });
+        };
+
+        start();
+    };
+
+    const generateEquipmentListNoAmountPDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "", includeAmount = false) => {
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText } = pdfSettings;
+        const titleText = customTitle || "LISTADO DE EQUIPOS";
+
+        const activeClient = customClient || clientName;
+        const activeProject = customProject || projectName;
+
+        // Always use the physical logo from public folder for exports to ensure it's the latest dark version
+        const finalUrl = "/solimaq_logo.png";
+
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
+
+        const start = () => {
+            const drawHeader = () => {
+                const headerStart = 10;
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", 15, headerStart + 4);
+                doc.setFont("helvetica", "normal");
+                doc.text((activeClient || "").toUpperCase(), 45, headerStart + 4);
+
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", 15, headerStart + 9);
+                doc.setFont("helvetica", "normal");
+                doc.text((activeProject || "").toUpperCase(), 45, headerStart + 9);
+
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", 15, headerStart + 14);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
+
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+                        const targetHeight = 16;
+                        const targetWidth = targetHeight * ratio;
+                        const xPos = 282 - targetWidth;
+                        doc.addImage(logoImg, 'PNG', xPos, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) {
+                        console.error("Equipment List No Amount Logo Draw Error", e);
+                    }
+                }
+
+                const titleY = headerStart + 21;
+                doc.setFillColor(headerBg);
+                doc.rect(15, titleY, 267, 10, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.setTextColor(headerText);
+                doc.text(titleText, 148.5, titleY + 7, { align: 'center' });
+            };
+
+            let currentY = 56;
+            let grandTotalKw = 0;
+            let activeModuleCounter = 0;
+            sections.forEach((s, sIdx) => {
+                if (s.activo === false) return; // SKIP INACTIVE
+                activeModuleCounter++;
+                const activeItems = (s.items || []).filter(it => it.activo);
+                if (activeItems.length === 0) return;
+
+                if (activeModuleCounter > 1) {
+                    doc.addPage();
+                    currentY = 46;
+                }
+
+                const displayModuleNum = activeModuleCounter;
+
+                let moduleTableData = [];
+                moduleTableData.push([
+                    {
+                        content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
+                        colSpan: 6,
+                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                    }
+                ]);
+
+                activeItems.forEach((it, idx) => {
+                    const kwU = n(it.potencia);
+                    const kwT = kwU * n(it.qty);
+                    grandTotalKw += kwT;
+
+                    moduleTableData.push([
+                        `${displayModuleNum}.${idx + 1}`,
+                        String(it.equipo || "N/A").toUpperCase(),
+                        String(it.descripcion || ""),
+                        it.qty,
+                        kwU > 0 ? kwU.toFixed(1) : "-",
+                        kwT > 0 ? kwT.toFixed(1) : "-"
+                    ]);
+                });
+
+                const moduleKw = activeItems.reduce((acc, it) => acc + (n(it.potencia) * n(it.qty)), 0);
+                moduleTableData.push([
+                    {
+                        content: `RESUMEN MÓDULO ${displayModuleNum}:  ${activeItems.length} EQUIPOS  |  POTENCIA: ${moduleKw.toFixed(1)} KW`,
+                        colSpan: 6,
+                        styles: { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'right', fontSize: 10 }
+                    }
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    margin: { top: 40, bottom: 8 },
+                    head: [['#', 'EQUIPO', 'DESCRIPCIÓN', 'QTY', 'KW UNIT', 'KW TOTALES']],
+                    body: moduleTableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [85, 85, 85], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+                    styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 10 },
+                        1: { fontStyle: 'bold', cellWidth: 45 },
+                        2: { halign: 'left', cellWidth: 'auto' },
+                        3: { halign: 'center', cellWidth: 15 },
+                        4: { halign: 'center', cellWidth: 25 },
+                        5: { halign: 'center', cellWidth: 25 }
+                    },
+                    didDrawPage: (data) => {
+                        drawHeader();
+                        doc.setFontSize(7);
+                        doc.setTextColor(150, 150, 150);
+                        doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site`, 148.5, 204, { align: 'center' });
+                    }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 5;
+            });
+
+            let finalY = currentY + 15;
+
+            // Handle page break for total box
+            if (finalY > 170) {
+                doc.addPage();
+                drawHeader();
+                finalY = 65;
+            }
+
+            const boxH = 25;
+            doc.setFillColor(85, 85, 85);
+            doc.rect(130, finalY - 10, 152, boxH, 'F');
+
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            
+            if (includeAmount) {
+                doc.text("POTENCIA TOTAL INSTALADA:", 215, finalY, { align: 'right' });
+                doc.text(grandTotalKw.toFixed(2) + " KW", 280, finalY, { align: 'right' });
+
+                doc.text("TOTAL GENERAL:", 215, finalY + 9, { align: 'right' });
+                doc.text(money(grandTotals.totalVenta) + " USD", 280, finalY + 9, { align: 'right' });
+
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "normal");
+                doc.text("MÁS 16% DE I.V.A.", 280, finalY + 14, { align: 'right' });
+            } else {
+                doc.text("POTENCIA TOTAL INSTALADA:", 215, finalY + 4, { align: 'right' });
+                doc.text(grandTotalKw.toFixed(2) + " KW", 280, finalY + 4, { align: 'right' });
+            }
+
+            const cleanName = String(customFilename || `LISTADO_EQUIPOS_SIN_IMPORTE_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
             const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
             doc.save(finalFilename);
             toast({ title: "Listado de Equipos Exportado" });
@@ -2121,11 +2311,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     body: moduleTableData,
                     theme: 'striped',
                     headStyles: { fillColor: [85, 85, 85], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
-                    styles: { fontSize: 8, cellPadding: 1.5, valign: 'middle' },
+                    styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                     columnStyles: {
                         0: { halign: 'center', cellWidth: 10 },
                         1: { fontStyle: 'bold', cellWidth: 35 },
-                        2: { halign: 'justify', cellWidth: 'auto' },
+                        2: { halign: 'left', cellWidth: 'auto' },
                         3: { halign: 'center', cellWidth: 15 },
                         4: { halign: 'center', cellWidth: 20 },
                         5: { halign: 'center', cellWidth: 20 },
@@ -2172,6 +2362,198 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             const cleanName = String(customFilename || `LISTADO_MXN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
             doc.save(cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
             toast({ title: "Listado MXN Exportado" });
+        };
+        start();
+    };
+
+    const generateEquipmentCostRealPDF = async (customFilename = "", customTitle = "", customTC = null, customClient = "", customProject = "") => {
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const { headerBg, headerText } = pdfSettings;
+        const titleText = customTitle || "COSTO REAL DE EQUIPOS";
+        const tc = n(customTC || tipoCambio);
+
+        const activeClient = customClient || clientName;
+        const activeProject = customProject || projectName;
+
+        const moneyUSD = (v) => {
+            return money(v);
+        };
+
+        const moneyMXN = (v) => {
+            const val = n(v);
+            return "$" + val.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN";
+        };
+
+        const finalUrl = "/solimaq_logo.png";
+        const logoImg = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = finalUrl + "?v=" + Date.now();
+        });
+
+        const start = () => {
+            const drawHeader = () => {
+                const headerStart = 10;
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "bold");
+                doc.text("CLIENTE:", 15, headerStart + 4);
+                doc.setFont("helvetica", "normal");
+                doc.text((activeClient || "").toUpperCase(), 45, headerStart + 4);
+                doc.setFont("helvetica", "bold");
+                doc.text("PROYECTO:", 15, headerStart + 9);
+                doc.setFont("helvetica", "normal");
+                doc.text((activeProject || "").toUpperCase(), 45, headerStart + 9);
+                doc.setFont("helvetica", "bold");
+                doc.text("FECHA:", 15, headerStart + 14);
+                doc.setFont("helvetica", "normal");
+                doc.text(new Date().toLocaleDateString('es-MX'), 45, headerStart + 14);
+                doc.setFont("helvetica", "bold");
+                doc.text("TIPO DE CAMBIO:", 120, headerStart + 14);
+                doc.setFont("helvetica", "normal");
+                doc.text(tc.toFixed(2) + " MXN", 150, headerStart + 14);
+
+                if (logoImg) {
+                    try {
+                        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+                        const targetHeight = 16;
+                        const targetWidth = targetHeight * ratio;
+                        doc.addImage(logoImg, 'PNG', 282 - targetWidth, headerStart + 2, targetWidth, targetHeight, undefined, 'FAST');
+                    } catch (e) { }
+                }
+
+                const titleY = headerStart + 21;
+                doc.setFillColor(headerBg);
+                doc.rect(15, titleY, 267, 10, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(13);
+                doc.setTextColor(headerText);
+                doc.text(titleText, 148.5, titleY + 7, { align: 'center' });
+            };
+
+            let currentY = 56;
+            let grandTotalCostUSD = 0;
+            let grandTotalCostMXN = 0;
+            let activeModuleCounter = 0;
+            sections.forEach((s, sIdx) => {
+                if (s.activo === false) return; // SKIP INACTIVE
+                activeModuleCounter++;
+                const activeItems = (s.items || []).filter(it => it.activo !== false);
+                if (activeItems.length === 0) return;
+
+                if (activeModuleCounter > 1) {
+                    doc.addPage();
+                    currentY = 46;
+                }
+
+                const displayModuleNum = activeModuleCounter;
+
+                let moduleTableData = [];
+                moduleTableData.push([
+                    {
+                        content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
+                        colSpan: 7,
+                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                    }
+                ]);
+
+                activeItems.forEach((it, idx) => {
+                    const costUSD = n(it.costoUSD);
+                    const qty = n(it.qty);
+                    const totalCostUSD = costUSD * qty;
+                    const costMXN = costUSD * tc;
+                    const totalCostMXN = totalCostUSD * tc;
+
+                    grandTotalCostUSD += totalCostUSD;
+                    grandTotalCostMXN += totalCostMXN;
+
+                    moduleTableData.push([
+                        `${displayModuleNum}.${idx + 1}`,
+                        String(it.equipo || "N/A").toUpperCase(),
+                        qty,
+                        moneyUSD(costUSD),
+                        moneyUSD(totalCostUSD),
+                        moneyMXN(costMXN),
+                        moneyMXN(totalCostMXN)
+                    ]);
+                });
+
+                const moduleCostUSD = activeItems.reduce((acc, it) => acc + (n(it.costoUSD) * n(it.qty)), 0);
+                const moduleCostMXN = moduleCostUSD * tc;
+                moduleTableData.push([
+                    {
+                        content: `RESUMEN MÓDULO ${displayModuleNum}:  ${activeItems.length} EQUIPOS  |  COSTO USD: ${moneyUSD(moduleCostUSD)}  |  COSTO MXN: ${moneyMXN(moduleCostMXN)}`,
+                        colSpan: 7,
+                        styles: { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'right', fontSize: 10 }
+                    }
+                ]);
+
+                doc.autoTable({
+                    startY: currentY,
+                    margin: { top: 40, bottom: 8 },
+                    head: [['#', 'EQUIPO', 'QTY', 'COSTO UNIT USD', 'COSTO TOTAL USD', 'COSTO UNIT MXN', 'COSTO TOTAL MXN']],
+                    body: moduleTableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [85, 85, 85], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+                    styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 15 },
+                        1: { fontStyle: 'bold', cellWidth: 'auto' },
+                        2: { halign: 'center', cellWidth: 15 },
+                        3: { halign: 'right', cellWidth: 35 },
+                        4: { halign: 'right', cellWidth: 35 },
+                        5: { halign: 'right', cellWidth: 35 },
+                        6: { halign: 'right', cellWidth: 35 }
+                    },
+                    didDrawPage: (data) => {
+                        drawHeader();
+                        doc.setFontSize(7);
+                        doc.setTextColor(150, 150, 150);
+                        doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site`, 148.5, 204, { align: 'center' });
+                    }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 5;
+            });
+
+            let finalY = currentY + 15;
+
+            // Handle page break for total box
+            if (finalY > 170) {
+                doc.addPage();
+                drawHeader();
+                finalY = 65;
+            }
+
+            // RECUADRO DE TOTALES AJUSTADO
+            const boxH = 32;
+            doc.setFillColor(85, 85, 85);
+            doc.rect(130, finalY - 10, 152, boxH, 'F');
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(255, 255, 255);
+            
+            doc.text("TC UTILIZADO:", 215, finalY - 2, { align: 'right' });
+            doc.text(tc.toFixed(2) + " MXN", 280, finalY - 2, { align: 'right' });
+
+            doc.text("TOTAL COSTO REAL USD:", 215, finalY + 4, { align: 'right' });
+            doc.text(moneyUSD(grandTotalCostUSD), 280, finalY + 4, { align: 'right' });
+
+            doc.text("TOTAL COSTO REAL MXN:", 215, finalY + 10, { align: 'right' });
+            doc.text(moneyMXN(grandTotalCostMXN), 280, finalY + 10, { align: 'right' });
+
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(250, 219, 20); // Amarillo
+            doc.text("* LOS PRECIOS NO INCLUYEN I.V.A. (PRECIOS MÁS I.V.A.)", 280, finalY + 16, { align: 'right' });
+
+            const cleanName = String(customFilename || `COSTO_REAL_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
+            const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
+            doc.save(finalFilename);
+            toast({ title: "Costo Real de Equipos Exportado" });
         };
         start();
     };
@@ -2516,16 +2898,25 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             defaultName = `SOLIMAQ_MASTERPLAN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         } else if (type === 'equipment-list') {
             defaultName = `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        } else if (type === 'equipment-list-no-amount') {
+            defaultName = `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         } else if (type === 'equipment-list-mxn') {
             defaultName = `LISTADO_MXN_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         } else if (type === 'radiography') {
             defaultName = `RADIOGRAFIA_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         } else if (type === 'equipment-list-50') {
             defaultName = `LISTADO_EQUIPOS_50_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
+        } else if (type === 'equipment-cost-real') {
+            defaultName = `COSTO_REAL_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         }
 
         setExportFilename(defaultName);
-        setExportTitle(type === 'radiography' ? "RADIOGRAFÍA INTERNA" : type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" : pdfSettings.titleText);
+        setExportTitle(
+            type === 'radiography' ? "RADIOGRAFÍA INTERNA" : 
+            type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" : 
+            type === 'equipment-cost-real' ? "COSTO REAL DE EQUIPOS" : 
+            pdfSettings.titleText
+        );
         setExportClient(clientName);
         setExportProject(projectName);
         setExportTC(tipoCambio);
@@ -2554,10 +2945,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             generateDirectPDF(exportFilename, exportClient, exportProject);
         } else if (pdfExportType === 'equipment-list') {
             generateEquipmentListPDF(exportFilename, exportTitle, exportClient, exportProject);
+        } else if (pdfExportType === 'equipment-list-no-amount') {
+            generateEquipmentListNoAmountPDF(exportFilename, exportTitle, exportClient, exportProject, exportIncludeAmount);
         } else if (pdfExportType === 'equipment-list-mxn') {
             generateEquipmentListMXNPDF(exportFilename, exportTitle, n(exportTC), exportClient, exportProject);
         } else if (pdfExportType === 'radiography') {
             generateInternalRadiographyPDF(exportFilename, exportTitle, n(exportTC), exportClient, exportProject);
+        } else if (pdfExportType === 'equipment-cost-real') {
+            generateEquipmentCostRealPDF(exportFilename, exportTitle, n(exportTC), exportClient, exportProject);
         }
         setIsExportFilenameModalOpen(false);
     };
@@ -3335,40 +3730,6 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                         <div className="flex items-center gap-3 justify-center flex-wrap">
                             <button
-                                onClick={() => toggleAllSections(false)}
-                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                            >
-                                <Maximize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
-                                ABRIR MÓDULOS
-                            </button>
-
-                            <button
-                                onClick={() => toggleAllSections(true)}
-                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                            >
-                                <Minimize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
-                                CERRAR MÓDULOS
-                            </button>
-
-                            {(isAdminAuthenticated || isAdmin) && (
-                                <button
-                                    onClick={deselectAllModules}
-                                    className="px-6 py-3 bg-red-500/10 border border-red-500/40 text-red-500 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 transition-all flex items-center gap-2 group shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                                >
-                                    <Power size={14} className="group-hover:rotate-90 transition-transform" />
-                                    DESELECCIONAR TODO
-                                </button>
-                            )}
-
-                            <button
-                                onClick={() => triggerExportWithFilename('master')}
-                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                            >
-                                <Download size={14} className="text-primary group-hover:scale-110 transition-transform" />
-                                EXPORTAR PDF
-                            </button>
-
-                            <button
                                 onClick={() => triggerExportWithFilename('equipment-list')}
                                 className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
                             >
@@ -3377,24 +3738,71 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </button>
 
                             <button
-                                onClick={() => triggerExportWithFilename('equipment-list-mxn')}
-                                className="px-6 py-3 bg-zinc-900 border border-green-500/30 text-green-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-green-500/10 hover:border-green-500/50 transition-all flex items-center gap-2 group"
+                                onClick={() => triggerExportWithFilename('equipment-list-no-amount')}
+                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
                             >
-                                <Zap size={14} className="text-green-400 group-hover:scale-110 transition-transform" />
-                                EXPORTAR MXN
+                                <FileText size={14} className="text-gray-400 group-hover:scale-110 transition-transform" />
+                                EXPORTAR SIN IMPORTE
                             </button>
 
-                            <button
-                                onClick={apply50PercentUtilization}
-                                className="px-6 py-3 bg-red-500/10 border border-red-500/40 text-red-500 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all flex items-center gap-2 group"
-                                title="Aplicar 50% de utilidad a todo el proyecto"
-                            >
-                                <Percent size={14} className="text-red-500 group-hover:scale-110 transition-transform" />
-                                50%
-                            </button>
-
-                            {(isAdminAuthenticated || isAdmin) && (
+                            {isAdmin && (
                                 <>
+                                    <button
+                                        onClick={() => toggleAllSections(false)}
+                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Maximize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
+                                        ABRIR MÓDULOS
+                                    </button>
+
+                                    <button
+                                        onClick={() => toggleAllSections(true)}
+                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Minimize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
+                                        CERRAR MÓDULOS
+                                    </button>
+
+                                    <button
+                                        onClick={deselectAllModules}
+                                        className="px-6 py-3 bg-red-500/10 border border-red-500/40 text-red-500 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 transition-all flex items-center gap-2 group shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                                    >
+                                        <Power size={14} className="group-hover:rotate-90 transition-transform" />
+                                        DESELECCIONAR TODO
+                                    </button>
+
+                                    <button
+                                        onClick={() => triggerExportWithFilename('master')}
+                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Download size={14} className="text-primary group-hover:scale-110 transition-transform" />
+                                        EXPORTAR PDF
+                                    </button>
+
+                                    <button
+                                        onClick={() => triggerExportWithFilename('equipment-list-mxn')}
+                                        className="px-6 py-3 bg-zinc-900 border border-green-500/30 text-green-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-green-500/10 hover:border-green-500/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Zap size={14} className="text-green-400 group-hover:scale-110 transition-transform" />
+                                        EXPORTAR MXN
+                                    </button>
+
+                                    <button
+                                        onClick={() => triggerExportWithFilename('equipment-cost-real')}
+                                        className="px-6 py-3 bg-zinc-900 border border-yellow-500/30 text-yellow-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-yellow-500/10 hover:border-yellow-500/50 transition-all flex items-center gap-2 group"
+                                    >
+                                        <DollarSign size={14} className="text-yellow-400 group-hover:scale-110 transition-transform" />
+                                        EXPORTAR COSTO REAL
+                                    </button>
+
+                                    <button
+                                        onClick={apply50PercentUtilization}
+                                        className="px-6 py-3 bg-red-500/10 border border-red-500/40 text-red-500 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all flex items-center gap-2 group"
+                                        title="Aplicar 50% de utilidad a todo el proyecto"
+                                    >
+                                        <Percent size={14} className="text-red-500 group-hover:scale-110 transition-transform" />
+                                        50%
+                                    </button>
                                     <button
                                         onClick={() => triggerExportWithFilename('radiography')}
                                         className="px-6 py-3 bg-zinc-900 border border-purple-500/30 text-purple-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-purple-500/10 hover:border-purple-500/50 transition-all flex items-center gap-2 group"
@@ -3622,8 +4030,19 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 </div>
 
                                 {/* TOTALES RÁPIDOS */}
-                                <div className="flex flex-wrap gap-4 mt-4 px-2">
-                                    <div className="flex-1 min-w-[120px] bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-4 px-2">
+                                    {/* COSTO ESTIMADO */}
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-purple-500/20 transition-all">
+                                        <div className="text-[10px] text-zinc-600 font-extrabold uppercase tracking-widest mb-2 flex items-center gap-2">
+                                            <div className="w-1 h-3 bg-purple-500 rounded-full" />
+                                            Costo Estimado (MXN)
+                                        </div>
+                                        <div className="text-xl font-black text-white tracking-tighter group-hover:text-purple-400 transition-colors uppercase">
+                                            {"$" + (grandTotals.totalCosto * tipoCambio).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] text-zinc-600 ml-1">Pesos</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
                                         <div className="text-[10px] text-zinc-600 font-extrabold uppercase tracking-widest mb-2 flex items-center gap-2">
                                             <div className="w-1 h-3 bg-primary rounded-full" />
                                             Total USD
@@ -3633,7 +4052,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         </div>
                                     </div>
                                     
-                                    <div className="flex-1 min-w-[120px] bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
                                         <div className="text-[10px] text-zinc-600 font-extrabold uppercase tracking-widest mb-2 flex items-center gap-2">
                                             <div className="w-1 h-3 bg-red-500 rounded-full" />
                                             Total MXN (TC {tipoCambio})
@@ -3643,7 +4062,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         </div>
                                     </div>
 
-                                    <div className="flex-1 min-w-[120px] bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
+                                    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
                                         <div className="text-[10px] text-zinc-600 font-extrabold uppercase tracking-widest mb-2 flex items-center gap-2">
                                             <div className="w-1 h-3 bg-blue-500 rounded-full" />
                                             Potencia Total
@@ -3654,7 +4073,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     </div>
 
                                     {/* UTILIDAD ESTIMADA */}
-                                    <div className="flex-1 min-w-[120px] bg-zinc-900/40 border border-emerald-500/10 rounded-2xl p-4 group hover:border-emerald-500/30 transition-all">
+                                    <div className="bg-zinc-900/40 border border-emerald-500/10 rounded-2xl p-4 group hover:border-emerald-500/30 transition-all">
                                         <div className="text-[10px] text-zinc-600 font-extrabold uppercase tracking-widest mb-2 flex items-center gap-2">
                                             <div className="w-1 h-3 bg-emerald-500 rounded-full" />
                                             Utilidad Estimada
@@ -4003,11 +4422,22 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         </div>
                                         <div className="flex items-center gap-6">
                                             {s.collapsed && sectionTotals.find(x => x.sectionId === s.id) && (
-                                                <div className="flex flex-col items-end mr-2 shrink-0">
-                                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1 opacity-50">Subtotal Módulo</span>
-                                                    <span className="text-2xl font-black text-primary tracking-tighter">
-                                                        {money(sectionTotals.find(x => x.sectionId === s.id).totalVenta)}
-                                                    </span>
+                                                <div className="flex items-center gap-6 mr-4">
+                                                    <div className="flex flex-col items-end shrink-0">
+                                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1 opacity-50">Potencia Módulo</span>
+                                                        <span className="text-xl font-black text-yellow-400 tracking-tighter">
+                                                            {sectionTotals.find(x => x.sectionId === s.id).totalKW.toFixed(1)} <span className="text-[10px] ml-0.5 opacity-50 font-bold">KW</span>
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="w-px h-8 bg-white/10" />
+
+                                                    <div className="flex flex-col items-end shrink-0">
+                                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1 opacity-50">Subtotal Módulo</span>
+                                                        <span className="text-2xl font-black text-primary tracking-tighter">
+                                                            {money(sectionTotals.find(x => x.sectionId === s.id).totalVenta)}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             )}
                                             {isAdmin && (
@@ -4023,6 +4453,20 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     )}
                                                     {!s.collapsed && (
                                                         <>
+                                                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1 mr-2">
+                                                                <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Masivo QTY</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    placeholder="QTY"
+                                                                    className="w-12 bg-transparent text-primary font-black text-xs outline-none text-center"
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            applyModuleQty(s.id, e.target.value);
+                                                                            e.target.value = '';
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
                                                             <button onClick={() => generateModulePDF(s, sIdx)} className="p-2 bg-primary/10 border border-primary/30 text-primary rounded-lg hover:bg-primary/20" title="Exportar Módulo PDF"><FileText size={16} /></button>
                                                             <button onClick={() => handleExportSectionExcel(s)} className="p-2 bg-green-500/10 border border-green-500/30 text-green-500 rounded-lg hover:bg-green-500/20" title="Exportar Módulo Excel"><Download size={16} /></button>
                                                             <button onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.xlsx, .xls'; inp.onchange = (e) => handleImportSectionExcel(s.id, e.target.files[0]); inp.click(); }} className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-lg hover:bg-blue-500/20" title="Importar Módulo Excel"><FileSpreadsheet size={16} /></button>
@@ -4127,12 +4571,23 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                                     </div>
                                                                                 )}
 
-                                                                                <button
-                                                                                    onClick={() => toggleItemActive(s.id, it.id)}
-                                                                                    className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all shadow-lg ${it.activo ? 'bg-primary border-primary text-black' : 'bg-white/5 border-white/70 hover:border-primary/80 hover:bg-white/10'}`}
-                                                                                >
-                                                                                    {it.activo && <Check size={14} strokeWidth={4} />}
-                                                                                </button>
+                                                                                <div className="flex gap-2 items-center">
+                                                                                    <button
+                                                                                        onClick={() => toggleItemActive(s.id, it.id)}
+                                                                                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all shadow-lg ${it.activo ? 'bg-primary border-primary text-black' : 'bg-white/5 border-white/70 hover:border-primary/80 hover:bg-white/10'}`}
+                                                                                    >
+                                                                                        {it.activo && <Check size={14} strokeWidth={4} />}
+                                                                                    </button>
+                                                                                    {isAdmin && (
+                                                                                        <button 
+                                                                                            onClick={() => removeItem(s.id, it.id)}
+                                                                                            className="w-6 h-6 rounded-md bg-red-500/10 border border-red-500/30 text-red-500 flex items-center justify-center hover:bg-red-500 transition-all hover:text-white"
+                                                                                            title="Eliminar Fila"
+                                                                                        >
+                                                                                            <Trash2 size={12} />
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
                                                                                 <div className={contentOpacity}>
                                                                                     {isAdmin ? <input value={it.codigo || `${displayModuleNum}.${iIdx + 1}`} onChange={(e) => updateItem(s.id, it.id, { codigo: e.target.value })} className="bg-transparent border-b border-white/5 text-[11px] font-mono text-gray-400 w-full text-center focus:border-primary/50 outline-none" /> : <span className="text-[11px] font-mono text-gray-400">{`${displayModuleNum}.${iIdx + 1}`}</span>}
                                                                                 </div>
@@ -4488,6 +4943,20 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-500 tracking-widest">MXN/USD</span>
                                     </div>
                                 </div>
+                                {pdfExportType === 'equipment-list-no-amount' && (
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="checkbox" 
+                                            id="includeAmount"
+                                            checked={exportIncludeAmount} 
+                                            onChange={e => setExportIncludeAmount(e.target.checked)}
+                                            className="w-5 h-5 accent-primary rounded bg-white/5 border-white/10 cursor-pointer"
+                                        />
+                                        <label htmlFor="includeAmount" className="text-xs font-bold text-white cursor-pointer select-none">
+                                            Incluir importe final (Total en USD + IVA)
+                                        </label>
+                                    </div>
+                                )}
                                 <div className="flex gap-3">
                                     <button onClick={() => setIsExportFilenameModalOpen(false)} className="flex-1 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest rounded-xl hover:bg-zinc-800 transition-all border border-white/5">Cancelar</button>
                                     <button onClick={handleConfirmExport} className="flex-2 px-8 py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(155,212,40,0.3)]">Exportar</button>

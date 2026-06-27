@@ -18,8 +18,11 @@ import {
   Lock,
   Unlock,
   Zap,
-  DollarSign
+  DollarSign,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -260,6 +263,71 @@ const PropuestaEconomicaSection = ({
   const [activeSelection, setActiveSelection] = useState({ type: 'general', id: 'general' });
   const [localAdminMode, setLocalAdminMode] = useState(false);
   const [preloadedLogo, setPreloadedLogo] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sync from Master Plan logic
+  const syncFromMasterPlan = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase
+        .from('public_json_data')
+        .select('data')
+        .eq('bucket_id', 'masterplan')
+        .eq('file_id', 'master-plan-concentrado')
+        .single();
+        
+      if (error) throw error;
+      if (!data || !data.data) throw new Error("No data found");
+      
+      const masterPlanData = typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
+      
+      if (!Array.isArray(masterPlanData)) {
+         throw new Error("Formato inválido del Master Plan");
+      }
+      
+      const newGroups = masterPlanData.map((section, sIdx) => {
+        return {
+          id: `group-mp-${section.id || sIdx}`,
+          title: section.titulo || `MÓDULO ${sIdx + 1}`,
+          items: (section.items || []).map((item, iIdx) => {
+            const costoFinal = Number(item.costoUSD) || 0;
+            const util = Number(item.utilidad) || 0;
+            let ventaUnitFinal = costoFinal;
+            if (util > 0 && util < 100) {
+              ventaUnitFinal = costoFinal / (1 - (util / 100));
+            }
+            const qty = Number(item.qty) || 1;
+            const totalVenta = ventaUnitFinal * qty;
+
+            return {
+              id: `item-mp-${item.id || iIdx}`,
+              title: item.equipo || 'EQUIPO',
+              subtitle: item.descripcion || '',
+              price: totalVenta,
+              kw: Number(item.potencia) || 0,
+              icon: 'Box',
+              isActive: item.activo !== false
+            };
+          })
+        };
+      });
+
+      updateContent({ ...content, groups: newGroups });
+      toast({
+        title: "Sincronizado",
+        description: "Los módulos y precios se han actualizado desde el Master Plan.",
+      });
+    } catch (err) {
+      console.error("Error sincronizando master plan:", err);
+      toast({
+        variant: "destructive",
+        title: "Error de Sincronización",
+        description: "No se pudo sincronizar con el Master Plan. Verifica que exista data.",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     const logoUrl = quotationData?.logo || '/solimaq_logo_horizontal.png';
@@ -332,18 +400,22 @@ const PropuestaEconomicaSection = ({
     const destGroupIndex = newGroups.findIndex(g => g.id === destination.droppableId);
     if (sourceGroupIndex === -1 || destGroupIndex === -1) return;
 
-    const sourceGroup = { ...newGroups[sourceGroupIndex] };
-    const destGroup = { ...newGroups[destGroupIndex] };
-
-    // Create new items arrays to avoid mutating state/defaults
-    sourceGroup.items = [...sourceGroup.items];
-    destGroup.items = [...destGroup.items];
-
-    const [movedItem] = sourceGroup.items.splice(source.index, 1);
-    destGroup.items.splice(destination.index, 0, movedItem);
-
-    newGroups[sourceGroupIndex] = sourceGroup;
-    newGroups[destGroupIndex] = destGroup;
+    if (sourceGroupIndex === destGroupIndex) {
+      const group = { ...newGroups[sourceGroupIndex] };
+      group.items = [...group.items];
+      const [movedItem] = group.items.splice(source.index, 1);
+      group.items.splice(destination.index, 0, movedItem);
+      newGroups[sourceGroupIndex] = group;
+    } else {
+      const sourceGroup = { ...newGroups[sourceGroupIndex] };
+      const destGroup = { ...newGroups[destGroupIndex] };
+      sourceGroup.items = [...sourceGroup.items];
+      destGroup.items = [...destGroup.items];
+      const [movedItem] = sourceGroup.items.splice(source.index, 1);
+      destGroup.items.splice(destination.index, 0, movedItem);
+      newGroups[sourceGroupIndex] = sourceGroup;
+      newGroups[destGroupIndex] = destGroup;
+    }
 
     updateContent({ ...content, groups: newGroups });
   };
@@ -529,7 +601,7 @@ const PropuestaEconomicaSection = ({
       headStyles: { fillColor: [155, 212, 40], textColor: [0, 0, 0], fontStyle: 'bold' },
       styles: { cellPadding: 4, fontSize: 10 },
       columnStyles: {
-        0: { halign: 'justify', cellWidth: 115 },
+        0: { halign: 'left', cellWidth: 115 },
         1: { halign: 'center', cellWidth: 25 },
         2: { halign: 'right', fontStyle: 'bold', cellWidth: 42 }
       },
@@ -992,15 +1064,32 @@ const PropuestaEconomicaSection = ({
                   </Button>
 
                   {isModeAdmin && (
+                    <>
+                      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full border-primary/50 bg-primary/10 text-primary hover:bg-primary/30 hover:text-green-300 transition-all"
+                          >
+                            <Edit size={18} className="mr-2" /> Editar Estructura y Precios
+                          </Button>
+                        </DialogTrigger>
+                        {/* El contenido del Dialog se mantiene igual, se inyecta más abajo */}
+                      </Dialog>
+                      
+                      <Button
+                        variant="outline"
+                        className="w-full border-blue-500/50 bg-blue-500/10 text-blue-400 hover:bg-blue-500/30 hover:text-blue-300 transition-all mt-3"
+                        onClick={syncFromMasterPlan}
+                        disabled={isSyncing}
+                      >
+                        {isSyncing ? <Loader2 size={18} className="mr-2 animate-spin" /> : <RefreshCw size={18} className="mr-2" />}
+                        Sincronizar con Master Plan
+                      </Button>
+                    </>
+                  )}
+                  {isModeAdmin && (
                     <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full border-primary/50 bg-primary/10 text-primary hover:bg-primary/30 hover:text-green-300 transition-all"
-                        >
-                          <Edit size={18} className="mr-2" /> Editar Estructura y Precios
-                        </Button>
-                      </DialogTrigger>
                       <DialogContent className="sm:max-w-[1200px] w-full h-[85vh] flex flex-col bg-black border-gray-800 text-white p-0 gap-0 overflow-hidden">
                         <DialogHeader className="shrink-0 p-4 border-b border-gray-800 bg-[#0a0a0a] flex flex-row items-center justify-between">
                           <DialogTitle className="text-lg font-bold flex items-center gap-2">

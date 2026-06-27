@@ -105,7 +105,7 @@ const Header = ({
                     isLoadingData ? "bg-yellow-400 animate-spin" : "bg-green-500 animate-pulse"
                   )} />
                   <span className="text-[9px] font-mono text-gray-400 font-medium tracking-wider">
-                    {isLoadingData ? "SYNCING..." : "VER 7.70"}
+                    {isLoadingData ? "SYNCING..." : "VER 7.75"}
                   </span>
 
                   {isLoadingData && <Loader2 className="w-2.5 h-2.5 text-yellow-500 animate-spin ml-1" />}
