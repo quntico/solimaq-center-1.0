@@ -3017,16 +3017,23 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             defaultName = `COSTO_REAL_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`;
         }
 
+        let savedMeta = null;
+        try {
+            const savedStr = localStorage.getItem(`export_meta_${propSlug || 'default'}`);
+            if (savedStr) savedMeta = JSON.parse(savedStr);
+        } catch(e){}
+
         setExportFilename(defaultName);
         setExportTitle(
-            type === 'radiography' ? "RADIOGRAFÍA INTERNA" :
+            savedMeta?.title || 
+            (type === 'radiography' ? "RADIOGRAFÍA INTERNA" :
                 type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" :
                     type === 'equipment-cost-real' ? "COSTO REAL DE EQUIPOS" :
-                        pdfSettings.titleText
+                        pdfSettings.titleText)
         );
-        setExportClient(clientName);
-        setExportProject(projectName);
-        setExportTC(tipoCambio);
+        setExportClient(savedMeta?.client || clientName);
+        setExportProject(savedMeta?.project || projectName);
+        setExportTC(savedMeta?.tc || tipoCambio);
         setIsExportFilenameModalOpen(true);
     };
 
@@ -5129,6 +5136,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     </div>
                                 )}
                                 <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            const metadata = { client: exportClient, project: exportProject, tc: exportTC, title: exportTitle };
+                                            localStorage.setItem(`export_meta_${propSlug || 'default'}`, JSON.stringify(metadata));
+                                            toast({ title: 'Datos guardados como inicio 💾' });
+                                        }}
+                                        className="flex-[0.5] py-4 bg-blue-600/20 text-blue-400 border border-blue-500/30 font-black uppercase tracking-widest rounded-xl hover:bg-blue-600/30 transition-all flex items-center justify-center gap-2"
+                                        title="Guardar metadatos para la próxima vez que abra esta ventana"
+                                    >
+                                        💾 Defaults
+                                    </button>
                                     <button onClick={() => setIsExportFilenameModalOpen(false)} className="flex-1 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest rounded-xl hover:bg-zinc-800 transition-all border border-white/5">Cancelar</button>
                                     <button onClick={handleConfirmExport} className="flex-2 px-8 py-4 bg-primary text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(155,212,40,0.3)]">Exportar</button>
                                 </div>
