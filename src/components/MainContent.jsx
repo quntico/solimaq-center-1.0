@@ -80,7 +80,7 @@ const MainContent = (props) => {
           quotationData,
           isEditorMode,
           isAdminAuthenticated,
-          propIsAdmin: isAdminView,
+          isAdmin: isAdminView,
           setIsEditorMode,
           activeTheme,
           onContentChange: (newContent) => handleSectionContentChange(section.id, newContent),
