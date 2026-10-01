@@ -6,18 +6,21 @@ import ClientLayout from '@/layouts/ClientLayout';
 import MasterPlan from '@/pages/MasterPlan';
 
 import SecureViewer from '@/components/SecureViewer';
+import AuthGate from '@/components/AuthGate';
 
 function App() {
   return (
     <HelmetProvider>
       <Router>
-        <Routes>
-          <Route path="/" element={<AdminLayout />} />
-          <Route path="/cotizacion/:slug" element={<ClientLayout />} />
-          <Route path="/master-plan" element={<MasterPlan />} />
-          <Route path="/master-plan/:slug" element={<MasterPlan />} />
-          <Route path="/visor-seguro" element={<SecureViewer />} />
-        </Routes>
+        <AuthGate>
+          <Routes>
+            <Route path="/" element={<AdminLayout />} />
+            <Route path="/cotizacion/:slug" element={<ClientLayout />} />
+            <Route path="/master-plan" element={<MasterPlan />} />
+            <Route path="/master-plan/:slug" element={<MasterPlan />} />
+            <Route path="/visor-seguro" element={<SecureViewer />} />
+          </Routes>
+        </AuthGate>
       </Router>
     </HelmetProvider>
   );

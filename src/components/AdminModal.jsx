@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, Zap, ChevronsUpDown, X, Save, Eraser, Settings, Palette, Scale, Upload, Image, Loader2, Minimize, Timer, PlaySquare, Clock, CheckCircle, Wrench, Ship, Truck, Copy, Link as LinkIcon, ClipboardCopy, Star, Home, MonitorSpeaker as Announce, MoveHorizontal, EyeOff, ExternalLink, QrCode, RefreshCw, Trash2, FileDown } from 'lucide-react';
+import { Check, ChevronDown, Zap, ChevronsUpDown, X, Save, Eraser, Settings, Palette, Scale, Upload, Image, Loader2, Minimize, Timer, PlaySquare, Clock, CheckCircle, Wrench, Ship, Truck, Copy, Link as LinkIcon, ClipboardCopy, Star, Home, MonitorSpeaker as Announce, MoveHorizontal, EyeOff, ExternalLink, QrCode, RefreshCw, Trash2, FileDown, Key, ShieldCheck } from 'lucide-react';
 import { cn, sanitizeFileName } from '@/lib/utils';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -13,13 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getActiveBucket } from '@/lib/bucketResolver';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from '@/contexts/LanguageContext';
 import { QRCodeCanvas } from 'qrcode.react';
 import jsPDF from 'jspdf';
@@ -44,6 +39,10 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
   const [showQR, setShowQR] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false); // Toggle specifically for bulk management
   const [isConfigMode, setIsConfigMode] = useState(false); // NEW: Toggle for brand configuration
+
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('solimaq_api_key') || '');
+  const [masterKey, setMasterKey] = useState(() => localStorage.getItem('solimaq_master_key') || 'ADMIN600');
+  const [viewKey, setViewKey] = useState(() => localStorage.getItem('solimaq_view_key') || 'MIRAMAR600');
 
   const logoFileInputRef = useRef(null);
   const faviconFileInputRef = useRef(null);
@@ -328,6 +327,10 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
     if (!currentThemeData) return;
     setIsSaving(true);
     try {
+      localStorage.setItem('solimaq_api_key', apiKey);
+      localStorage.setItem('solimaq_master_key', masterKey);
+      localStorage.setItem('solimaq_view_key', viewKey);
+
       // Construct dataToSave carefully from currentThemeData
       const dataToSave = {
         company: currentThemeData.company, project: currentThemeData.project, client: currentThemeData.client,
@@ -355,7 +358,7 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
         [activeTheme]: { ...prev[activeTheme], ...currentThemeData }
       }));
 
-      toast({ title: "¡Guardado exitoso! 🎉", description: `Datos actualizados.` });
+      toast({ title: "¡Guardado exitoso! 🎉", description: `Datos y configuración actualizados.` });
       onClose();
     } catch (error) {
       console.error('Error saving:', error);
@@ -699,354 +702,456 @@ const AdminModal = ({ isOpen, onClose, themes = {}, setThemes, activeTheme, setA
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+              <Tabs defaultValue="content" className="w-full">
+                <TabsList className="w-full grid grid-cols-3 mb-6 bg-gray-900 border border-gray-800 rounded-lg p-1">
+                  <TabsTrigger value="content" className="rounded-md">Contenido</TabsTrigger>
+                  <TabsTrigger value="appearance" className="rounded-md">Apariencia</TabsTrigger>
+                  <TabsTrigger value="security" className="rounded-md flex items-center gap-2"><Key className="w-4 h-4" />Seguridad</TabsTrigger>
+                </TabsList>
 
-                {/* --- QUOTATION SELECTOR (POPOVER) --- */}
-                <div className="md:col-span-2">
-                  {isManageMode ? (
-                    /* --- MANAGEMENT VIEW --- */
-                    <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                      <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-2">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                          <Settings className="w-5 h-5 text-gray-400" />
-                          Gestión de Cotizaciones
-                        </h3>
-                        <Button variant="ghost" size="sm" onClick={() => setIsManageMode(false)} className="text-gray-400 hover:text-white">
-                          cerrar
-                        </Button>
-                      </div>
+                <TabsContent value="content" className="outline-none">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
 
-                      <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                        {Object.values(themes || {})
-                          .filter(t => t && t.theme_key && !String(t.theme_key).startsWith('deleted_')) // Validar filtro visual local y existencia
-                          .sort((a, b) => (a?.project || "").localeCompare(b?.project || "")).map(theme => {
-                            const isActive = activeTheme === theme.theme_key;
-                            const isProtected = theme.is_template; // Only protect Template, allow deleting Home
-                            return (
-                              <div key={theme.theme_key} className={cn("flex items-center justify-between p-3 rounded-lg border transition-all", isActive ? "bg-primary/5 border-primary/30" : "bg-gray-950/50 border-gray-800 hover:border-gray-600")}>
-                                <div className="flex flex-col overflow-hidden mr-3">
-                                  <div className="flex items-center gap-2">
-                                    {isProtected && (theme.is_home ? <Home className="w-3 h-3 text-primary shrink-0" /> : <Star className="w-3 h-3 text-yellow-400 shrink-0" />)}
-                                    <span className={cn("font-medium truncate", isActive ? "text-primary" : "text-gray-200")}>{theme.project || "Sin Nombre"}</span>
-                                  </div>
-                                  <span className="text-xs text-gray-500 truncate">{theme.client}</span>
-                                  <span className="text-[10px] text-gray-600 truncate font-mono">{theme.theme_key}</span>
-                                  {String(theme.theme_key).startsWith('mp-') && (
-                                    <span className="text-[10px] bg-blue-900/30 text-blue-400 px-1 rounded inline-block w-fit mt-1">MASTER PLAN</span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <Button variant="ghost" size="sm" onClick={() => { handleThemeChange(theme.theme_key); setIsManageMode(false); toast({ title: "Cargado", description: `Editando ${theme.project}` }); }} className="text-gray-400 hover:text-white hover:bg-gray-800" disabled={isActive}>
-                                    {isActive ? "Activa" : "Cargar"}
-                                  </Button>
-                                  {!isProtected && (
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500/70 hover:text-red-500 hover:bg-red-950/30" onClick={() => handleDelete(theme.theme_key)} title="Eliminar definitivamente">
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                      <div className="pt-2 border-t border-gray-800 space-y-2">
-                        <Button
-                          onClick={async () => {
-                            if (!confirm("⚠️ ¡PELIGRO! ⚠️\n\nEsto borrará TODAS las cotizaciones excepto:\n1. Proyectos que contengan 'ESSITY'\n2. La página definida como HOME\n3. La Plantilla Base\n\n¿Estás SEGURO de que quieres continuar? Esta acción NO se puede deshacer.")) return;
+                    {/* --- QUOTATION SELECTOR (POPOVER) --- */}
+                    <div className="md:col-span-2">
+                      {isManageMode ? (
+                        /* --- MANAGEMENT VIEW --- */
+                        <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                          <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-2">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                              <Settings className="w-5 h-5 text-gray-400" />
+                              Gestión de Cotizaciones
+                            </h3>
+                            <Button variant="ghost" size="sm" onClick={() => setIsManageMode(false)} className="text-gray-400 hover:text-white">
+                              cerrar
+                            </Button>
+                          </div>
 
-                            setIsDeleting(true);
-                            toast({ title: "Iniciando Limpieza Masiva", description: "Por favor no cierres esta ventana..." });
-
-                            try {
-                              const allThemes = Object.values(themes);
-                              let deletedCount = 0;
-                              let errorsCount = 0;
-
-                              for (const theme of allThemes) {
-                                // SKIP CRITERIA
-                                const isEssity = theme.project && theme.project.toUpperCase().includes('ESSITY');
-                                const isHome = theme.is_home;
-                                const isTemplate = theme.is_template;
-
-                                if (isEssity || isHome || isTemplate) {
-                                  console.log(`[MassDelete] Skipping PROTECTED: ${theme.project} (Essity=${isEssity}, Home=${isHome}, Template=${isTemplate})`);
-                                  continue;
-                                }
-
-                                // DELETE
-                                try {
-                                  await handleDelete(theme.theme_key);
-                                  deletedCount++;
-                                  // Small delay to let UI breathe
-                                  await new Promise(r => setTimeout(r, 200));
-                                } catch (err) {
-                                  console.error(`[MassDelete] Failed to delete ${theme.project}`, err);
-                                  errorsCount++;
-                                }
-                              }
-
-                              toast({
-                                title: "Limpieza Completada",
-                                description: `Borrados: ${deletedCount}. Errores: ${errorsCount}.`,
-                                duration: 5000
-                              });
-
-                            } catch (err) {
-                              console.error("Mass delete fatal error", err);
-                              toast({ title: "Error Fatal", description: err.message, variant: "destructive" });
-                            } finally {
-                              setIsDeleting(false);
-                            }
-                          }}
-                          disabled={isDeleting}
-                          className="w-full bg-red-900/10 hover:bg-red-900/30 text-red-500 border border-red-900/30"
-                        >
-                          {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                          {isDeleting ? "Limpiando..." : "EJECUTAR LIMPIEZA DE EMERGENCIA"}
-                        </Button>
-                        <Button onClick={() => setIsManageMode(false)} className="w-full bg-gray-800 hover:bg-gray-700 text-white">Terminar Gestión</Button>
-                      </div>
-                    </div>
-                  ) : isConfigMode ? (
-                    /* --- BRAND CONFIGURATION VIEW --- */
-                    <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                      <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-2">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                          <Palette className="w-5 h-5 text-gray-400" />
-                          Configuración de Marca
-                        </h3>
-                        <Button variant="ghost" size="sm" onClick={() => setIsConfigMode(false)} className="text-gray-400 hover:text-white">
-                          cerrar
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3">
-                        <Label className="text-gray-300 mb-2">Selecciona la identidad de marca para esta cotización:</Label>
-                        {Object.values(BRANDS).map((brand) => {
-                          const isSelected = (currentThemeData.brand_color || 'solimaq') === brand.id;
-                          return (
-                            <div
-                              key={brand.id}
-                              onClick={() => {
-                                // Update brand color
-                                const updates = { brand_color: brand.id };
-                                // Auto-update logo if it was empty or using the other brand's default
-                                const currentLogo = currentThemeData.logo;
-                                const otherBrandId = Object.keys(BRANDS).find(id => id !== brand.id);
-                                const otherBrandDefaultLogo = BRANDS[otherBrandId]?.defaultLogo;
-
-                                // Simple logic: if no logo, or logo matches other brand's default, switch it.
-                                // Or always ask? Let's just switch if empty for now to be safe, or just relying on manual upload.
-                                // Actually, user said "cada marca podra tener su propio logo".
-                                // Let's auto-set it if it's currently empty.
-                                // Always update logo to match the brand when explicitly changed by user
-                                updates.logo = brand.defaultLogo;
-                                updateState(updates);
-                              }}
-                              className={cn(
-                                "cursor-pointer flex items-center justify-between p-4 rounded-lg border transition-all hover:bg-gray-800",
-                                isSelected ? "bg-gray-800 border-primary ring-1 ring-primary" : "bg-gray-950 border-gray-800"
-                              )}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div
-                                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm"
-                                  style={{ backgroundColor: `hsl(${brand.colors.primary})`, color: `hsl(${brand.colors.primaryForeground})` }}
-                                >
-                                  {brand.name.substring(0, 2).toUpperCase()}
-                                </div>
-                                <div>
-                                  <h4 className={cn("font-bold", isSelected ? "text-white" : "text-gray-400")}>{brand.label}</h4>
-                                  <p className="text-xs text-gray-500">Identidad {brand.name}</p>
-                                </div>
-                              </div>
-                              {isSelected && <CheckCircle className="w-5 h-5 text-primary" />}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="pt-2 border-t border-gray-800 flex justify-end">
-                        <Button onClick={() => setIsConfigMode(false)} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                          <Check className="w-4 h-4 mr-2" /> Listo
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* --- NORMAL EDIT VIEW --- */
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,auto] gap-4 items-end">
-                      <div className="flex-1 space-y-2">
-                        <Label className="text-primary font-semibold flex items-center gap-2">
-                          <Settings className="w-5 h-5" />
-                          {t('adminModal.activeQuotation') || "Cotización Activa"}
-                        </Label>
-
-                        {/* SIMPLE NATIVE-LIKE SELECTOR */}
-                        <Select value={activeTheme} onValueChange={handleThemeChange}>
-                          <SelectTrigger className="w-full bg-gray-900 border-gray-700 text-white h-10">
-                            <SelectValue placeholder="Seleccionar cotización..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-900 border-gray-700 text-white z-[6000] max-h-[300px]">
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                             {Object.values(themes || {})
-                              .filter(t => t && t.theme_key && !String(t.theme_key).startsWith('deleted_'))
-                              .sort((a, b) => (a?.project || "").localeCompare(b?.project || ""))
-                              .map((theme) => (
-                                <SelectItem key={theme.theme_key} value={theme.theme_key} className="focus:bg-gray-800 cursor-pointer">
-                                  <span className="flex items-center gap-2">
-                                    {theme.is_home && <Home className="w-3 h-3 text-primary" />}
-                                    {theme.is_template && <Star className="w-3 h-3 text-yellow-400" />}
-                                    {theme.project} <span className="text-gray-500 text-xs">({theme.client})</span>
-                                  </span>
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                              .filter(t => t && t.theme_key && !String(t.theme_key).startsWith('deleted_')) // Validar filtro visual local y existencia
+                              .sort((a, b) => (a?.project || "").localeCompare(b?.project || "")).map(theme => {
+                                const isActive = activeTheme === theme.theme_key;
+                                const isProtected = theme.is_template; // Only protect Template, allow deleting Home
+                                return (
+                                  <div key={theme.theme_key} className={cn("flex items-center justify-between p-3 rounded-lg border transition-all", isActive ? "bg-primary/5 border-primary/30" : "bg-gray-950/50 border-gray-800 hover:border-gray-600")}>
+                                    <div className="flex flex-col overflow-hidden mr-3">
+                                      <div className="flex items-center gap-2">
+                                        {isProtected && (theme.is_home ? <Home className="w-3 h-3 text-primary shrink-0" /> : <Star className="w-3 h-3 text-yellow-400 shrink-0" />)}
+                                        <span className={cn("font-medium truncate", isActive ? "text-primary" : "text-gray-200")}>{theme.project || "Sin Nombre"}</span>
+                                      </div>
+                                      <span className="text-xs text-gray-500 truncate">{theme.client}</span>
+                                      <span className="text-[10px] text-gray-600 truncate font-mono">{theme.theme_key}</span>
+                                      {String(theme.theme_key).startsWith('mp-') && (
+                                        <span className="text-[10px] bg-blue-900/30 text-blue-400 px-1 rounded inline-block w-fit mt-1">MASTER PLAN</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <Button variant="ghost" size="sm" onClick={() => { handleThemeChange(theme.theme_key); setIsManageMode(false); toast({ title: "Cargado", description: `Editando ${theme.project}` }); }} className="text-gray-400 hover:text-white hover:bg-gray-800" disabled={isActive}>
+                                        {isActive ? "Activa" : "Cargar"}
+                                      </Button>
+                                      {!isProtected && (
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500/70 hover:text-red-500 hover:bg-red-950/30" onClick={() => handleDelete(theme.theme_key)} title="Eliminar definitivamente">
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                          <div className="pt-2 border-t border-gray-800 space-y-2">
+                            <Button
+                              onClick={async () => {
+                                if (!confirm("⚠️ ¡PELIGRO! ⚠️\n\nEsto borrará TODAS las cotizaciones excepto:\n1. Proyectos que contengan 'ESSITY'\n2. La página definida como HOME\n3. La Plantilla Base\n\n¿Estás SEGURO de que quieres continuar? Esta acción NO se puede deshacer.")) return;
 
-                      {/* Config Button */}
-                      <Button
-                        variant="secondary"
-                        onClick={() => setIsConfigMode(true)}
-                        className="bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 h-10 px-3"
-                        title="Configuración de Marca"
-                      >
-                        <Palette className="w-4 h-4 md:mr-2" />
-                        <span className="hidden md:inline">Configuración</span>
-                      </Button>
+                                setIsDeleting(true);
+                                toast({ title: "Iniciando Limpieza Masiva", description: "Por favor no cierres esta ventana..." });
 
-                      {/* Management Button */}
-                      <Button
-                        variant="secondary"
-                        onClick={() => setIsManageMode(true)}
-                        className="bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 h-10 px-3"
-                        title="Gestionar Cotizaciones"
-                      >
-                        <Settings className="w-4 h-4 md:mr-2" />
-                        <span className="hidden md:inline">Gestionar</span>
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                                try {
+                                  const allThemes = Object.values(themes);
+                                  let deletedCount = 0;
+                                  let errorsCount = 0;
 
-                <div><Label htmlFor="company" className="text-primary mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                                  for (const theme of allThemes) {
+                                    // SKIP CRITERIA
+                                    const isEssity = theme.project && theme.project.toUpperCase().includes('ESSITY');
+                                    const isHome = theme.is_home;
+                                    const isTemplate = theme.is_template;
 
+                                    if (isEssity || isHome || isTemplate) {
+                                      console.log(`[MassDelete] Skipping PROTECTED: ${theme.project} (Essity=${isEssity}, Home=${isHome}, Template=${isTemplate})`);
+                                      continue;
+                                    }
 
-                <div className="flex flex-col gap-2 mt-4 p-3 rounded-xl border border-gray-800 bg-gray-950/50">
-                  <Label className="text-gray-400 text-xs font-semibold mb-1 uppercase tracking-wider">
-                    Visibilidad (Default)
-                  </Label>
-                  <button
-                    onClick={handleSetAsHome}
-                    disabled={isSaving}
-                    className={cn(
-                      "w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-wide relative overflow-hidden group border",
-                      currentThemeData.is_home
-                        ? "bg-primary/20 text-primary border-primary shadow-[0_0_15px_rgba(155,212,40,0.3)]" // Active State (Sutil)
-                        : "bg-gray-900 text-gray-500 border-gray-800 hover:border-gray-600 hover:text-gray-300" // Inactive State
-                    )}
-                  >
-                    {/* Status Indicator */}
-                    <div className={cn(
-                      "w-2 h-2 rounded-full shadow-sm mr-1",
-                      currentThemeData.is_home ? "bg-primary animate-pulse shadow-[0_0_8px_currentColor]" : "bg-gray-700"
-                    )} />
+                                    // DELETE
+                                    try {
+                                      await handleDelete(theme.theme_key);
+                                      deletedCount++;
+                                      // Small delay to let UI breathe
+                                      await new Promise(r => setTimeout(r, 200));
+                                    } catch (err) {
+                                      console.error(`[MassDelete] Failed to delete ${theme.project}`, err);
+                                      errorsCount++;
+                                    }
+                                  }
 
-                    <Home className={cn("w-4 h-4 z-10", currentThemeData.is_home ? "fill-current" : "")} />
-                    <span className="z-10 relative">{currentThemeData.is_home ? "PROYECTO ACTIVO" : "Establecer como Activo"}</span>
-                  </button>
-                </div>
+                                  toast({
+                                    title: "Limpieza Completada",
+                                    description: `Borrados: ${deletedCount}. Errores: ${errorsCount}.`,
+                                    duration: 5000
+                                  });
 
-                <div><Label htmlFor="project" className="text-primary mb-2 block font-semibold">{t('adminModal.project')}</Label><Input id="project" name="project" value={currentThemeData.project || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div><Label htmlFor="client" className="text-primary mb-2 block font-semibold">{t('adminModal.client')}</Label><Input id="client" name="client" value={currentThemeData.client || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div><Label htmlFor="title" className="text-primary mb-2 block font-semibold">{t('adminModal.title')}</Label><Input id="title" name="title" value={currentThemeData.title || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-2"><Label htmlFor="subtitle" className="text-primary mb-2 block font-semibold">{t('adminModal.subtitle')}</Label><Input id="subtitle" name="subtitle" value={currentThemeData.subtitle || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-2"><Label htmlFor="slug" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><LinkIcon className="w-4 h-4" />{t('adminModal.slug')}</Label><Input id="slug" name="slug" value={currentThemeData.slug || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-2"><Label htmlFor="description" className="text-primary mb-2 block font-semibold">{t('adminModal.description')}</Label><textarea id="description" name="description" value={currentThemeData.description || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} rows="3" className="flex w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" /></div>
+                                } catch (err) {
+                                  console.error("Mass delete fatal error", err);
+                                  toast({ title: "Error Fatal", description: err.message, variant: "destructive" });
+                                } finally {
+                                  setIsDeleting(false);
+                                }
+                              }}
+                              disabled={isDeleting}
+                              className="w-full bg-red-900/10 hover:bg-red-900/30 text-red-500 border border-red-900/30"
+                            >
+                              {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                              {isDeleting ? "Limpiando..." : "EJECUTAR LIMPIEZA DE EMERGENCIA"}
+                            </Button>
+                            <Button onClick={() => setIsManageMode(false)} className="w-full bg-gray-800 hover:bg-gray-700 text-white">Terminar Gestión</Button>
+                          </div>
+                        </div>
+                      ) : isConfigMode ? (
+                        /* --- BRAND CONFIGURATION VIEW --- */
+                        <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                          <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-2">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                              <Palette className="w-5 h-5 text-gray-400" />
+                              Configuración de Marca
+                            </h3>
+                            <Button variant="ghost" size="sm" onClick={() => setIsConfigMode(false)} className="text-gray-400 hover:text-white">
+                              cerrar
+                            </Button>
+                          </div>
 
-                <div className="pt-4 border-t border-white/10 space-y-4">
-                  <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
-                    <Zap className="w-4 h-4" /> Optimización de Rendimiento
-                  </h3>
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl space-y-2">
-                    <p className="text-sm text-yellow-200/80">
-                      Si la página tarda más de 5 segundos en cargar, es probable que tengas imágenes antiguas guardadas de forma ineficiente.
-                    </p>
-                    <Button
-                      onClick={migrateBase64ToStorage}
-                      disabled={isOptimizing}
-                      className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold"
-                    >
-                      {isOptimizing ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Optimizando...</>
+                          <div className="grid grid-cols-1 gap-3">
+                            <Label className="text-gray-300 mb-2">Selecciona la identidad de marca para esta cotización:</Label>
+                            {Object.values(BRANDS).map((brand) => {
+                              const isSelected = (currentThemeData.brand_color || 'solimaq') === brand.id;
+                              return (
+                                <div
+                                  key={brand.id}
+                                  onClick={() => {
+                                    // Update brand color
+                                    const updates = { brand_color: brand.id };
+                                    // Auto-update logo if it was empty or using the other brand's default
+                                    const currentLogo = currentThemeData.logo;
+                                    const otherBrandId = Object.keys(BRANDS).find(id => id !== brand.id);
+                                    const otherBrandDefaultLogo = BRANDS[otherBrandId]?.defaultLogo;
+
+                                    // Simple logic: if no logo, or logo matches other brand's default, switch it.
+                                    // Or always ask? Let's just switch if empty for now to be safe, or just relying on manual upload.
+                                    // Actually, user said "cada marca podra tener su propio logo".
+                                    // Let's auto-set it if it's currently empty.
+                                    // Always update logo to match the brand when explicitly changed by user
+                                    updates.logo = brand.defaultLogo;
+                                    updateState(updates);
+                                  }}
+                                  className={cn(
+                                    "cursor-pointer flex items-center justify-between p-4 rounded-lg border transition-all hover:bg-gray-800",
+                                    isSelected ? "bg-gray-800 border-primary ring-1 ring-primary" : "bg-gray-950 border-gray-800"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div
+                                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm"
+                                      style={{ backgroundColor: `hsl(${brand.colors.primary})`, color: `hsl(${brand.colors.primaryForeground})` }}
+                                    >
+                                      {brand.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <h4 className={cn("font-bold", isSelected ? "text-white" : "text-gray-400")}>{brand.label}</h4>
+                                      <p className="text-xs text-gray-500">Identidad {brand.name}</p>
+                                    </div>
+                                  </div>
+                                  {isSelected && <CheckCircle className="w-5 h-5 text-primary" />}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="pt-2 border-t border-gray-800 flex justify-end">
+                            <Button onClick={() => setIsConfigMode(false)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                              <Check className="w-4 h-4 mr-2" /> Listo
+                            </Button>
+                          </div>
+                        </div>
                       ) : (
-                        "ACELERAR CARGA (MIGRAR A LA NUBE)"
+                        /* --- NORMAL EDIT VIEW --- */
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,auto] gap-4 items-end">
+                          <div className="flex-1 space-y-2">
+                            <Label className="text-primary font-semibold flex items-center gap-2">
+                              <Settings className="w-5 h-5" />
+                              {t('adminModal.activeQuotation') || "Cotización Activa"}
+                            </Label>
+
+                            {/* SIMPLE NATIVE-LIKE SELECTOR */}
+                            <Select value={activeTheme} onValueChange={handleThemeChange}>
+                              <SelectTrigger className="w-full bg-gray-900 border-gray-700 text-white h-10">
+                                <SelectValue placeholder="Seleccionar cotización..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-900 border-gray-700 text-white z-[6000] max-h-[300px]">
+                                {Object.values(themes || {})
+                                  .filter(t => t && t.theme_key && !String(t.theme_key).startsWith('deleted_'))
+                                  .sort((a, b) => (a?.project || "").localeCompare(b?.project || ""))
+                                  .map((theme) => (
+                                    <SelectItem key={theme.theme_key} value={theme.theme_key} className="focus:bg-gray-800 cursor-pointer">
+                                      <span className="flex items-center gap-2">
+                                        {theme.is_home && <Home className="w-3 h-3 text-primary" />}
+                                        {theme.is_template && <Star className="w-3 h-3 text-yellow-400" />}
+                                        {theme.project} <span className="text-gray-500 text-xs">({theme.client})</span>
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Config Button */}
+                          <Button
+                            variant="secondary"
+                            onClick={() => setIsConfigMode(true)}
+                            className="bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 h-10 px-3"
+                            title="Configuración de Marca"
+                          >
+                            <Palette className="w-4 h-4 md:mr-2" />
+                            <span className="hidden md:inline">Configuración</span>
+                          </Button>
+
+                          {/* Management Button */}
+                          <Button
+                            variant="secondary"
+                            onClick={() => setIsManageMode(true)}
+                            className="bg-gray-800 text-white hover:bg-gray-700 border border-gray-700 h-10 px-3"
+                            title="Gestionar Cotizaciones"
+                          >
+                            <Settings className="w-4 h-4 md:mr-2" />
+                            <span className="hidden md:inline">Gestionar</span>
+                          </Button>
+                        </div>
                       )}
-                    </Button>
-                  </div>
-                </div>
-                {/* Banner Settings */}
-                <div className="md:col-span-2 border-t border-gray-800 pt-6">
-                  <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2"><Announce className="w-5 h-5" />{t('adminModal.bannerSettings')}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="banner_text" className="text-gray-300">{t('adminModal.bannerText')}</Label>
-                      <Input id="banner_text" name="banner_text" value={currentThemeData.banner_text || ''} onChange={handleInputChange} placeholder="Texto del banner..." className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
                     </div>
-                    <div className="space-y-3">
-                      <Label htmlFor="banner_direction" className="text-gray-300 flex items-center gap-2"><MoveHorizontal className="w-4 h-4" />{t('adminModal.bannerDirection')}</Label>
-                      <Select value={currentThemeData.banner_direction} onValueChange={(val) => handleSelectChange('banner_direction', val)}>
-                        <SelectTrigger className="bg-gray-900 border-gray-700 text-white"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                          <SelectItem value="left-to-right" className="focus:bg-primary">{t('adminModal.leftToRight')}</SelectItem>
-                          <SelectItem value="right-to-left" className="focus:bg-primary">{t('adminModal.rightToLeft')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="sm:col-span-2 flex items-center space-x-2 pt-4">
-                      <Switch id="hide-banner" checked={currentThemeData.hide_banner} onCheckedChange={(checked) => handleSwitchChange('hide_banner', checked)} className="data-[state=checked]:bg-primary" />
-                      <Label htmlFor="hide-banner" className="flex items-center gap-2 text-gray-300"><EyeOff className="w-4 h-4" />{t('adminModal.hideBanner')}</Label>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="md:col-span-2 space-y-4"><Label className="text-primary mb-2 block flex items-center gap-2 font-semibold"><Scale className="w-5 h-5" />{t('adminModal.logoWidth')}: <span className="font-bold text-primary">{currentThemeData.logo_size}px</span></Label><Slider id="logoSize" name="logo_size" min={50} max={700} step={5} value={[currentThemeData.logo_size]} onValueChange={(val) => handleSliderChange('logo_size', val)} className="[&>.relative>.bg-primary]:bg-primary" /></div>
-                <div className="md:col-span-2 space-y-4"><Label className="text-primary mb-2 block flex items-center gap-2 font-semibold"><Minimize className="w-5 h-5" />{t('adminModal.bannerSize')}: <span className="font-bold text-primary">{currentThemeData.banner_scale}%</span></Label><Slider id="bannerScale" name="banner_scale" min={30} max={150} step={10} value={[currentThemeData.banner_scale]} onValueChange={(val) => handleSliderChange('banner_scale', val)} className="[&>.relative>.bg-primary]:bg-primary" /></div>
-                <div className="md:col-span-1"><Label htmlFor="initialDisplayTime" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><PlaySquare className="w-5 h-5" />{t('adminModal.initialTime')}</Label><Input id="initialDisplayTime" name="initial_display_time" type="number" value={currentThemeData.initial_display_time} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
-                <div className="md:col-span-1"><Label htmlFor="idleTimeout" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><Timer className="w-5 h-5" />{t('adminModal.idleTime')}</Label><Input id="idleTimeout" name="idle_timeout" type="number" value={currentThemeData.idle_timeout} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div><Label htmlFor="company" className="text-primary mb-2 block font-semibold">{t('adminModal.company')}</Label><Input id="company" name="company" value={currentThemeData.company || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
 
-                {/* Timeline - Simplified for brevity but functional */}
-                <div className="md:col-span-2 border-t border-gray-800 pt-6">
-                  <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2"><Clock className="w-5 h-5" />{t('adminModal.timelineSettings')}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
-                      <Label className="flex items-center gap-2 text-primary font-semibold"><CheckCircle className="w-4 h-4" />{t('adminModal.phase1')}</Label>
-                      <Input name="phase1_name" value={currentThemeData.phase1_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary mb-2" />
-                      <Input name="phase1_duration" type="number" value={currentThemeData.phase1_duration} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+
+                    <div className="flex flex-col gap-2 mt-4 p-3 rounded-xl border border-gray-800 bg-gray-950/50">
+                      <Label className="text-gray-400 text-xs font-semibold mb-1 uppercase tracking-wider">
+                        Visibilidad (Default)
+                      </Label>
+                      <button
+                        onClick={handleSetAsHome}
+                        disabled={isSaving}
+                        className={cn(
+                          "w-full py-2 px-4 rounded-lg font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-wide relative overflow-hidden group border",
+                          currentThemeData.is_home
+                            ? "bg-primary/20 text-primary border-primary shadow-[0_0_15px_rgba(155,212,40,0.3)]" // Active State (Sutil)
+                            : "bg-gray-900 text-gray-500 border-gray-800 hover:border-gray-600 hover:text-gray-300" // Inactive State
+                        )}
+                      >
+                        {/* Status Indicator */}
+                        <div className={cn(
+                          "w-2 h-2 rounded-full shadow-sm mr-1",
+                          currentThemeData.is_home ? "bg-primary animate-pulse shadow-[0_0_8px_currentColor]" : "bg-gray-700"
+                        )} />
+
+                        <Home className={cn("w-4 h-4 z-10", currentThemeData.is_home ? "fill-current" : "")} />
+                        <span className="z-10 relative">{currentThemeData.is_home ? "PROYECTO ACTIVO" : "Establecer como Activo"}</span>
+                      </button>
                     </div>
-                    <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
-                      <Label className="flex items-center gap-2 text-primary font-semibold"><Wrench className="w-4 h-4" />{t('adminModal.phase2')}</Label>
-                      <Input name="phase2_name" value={currentThemeData.phase2_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary mb-2" />
-                      <Input name="phase2_duration" type="number" value={currentThemeData.phase2_duration} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
-                    </div>
-                    <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
-                      <Label className="flex items-center gap-2 text-primary font-semibold"><Ship className="w-4 h-4" />{t('adminModal.phase3')}</Label>
-                      <Input name="phase3_name" value={currentThemeData.phase3_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary mb-2" />
-                      <Input name="phase3_duration" type="number" value={currentThemeData.phase3_duration} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
-                    </div>
-                    <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
-                      <Label className="flex items-center gap-2 text-primary font-semibold"><Truck className="w-4 h-4" />{t('adminModal.phase4')}</Label>
-                      <Input name="phase4_name" value={currentThemeData.phase4_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+
+                    <div><Label htmlFor="project" className="text-primary mb-2 block font-semibold">{t('adminModal.project')}</Label><Input id="project" name="project" value={currentThemeData.project || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div><Label htmlFor="client" className="text-primary mb-2 block font-semibold">{t('adminModal.client')}</Label><Input id="client" name="client" value={currentThemeData.client || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div><Label htmlFor="title" className="text-primary mb-2 block font-semibold">{t('adminModal.title')}</Label><Input id="title" name="title" value={currentThemeData.title || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div className="md:col-span-2"><Label htmlFor="subtitle" className="text-primary mb-2 block font-semibold">{t('adminModal.subtitle')}</Label><Input id="subtitle" name="subtitle" value={currentThemeData.subtitle || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div className="md:col-span-2"><Label htmlFor="slug" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><LinkIcon className="w-4 h-4" />{t('adminModal.slug')}</Label><Input id="slug" name="slug" value={currentThemeData.slug || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div className="md:col-span-2"><Label htmlFor="description" className="text-primary mb-2 block font-semibold">{t('adminModal.description')}</Label><textarea id="description" name="description" value={currentThemeData.description || ''} onChange={handleInputChange} onKeyDown={(e) => e.stopPropagation()} rows="3" className="flex w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50" /></div>
+
+                    <div className="pt-4 border-t border-white/10 space-y-4">
+                      <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+                        <Zap className="w-4 h-4" /> Optimización de Rendimiento
+                      </h3>
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl space-y-2">
+                        <p className="text-sm text-yellow-200/80">
+                          Si la página tarda más de 5 segundos en cargar, es probable que tengas imágenes antiguas guardadas de forma ineficiente.
+                        </p>
+                        <Button
+                          onClick={migrateBase64ToStorage}
+                          disabled={isOptimizing}
+                          className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold"
+                        >
+                          {isOptimizing ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Optimizando...</>
+                          ) : (
+                            "ACELERAR CARGA (MIGRAR A LA NUBE)"
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </TabsContent>
 
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-gray-800">
-                  <Button variant="outline" onClick={handleLogoUploadClick} disabled={isUploadingLogo} className="border-primary text-primary hover:bg-primary/10">{isUploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{isUploadingLogo ? t('adminModal.uploading') : t('adminModal.uploadLogo')}</Button>
-                  <Button variant="outline" onClick={handleFaviconUploadClick} disabled={isUploadingFavicon} className="border-primary text-primary hover:bg-primary/10">{isUploadingFavicon ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Image className="mr-2 h-4 w-4" />}{isUploadingFavicon ? t('adminModal.uploading') : t('adminModal.uploadFavicon')}</Button>
-                </div>
-                <input type="file" ref={logoFileInputRef} onChange={(e) => handleFileChange(e, 'logo')} accept="image/png, image/jpeg, image/svg+xml" className="hidden" />
-                <input type="file" ref={faviconFileInputRef} onChange={(e) => handleFileChange(e, 'favicon')} accept="image/x-icon, image/png, image/svg+xml" className="hidden" />
-              </div>
+                <TabsContent value="appearance" className="outline-none">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                    {/* Brand Setting */}
+                    <div className="md:col-span-2 pt-2 border-b border-gray-800 pb-6">
+                      <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2"><Palette className="w-5 h-5" />Identidad de Marca (Multimarca)</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <Label htmlFor="brand_color" className="text-gray-300">Seleccionar Marca Activa</Label>
+                          <div className="relative">
+                            <select
+                              value={currentThemeData.brand_color || 'solimaq'}
+                              onChange={(e) => handleSelectChange('brand_color', e.target.value)}
+                              className="flex h-10 w-full items-center justify-between rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
+                            >
+                              {Object.values(BRANDS).map(brand => (
+                                <option key={brand.id} value={brand.id} className="bg-gray-900 text-white">{brand.name}</option>
+                              ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                              <ChevronDown className="h-4 w-4 opacity-50" />
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-500">Ajusta los colores corporativos para interactuar y exportar.</p>
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label className="text-gray-300">Logotipo de la Marca</Label>
+                          <div className="flex items-center space-x-4">
+                            {currentThemeData.logo && (
+                              <div className="w-12 h-12 rounded overflow-hidden bg-white/5 border border-gray-700 flex items-center justify-center p-1">
+                                <img src={currentThemeData.logo} alt="Logo" className="max-w-full max-h-full object-contain" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <input type="file" ref={logoFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'logo')} />
+                              <Button type="button" onClick={handleLogoUploadClick} disabled={isUploadingLogo} className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600">
+                                {isUploadingLogo ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                                {isUploadingLogo ? 'Subiendo...' : 'Cambiar Logo'}
+                              </Button>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-gray-500">Este logo se usará en la interfaz y en los PDF generados.</p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Banner Settings */}
+                    <div className="md:col-span-2 pt-2">
+                      <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2"><Announce className="w-5 h-5" />{t('adminModal.bannerSettings')}</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <Label htmlFor="banner_text" className="text-gray-300">{t('adminModal.bannerText')}</Label>
+                          <Input id="banner_text" name="banner_text" value={currentThemeData.banner_text || ''} onChange={handleInputChange} placeholder="Texto del banner..." className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+                        </div>
+                        <div className="space-y-3">
+                          <Label htmlFor="banner_direction" className="text-gray-300 flex items-center gap-2"><MoveHorizontal className="w-4 h-4" />{t('adminModal.bannerDirection')}</Label>
+                          <div className="relative">
+                            <select
+                              value={currentThemeData.banner_direction || 'left-to-right'}
+                              onChange={(e) => handleSelectChange('banner_direction', e.target.value)}
+                              className="flex h-10 w-full items-center justify-between rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
+                            >
+                              <option value="left-to-right" className="bg-gray-900 text-white">{t('adminModal.leftToRight')}</option>
+                              <option value="right-to-left" className="bg-gray-900 text-white">{t('adminModal.rightToLeft')}</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                              <ChevronDown className="h-4 w-4 opacity-50" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="sm:col-span-2 flex items-center space-x-2 pt-4">
+                          <Switch id="hide-banner" checked={currentThemeData.hide_banner} onCheckedChange={(checked) => handleSwitchChange('hide_banner', checked)} className="data-[state=checked]:bg-primary" />
+                          <Label htmlFor="hide-banner" className="flex items-center gap-2 text-gray-300"><EyeOff className="w-4 h-4" />{t('adminModal.hideBanner')}</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2 space-y-4"><Label className="text-primary mb-2 block flex items-center gap-2 font-semibold"><Scale className="w-5 h-5" />{t('adminModal.logoWidth')}: <span className="font-bold text-primary">{currentThemeData.logo_size}px</span></Label><Slider id="logoSize" name="logo_size" min={50} max={700} step={5} value={[currentThemeData.logo_size]} onValueChange={(val) => handleSliderChange('logo_size', val)} className="[&>.relative>.bg-primary]:bg-primary" /></div>
+                    <div className="md:col-span-2 space-y-4"><Label className="text-primary mb-2 block flex items-center gap-2 font-semibold"><Minimize className="w-5 h-5" />{t('adminModal.bannerSize')}: <span className="font-bold text-primary">{currentThemeData.banner_scale}%</span></Label><Slider id="bannerScale" name="banner_scale" min={30} max={150} step={10} value={[currentThemeData.banner_scale]} onValueChange={(val) => handleSliderChange('banner_scale', val)} className="[&>.relative>.bg-primary]:bg-primary" /></div>
+                    <div className="md:col-span-1"><Label htmlFor="initialDisplayTime" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><PlaySquare className="w-5 h-5" />{t('adminModal.initialTime')}</Label><Input id="initialDisplayTime" name="initial_display_time" type="number" value={currentThemeData.initial_display_time} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+                    <div className="md:col-span-1"><Label htmlFor="idleTimeout" className="text-primary mb-2 block flex items-center gap-2 font-semibold"><Timer className="w-5 h-5" />{t('adminModal.idleTime')}</Label><Input id="idleTimeout" name="idle_timeout" type="number" value={currentThemeData.idle_timeout} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" /></div>
+
+                    {/* Timeline - Simplified for brevity but functional */}
+                    <div className="md:col-span-2 border-t border-gray-800 pt-6">
+                      <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2"><Clock className="w-5 h-5" />{t('adminModal.timelineSettings')}</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+                          <Label className="flex items-center gap-2 text-primary font-semibold"><CheckCircle className="w-4 h-4" />{t('adminModal.phase1')}</Label>
+                          <Input name="phase1_name" value={currentThemeData.phase1_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary mb-2" />
+                          <Input name="phase1_duration" type="number" value={currentThemeData.phase1_duration} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+                        </div>
+                        <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+                          <Label className="flex items-center gap-2 text-primary font-semibold"><Wrench className="w-4 h-4" />{t('adminModal.phase2')}</Label>
+                          <Input name="phase2_name" value={currentThemeData.phase2_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary mb-2" />
+                          <Input name="phase2_duration" type="number" value={currentThemeData.phase2_duration} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+                        </div>
+                        <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+                          <Label className="flex items-center gap-2 text-primary font-semibold"><Ship className="w-4 h-4" />{t('adminModal.phase3')}</Label>
+                          <Input name="phase3_name" value={currentThemeData.phase3_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary mb-2" />
+                          <Input name="phase3_duration" type="number" value={currentThemeData.phase3_duration} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+                        </div>
+                        <div className="space-y-3 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+                          <Label className="flex items-center gap-2 text-primary font-semibold"><Truck className="w-4 h-4" />{t('adminModal.phase4')}</Label>
+                          <Input name="phase4_name" value={currentThemeData.phase4_name} onChange={handleInputChange} className="bg-gray-900 border-gray-700 text-white focus:border-primary" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-gray-800">
+                      <Button variant="outline" onClick={handleLogoUploadClick} disabled={isUploadingLogo} className="border-primary text-primary hover:bg-primary/10">{isUploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{isUploadingLogo ? t('adminModal.uploading') : t('adminModal.uploadLogo')}</Button>
+                      <Button variant="outline" onClick={handleFaviconUploadClick} disabled={isUploadingFavicon} className="border-primary text-primary hover:bg-primary/10">{isUploadingFavicon ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Image className="mr-2 h-4 w-4" />}{isUploadingFavicon ? t('adminModal.uploading') : t('adminModal.uploadFavicon')}</Button>
+                    </div>
+                    <input type="file" ref={logoFileInputRef} onChange={(e) => handleFileChange(e, 'logo')} accept="image/png, image/jpeg, image/svg+xml" className="hidden" />
+                    <input type="file" ref={faviconFileInputRef} onChange={(e) => handleFileChange(e, 'favicon')} accept="image/x-icon, image/png, image/svg+xml" className="hidden" />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="security" className="outline-none pb-6">
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 space-y-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-primary mb-2 flex items-center gap-2"><Key className="w-5 h-5" />Llaves de Acceso y Roles</h3>
+                      <p className="text-gray-400 text-sm mb-4">Configura las contraseñas primarias para que los usuarios puedan ingresar en el Portal de Autenticación inicial.</p>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div>
+                        <Label className="text-primary mb-1 block font-semibold flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                          Clave Master (Administrador)
+                        </Label>
+                        <p className="text-xs text-gray-500 mb-2">Da acceso total, permitiendo entrar y editar desde este panel.</p>
+                        <Input value={masterKey} onChange={(e) => setMasterKey(e.target.value)} placeholder="Ej. ADMIN600" className="bg-gray-950 border-gray-700 text-white focus:border-emerald-500" />
+                      </div>
+                      <div className="pt-2 border-t border-gray-800"></div>
+                      <div>
+                        <Label className="text-primary mb-1 block font-semibold flex items-center gap-2">
+                          <EyeOff className="w-4 h-4 text-blue-400" />
+                          Clave de Solo Lectura (Cliente/Visitante)
+                        </Label>
+                        <p className="text-xs text-gray-500 mb-2">Permite entrar para ver las cotizaciones y planos, pero oculta el panel de administración.</p>
+                        <Input value={viewKey} onChange={(e) => setViewKey(e.target.value)} placeholder="Ej. MIRAMAR600" className="bg-gray-950 border-gray-700 text-white focus:border-blue-500" />
+                      </div>
+                    </div>
+
+                    <div className="pt-6 mt-6 border-t border-gray-800">
+                      <h3 className="text-lg font-bold text-primary mb-2 flex items-center gap-2"><Settings className="w-5 h-5" />Integración API</h3>
+                      <p className="text-gray-400 text-sm mb-4">Ingresa tu API Key si deseas habilitar funciones de Inteligencia Artificial para este entorno de forma segura.</p>
+                      <div>
+                        <Label className="text-gray-300 mb-1 block font-semibold">OpenAI API Key</Label>
+                        <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." className="bg-gray-950 border-gray-700 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div className="p-6 border-t border-gray-800 bg-[#0f0f0f] space-y-4">

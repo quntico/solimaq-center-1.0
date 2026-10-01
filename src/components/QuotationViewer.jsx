@@ -76,18 +76,18 @@ const componentMap = {
 const defaultSections = [
   { id: 'descripcion', label: 'Descripción', icon: 'FileText', isVisible: true, component: 'descripcion' },
   { id: 'normatividad', label: 'Normatividad', icon: 'ShieldCheck', isVisible: true, component: 'normatividad' },
-  { 
-    id: 'master_plan', 
-    label: 'Master Plan', 
-    icon: 'Target', 
-    isVisible: true, 
+  {
+    id: 'master_plan',
+    label: 'Master Plan',
+    icon: 'Target',
+    isVisible: true,
     component: 'master_plan'
   },
-  { 
-    id: 'balance_masas', 
-    label: 'Balance de Masas', 
-    icon: 'Calculator', 
-    isVisible: true, 
+  {
+    id: 'balance_masas',
+    label: 'Balance de Masas',
+    icon: 'Calculator',
+    isVisible: true,
     component: 'master_plan'
   },
   { id: 'ficha', label: 'Ficha Técnica', icon: 'ListChecks', isVisible: true, component: 'ficha' },
@@ -289,6 +289,8 @@ const QuotationViewer = ({
     setIsAdminAuthenticated(false);
     setIsEditorMode(false);
     localStorage.removeItem('isAdminAuthenticated');
+    localStorage.removeItem('solimaq_secure_access');
+    window.location.reload();
   };
 
 

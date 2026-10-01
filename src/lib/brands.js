@@ -19,16 +19,33 @@ export const BRANDS = {
         name: 'Solifood',
         label: 'Solifood Industrial',
         colors: {
-            // #FFC107 (Amber) or similar from image. 
-            // Using a vibrant yellow/orange: #FBBF24 (Amber 400) -> 38 92% 56%
-            // Let's try #FACC15 (Yellow 400) -> 48 96% 53%
             primary: '48 96% 53%',
-            // Darker accent
             secondary: '38 92% 50%',
-            // Dark text on yellow for readability
             primaryForeground: '222.2 47.4% 11.2%',
         },
         defaultLogo: '/solifood-logo.png'
+    },
+    smq: {
+        id: 'smq',
+        name: 'SMQ',
+        label: 'SMQ Engineering',
+        colors: {
+            primary: '215 100% 50%',
+            secondary: '215 100% 30%',
+            primaryForeground: '0 0% 100%',
+        },
+        defaultLogo: '/smq-logo.png'
+    },
+    msw: {
+        id: 'msw',
+        name: 'MSW',
+        label: 'MSW Industrial',
+        colors: {
+            primary: '0 100% 50%', // Red as placeholder if not defined
+            secondary: '0 100% 30%',
+            primaryForeground: '0 0% 100%',
+        },
+        defaultLogo: '/msw-logo.png'
     }
 };
 

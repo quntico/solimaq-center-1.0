@@ -5,6 +5,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import QuotationViewer from '@/components/QuotationViewer';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import miramarData from '../../miramar_data.json';
 
 const ClientLayout = () => {
   const { slug } = useParams();
@@ -24,23 +25,12 @@ const ClientLayout = () => {
 
       setLoading(true);
       try {
-        // 1. Try Exact Match
-        let { data, error } = await supabase
-          .from('quotations')
-          .select('*')
-          .eq('slug', slug)
-          .single();
+        let data = miramarData.find(item => item.slug === slug);
+        let error = data ? null : { code: 'PGRST116' };
 
-        // 2. If 'Row not found' (PGRST116), try lowercase fallback
         if (error && error.code === 'PGRST116') {
-          const { data: lowerData, error: lowerError } = await supabase
-            .from('quotations')
-            .select('*')
-            .eq('slug', slug.toLowerCase())
-            .single();
-
-          // If fallback succeeded, use it
-          if (!lowerError && lowerData) {
+          const lowerData = miramarData.find(item => item.slug?.toLowerCase() === slug?.toLowerCase());
+          if (lowerData) {
             data = lowerData;
             error = null;
           }
@@ -54,7 +44,6 @@ const ClientLayout = () => {
         } else {
           setError(t('clientLayout.notFound'));
         }
-
       } catch (err) {
         console.error('Error fetching quotation:', err);
         if (err.message && (err.message.includes('fetch') || err.message.includes('network'))) {

@@ -87,8 +87,8 @@ const Sidebar = ({
   const updateSectionLabel = (id, newLabel) => {
     const newSections = sections.map(s => {
       if (s.id === id) {
-        return { 
-          ...s, 
+        return {
+          ...s,
           label: newLabel,
           content: {
             ...(s.content || {}),
@@ -204,46 +204,55 @@ const Sidebar = ({
             </nav>
           </div>
 
-          {isAdminView && (
-            <div className="p-4 border-t border-white/5 space-y-2 bg-black/40 backdrop-blur-xl z-30">
-              {isAdminAuthenticated && (
-                <>
-                  <button
-                    onClick={onCotizadorClick}
-                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeSection === 'cotizador_page' ? 'bg-primary text-white' : 'hover:bg-gray-800'}`}
-                  >
-                    <Calculator size={20} />
-                    {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.cotizadorMode')}</span>}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsEditorMode(prev => !prev);
-                    }}
-                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${isEditorMode ? 'bg-green-500/10 text-green-400' : 'hover:bg-gray-800'}`}
-                  >
-                    <Edit size={20} />
-                    {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.editorMode')}</span>}
-                  </button>
-                  <button
-                    onClick={onAdminClick}
-                    className="w-full flex items-center p-3 rounded-lg hover:bg-gray-800 transition-colors"
-                  >
-                    <Settings size={20} />
-                    {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.admin')}</span>}
-                  </button>
-                </>
-              )}
+          <div className="p-4 border-t border-white/5 space-y-2 bg-black/40 backdrop-blur-xl z-30">
+            {isAdminView && isAdminAuthenticated && (
+              <>
+                <button
+                  onClick={onCotizadorClick}
+                  className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeSection === 'cotizador_page' ? 'bg-primary text-white' : 'hover:bg-gray-800'}`}
+                >
+                  <Calculator size={20} />
+                  {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.cotizadorMode')}</span>}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsEditorMode(prev => !prev);
+                  }}
+                  className={`w-full flex items-center p-3 rounded-lg transition-colors ${isEditorMode ? 'bg-green-500/10 text-green-400' : 'hover:bg-gray-800'}`}
+                >
+                  <Edit size={20} />
+                  {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.editorMode')}</span>}
+                </button>
+                <button
+                  onClick={onAdminClick}
+                  className="w-full flex items-center p-3 rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  <Settings size={20} />
+                  {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.admin')}</span>}
+                </button>
+              </>
+            )}
+
+            {isAdminView && !isAdminAuthenticated && (
               <button
-                onClick={isAdminAuthenticated ? onAdminLogout : onAdminLogin}
+                onClick={onAdminLogin}
                 className="w-full flex items-center p-3 rounded-lg hover:bg-gray-800 transition-colors"
               >
-                {isAdminAuthenticated ? <LogOut size={20} className="text-red-500" /> : <Shield size={20} />}
-                {!isCollapsed && <span className="ml-4 font-semibold">{isAdminAuthenticated ? t('sidebar.logout') : t('sidebar.login')}</span>}
+                <Shield size={20} />
+                {!isCollapsed && <span className="ml-4 font-semibold">{t('sidebar.login')}</span>}
               </button>
-            </div>
-          )}
+            )}
+
+            <button
+              onClick={onAdminLogout}
+              className="w-full flex items-center p-3 rounded-lg hover:bg-[rgba(239,68,68,0.1)] transition-colors text-red-500"
+            >
+              <LogOut size={20} />
+              {!isCollapsed && <span className="ml-4 font-semibold">Cerrar Sesión</span>}
+            </button>
+          </div>
 
           {/* Botón de Toggle Flotante (Flecha) */}
           <button

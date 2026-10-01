@@ -4,6 +4,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import QuotationViewer from '@/components/QuotationViewer';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/components/ui/use-toast';
+import miramarData from '../../miramar_data.json';
 
 const AdminLayout = () => {
   const [appIsLoading, setAppIsLoading] = useState(true);
@@ -27,13 +28,8 @@ const AdminLayout = () => {
     if (!allThemes[newThemeKey]?.sections_config || allThemes[newThemeKey]?.isStub) {
       console.log("[AdminLayout] Lazy loading full data for:", newThemeKey);
       try {
-        const { data, error: fetchError } = await supabase
-          .from('quotations')
-          .select('*')
-          .eq('theme_key', newThemeKey)
-          .single();
-
-        if (fetchError) throw fetchError;
+        const data = miramarData.find(item => item.theme_key === newThemeKey);
+        if (!data) throw new Error("Theme not found in local data");
 
         setAllThemes(prev => ({
           ...prev,
@@ -55,14 +51,18 @@ const AdminLayout = () => {
       setError(null);
 
       try {
-        // 1. Fetch all quotations metadata
-        const { data: allData, error: allError } = await supabase
-          .from('quotations')
-          .select('id, theme_key, project, client, company, is_home, is_template, updated_at, slug');
-
-        if (allError) {
-          throw new Error(`${t('adminLayout.loadError')} ${allError.message}`);
-        }
+        // 1. Fetch all quotations metadata (from local JSON)
+        const allData = miramarData.map(item => ({
+          id: item.id,
+          theme_key: item.theme_key,
+          project: item.project,
+          client: item.client,
+          company: item.company,
+          is_home: item.is_home,
+          is_template: item.is_template,
+          updated_at: item.updated_at,
+          slug: item.slug
+        }));
 
         const themesObject = {};
         allData.filter(item => !item.theme_key.startsWith('deleted_')).forEach(item => {
@@ -89,16 +89,13 @@ const AdminLayout = () => {
           targetThemeKey = homeStub ? homeStub.theme_key : (allData[0]?.theme_key || null);
         }
 
-        // 3. Fetch Full Data for Target
+        // 3. Fetch Full Data for Target (from local JSON)
         if (targetThemeKey) {
           console.log("[AdminLayout] Loading target theme:", targetThemeKey);
           setActiveTheme(targetThemeKey);
 
-          const { data: fullData, error: fullError } = await supabase
-            .from('quotations')
-            .select('*')
-            .eq('theme_key', targetThemeKey)
-            .single();
+          const fullData = miramarData.find(item => item.theme_key === targetThemeKey);
+          const fullError = fullData ? null : new Error("Not found");
 
           if (!fullError && fullData) {
             setInitialQuotationData(fullData);
@@ -140,11 +137,14 @@ const AdminLayout = () => {
     </div>
   );
 
+  const accessRole = localStorage.getItem('solimaq_secure_access');
+  const isActuallyAdmin = accessRole === 'master' || accessRole === 'granted';
+
   return (
     <QuotationViewer
       initialQuotationData={initialQuotationData}
       allThemes={allThemes}
-      isAdminView={true}
+      isAdminView={isActuallyAdmin}
       activeThemeProp={activeTheme}
       onThemeChange={handleThemeSwitch}
     />

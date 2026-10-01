@@ -134,6 +134,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [exportTC, setExportTC] = useState(18.5);
     const [exportIncludeAmount, setExportIncludeAmount] = useState(false);
     const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
+    const [exportBrandColor, setExportBrandColor] = useState(() => quotationData?.brand_color || 'solimaq');
+    const [exportWebsite, setExportWebsite] = useState(() => quotationData?.brand_color === 'smq' ? 'www.smq.mx' :
+(quotationData?.brand_color === 'solifood' ? 'www.solifood.com' : (quotationData?.brand_color === 'msw' ? 'www.msw.mx' : 'www.solimaq.site')));
+    const [exportLogoUrl, setExportLogoUrl] = useState(() => quotationData?.logo || "/solimaq_logo.png");
+    const [isUploadingExportLogo, setIsUploadingExportLogo] = useState(false);
+    const exportLogoInputRef = React.useRef(null);
     const [backupSections, setBackupSections] = useState(null);
     const [isRestoratable, setIsRestoratable] = useState(false);
     const [preloadedLogo, setPreloadedLogo] = useState(null);
@@ -143,7 +149,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [availableProjects, setAvailableProjects] = useState([]);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isLoadingProjects, setIsLoadingProjects] = useState(false);
-    
+
     // Cálculo de Masas
     const [isMassCalcModalOpen, setIsMassCalcModalOpen] = useState(false);
     const [totalDailyTons, setTotalDailyTons] = useState(2250);
@@ -184,18 +190,27 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     ]);
 
     const updateItemData = (id, field, value) => {
-        setWasteComposition(prev => prev.map(item => 
+        setWasteComposition(prev => prev.map(item =>
             item.id === id ? { ...item, [field]: value } : item
         ));
     };
 
     const handleExportMassPDF = async () => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const primaryColor = '#A3E635';
+
+        // Brand Resolution
+        let primaryColor = '#A3E635';
+        let finalUrl = exportLogoUrl || "/solimaq_logo_white.png";
+
+        if (exportBrandColor === 'smq') {
+            primaryColor = '#007BFF'; // Azul SMQ
+        } else if (exportBrandColor === 'solifood') {
+            primaryColor = '#FACC15'; // Amarillo Solifood
+        }
+
         const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-        
-        // 1. CARGAR LOGO BLANCO
-        const finalUrl = "/solimaq_logo_white.png";
+
+        // 1. CARGAR LOGO ACTIVO
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -224,7 +239,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFont("helvetica", "bold");
             doc.setFontSize(22);
             doc.text("RADIOGRAFÍA DE MASAS", 190, 18, { align: 'right' });
-            
+
             doc.setFontSize(9);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(150, 150, 150);
@@ -234,7 +249,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFont("helvetica", "normal");
             doc.setTextColor(255, 255, 255);
             doc.text(`${String(projectName || CLOUD_SLUG).toUpperCase()}`, valX, 26);
-            
+
             doc.setFont("helvetica", "bold");
             doc.setTextColor(150, 150, 150);
             doc.text(`FECHA:`, labelX, 31);
@@ -249,7 +264,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFontSize(8);
             doc.setFont("helvetica", "bold");
             doc.text("CAPACIDAD INSTALADA TOTAL", 30, 68);
-            
+
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(28);
             const tonsText = totalDailyTons.toLocaleString();
@@ -271,23 +286,23 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             wasteComposition.forEach(item => {
                 const sliceAngle = (item.percent / 100) * (2 * Math.PI);
                 doc.setFillColor(item.color);
-                
+
                 const segments = 20;
                 const path = [];
-                for(let i=0; i<=segments; i++){
-                    const ang = currentAngle + (sliceAngle * (i/segments));
+                for (let i = 0; i <= segments; i++) {
+                    const ang = currentAngle + (sliceAngle * (i / segments));
                     path.push({
                         x: centerX + Math.cos(ang) * radius,
                         y: centerY + Math.sin(ang) * radius
                     });
                 }
-                
+
                 // Real sector drawing (Fill only to avoid lines)
-                for(let i=0; i<segments; i++){
+                for (let i = 0; i < segments; i++) {
                     doc.triangle(
                         centerX, centerY,
                         path[i].x, path[i].y,
-                        path[i+1].x, path[i+1].y,
+                        path[i + 1].x, path[i + 1].y,
                         'F'
                     );
                 }
@@ -355,7 +370,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 head: [['#', 'FRACCIÓN', '%', 'TON/D', 'TON/H', 'P. COMP. ($/T)', 'P. RECIC. ($/T)', 'UTILIDAD ($/D)']],
                 body: tableRows,
                 theme: 'striped',
-                headStyles: { fillColor: [30,30,30], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 7 },
+                headStyles: { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 7 },
                 styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                 columnStyles: {
                     0: { halign: 'center', cellWidth: 8 },
@@ -393,7 +408,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const updateItemColor = (id, newColor) => {
 
-        setWasteComposition(prev => prev.map(item => 
+        setWasteComposition(prev => prev.map(item =>
             item.id === id ? { ...item, color: newColor } : item
         ));
     };
@@ -468,9 +483,21 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         if (quotationData) {
             if (quotationData.client) setClientName(quotationData.client);
             if (quotationData.project) setProjectName(quotationData.project);
-            if (quotationData.logo) setLogoUrl(quotationData.logo);
+            if (quotationData.logo) {
+                setLogoUrl(quotationData.logo);
+                // Si el usuario no ha puesto un logo de exportación personalizado o acaba de cargar, sincroniza el global.
+                setExportLogoUrl(quotationData.logo);
+            }
+            if (quotationData.brand_color) {
+                // Always sync so AdminModal changes are reflected immediately
+                setExportBrandColor(quotationData.brand_color);
+                if (quotationData.brand_color === 'smq') setExportWebsite('www.smq.mx');
+                else if (quotationData.brand_color === 'solifood') setExportWebsite('www.solifood.com');
+                else if (quotationData.brand_color === 'msw') setExportWebsite('www.msw.mx');
+                else setExportWebsite('www.solimaq.site');
+            }
         }
-    }, [quotationData?.client, quotationData?.project, quotationData?.logo]);
+    }, [quotationData?.client, quotationData?.project, quotationData?.logo, quotationData?.brand_color]);
 
     useEffect(() => {
         if (!isHydrated) return;
@@ -752,17 +779,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         }, 0);
         const mxnSinIvaVenta = totalVenta * tipoCambio;
         const ivaVenta = mxnSinIvaVenta * (ivaPct / 100);
-        
+
         const utilidadUSD = totalVenta - totalCosto;
         const utilidadMXN = utilidadUSD * tipoCambio;
         const utilidadPromedioPct = totalCosto > 0 ? (utilidadUSD / totalCosto) * 100 : 0;
 
-        return { 
-            totalVenta, 
+        return {
+            totalVenta,
             totalCosto,
-            totalKW, 
-            mxnSinIvaVenta, 
-            ivaVenta, 
+            totalKW,
+            mxnSinIvaVenta,
+            ivaVenta,
             totalVentaMXN: mxnSinIvaVenta + ivaVenta,
             utilidadUSD,
             utilidadMXN,
@@ -1126,7 +1153,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const scrollToItem = (sId, iId) => {
         // Expandir la sección si está cerrada
         setSections(prev => prev.map(s => s.id === sId ? { ...s, collapsed: false } : s));
-        
+
         setTimeout(() => {
             const el = document.getElementById(`item-${iId}`);
             if (el) {
@@ -1384,7 +1411,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 .from('quotations')
                 .select('slug, project, client, updated_at')
                 .order('updated_at', { ascending: false });
-            
+
             if (error) throw error;
             const filtered = data.filter(q => q.slug && !q.slug.startsWith('mp-'));
             setAvailableProjects(filtered);
@@ -1408,7 +1435,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     .select('sections_config')
                     .eq('slug', s)
                     .single();
-                
+
                 if (!error && data?.sections_config) {
                     let importedSections = null;
                     const config = data.sections_config;
@@ -1417,8 +1444,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     } else if (Array.isArray(config)) {
                         importedSections = config;
                     } else if (Array.isArray(config)) {
-                         const mpSection = config.find(sec => sec.id === 'master_plan');
-                         if (mpSection?.content?.sections) importedSections = mpSection.content.sections;
+                        const mpSection = config.find(sec => sec.id === 'master_plan');
+                        if (mpSection?.content?.sections) importedSections = mpSection.content.sections;
                     }
 
                     if (importedSections?.length > 0) {
@@ -1485,13 +1512,22 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateDirectPDF = async (customFilename = "", customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
+        let { headerBg, headerText, titleText, logoPos, colWidths, fontSize, rowHeight, imgSize, metaPos, headerBox } = pdfSettings;
+
+        // Auto-assign colors if a specific brand is selected implicitly or override local settings
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF'; // Azul SMQ
+            headerText = '#FFFFFF';
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15'; // Amarillo Solifood
+            headerText = '#000000';
+        }
 
         const activeClient = customClient || clientName;
         const activeProject = customProject || projectName;
 
-        // Always use the physical logo from public folder for exports to ensure it's the latest dark version
-        const finalUrl = "/solimaq_logo.png";
+        // Use the dynamically selected brand logo
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
 
         // Load image first to ensure it's available and dimensions are known
         const logoImg = await new Promise((resolve) => {
@@ -1598,7 +1634,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     drawHeader();
                     doc.setFontSize(7);
                     doc.setTextColor(180, 180, 180);
-                    doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site`, 282, 202, { align: 'right' });
+                    doc.text(`Página ${doc.internal.getNumberOfPages()} | ${exportWebsite}`, 282, 202, { align: 'right' });
                 },
                 didDrawCell: (data) => {
                     if (data.section === 'body' && data.column.index === 3) {
@@ -1641,13 +1677,23 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateEquipmentList50PDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
         const titleText = customTitle || "LISTADO DE EQUIPOS (50% UTILIDAD)";
 
         const activeClient = customClient || clientName;
         const activeProject = customProject || projectName;
 
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
 
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
@@ -1702,7 +1748,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             let grandTotalKw = 0;
             let totalVenta50 = 0;
             let activeModuleCounter = 0;
-            
+
             sections.forEach((s, sIdx) => {
                 if (s.activo === false) return;
                 activeModuleCounter++;
@@ -1720,7 +1766,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     {
                         content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
                         colSpan: 8,
-                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                        styles: { fillColor: typeof moduleColorArray !== 'undefined' ? moduleColorArray : [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
                     }
                 ]);
 
@@ -1736,19 +1782,19 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                     moduleTableData.push([
                         `${displayModuleNum}.${idx + 1}`,
-                    String(it.equipo || "N/A").toUpperCase(),
-                    String(it.descripcion || ""),
-                    it.qty,
-                    kwU > 0 ? kwU.toFixed(1) : "-",
-                    kwT > 0 ? kwT.toFixed(1) : "-",
-                    money(ventaUnit50),
-                    money(subTotalItem)
+                        String(it.equipo || "N/A").toUpperCase(),
+                        String(it.descripcion || ""),
+                        it.qty,
+                        kwU > 0 ? kwU.toFixed(1) : "-",
+                        kwT > 0 ? kwT.toFixed(1) : "-",
+                        money(ventaUnit50),
+                        money(subTotalItem)
                     ]);
                 });
 
                 const moduleKw = activeItems.reduce((acc, it) => acc + (n(it.potencia) * n(it.qty)), 0);
                 const moduleTotal50 = activeItems.reduce((acc, it) => acc + (n(it.costoUSD) * 1.50 * n(it.qty)), 0);
-                
+
                 moduleTableData.push([
                     {
                         content: `RESUMEN MÓDULO ${displayModuleNum}:  ${activeItems.length} EQUIPOS  |  POTENCIA: ${moduleKw.toFixed(1)} KW  |  SUBTOTAL (50%): ${money(moduleTotal50)} USD`,
@@ -1779,7 +1825,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         drawHeader();
                         doc.setFontSize(7);
                         doc.setTextColor(150, 150, 150);
-                        doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site | Utilidad 50% considerada`, 148.5, 204, { align: 'center' });
+                        doc.text(`Página ${doc.internal.getNumberOfPages()} | ${exportWebsite} | Utilidad 50% considerada`, 148.5, 204, { align: 'center' });
                     }
                 });
 
@@ -1800,7 +1846,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(255, 255, 255);
-            
+
             doc.text("POTENCIA TOTAL INSTALADA:", 215, finalY, { align: 'right' });
             doc.text(grandTotalKw.toFixed(2) + " KW", 280, finalY, { align: 'right' });
 
@@ -1822,14 +1868,24 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateEquipmentListPDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
         const titleText = customTitle || pdfSettings.titleText;
 
         const activeClient = customClient || clientName;
         const activeProject = customProject || projectName;
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
 
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
@@ -1907,7 +1963,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     {
                         content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
                         colSpan: 8,
-                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                        styles: { fillColor: typeof moduleColorArray !== 'undefined' ? moduleColorArray : [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
                     }
                 ]);
 
@@ -1963,7 +2019,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         drawHeader();
                         doc.setFontSize(7);
                         doc.setTextColor(150, 150, 150);
-                        doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site`, 148.5, 204, { align: 'center' });
+                        doc.text(`Página ${doc.internal.getNumberOfPages()} | ${exportWebsite}`, 148.5, 204, { align: 'center' });
                     }
                 });
 
@@ -1988,7 +2044,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(255, 255, 255);
-            
+
             // Etiquetas cerca de los totales (alineado a x:215)
             doc.text("POTENCIA TOTAL INSTALADA:", 215, finalY, { align: 'right' });
             doc.text(grandTotalKw.toFixed(2) + " KW", 280, finalY, { align: 'right' });
@@ -2012,14 +2068,24 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateEquipmentListNoAmountPDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "", includeAmount = false) => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
         const titleText = customTitle || "LISTADO DE EQUIPOS";
 
         const activeClient = customClient || clientName;
         const activeProject = customProject || projectName;
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
 
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
@@ -2091,7 +2157,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     {
                         content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
                         colSpan: 6,
-                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                        styles: { fillColor: typeof moduleColorArray !== 'undefined' ? moduleColorArray : [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
                     }
                 ]);
 
@@ -2139,7 +2205,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         drawHeader();
                         doc.setFontSize(7);
                         doc.setTextColor(150, 150, 150);
-                        doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site`, 148.5, 204, { align: 'center' });
+                        doc.text(`Página ${doc.internal.getNumberOfPages()} | ${exportWebsite}`, 148.5, 204, { align: 'center' });
                     }
                 });
 
@@ -2162,7 +2228,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(255, 255, 255);
-            
+
             if (includeAmount) {
                 doc.text("POTENCIA TOTAL INSTALADA:", 215, finalY, { align: 'right' });
                 doc.text(grandTotalKw.toFixed(2) + " KW", 280, finalY, { align: 'right' });
@@ -2189,7 +2255,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateEquipmentListMXNPDF = async (customFilename = "", customTitle = "", customTC = null, customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
         const titleText = customTitle || "LISTADO DE EQUIPOS (MXN)";
         const tc = n(customTC || tipoCambio);
 
@@ -2201,7 +2277,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             return "$" + val.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN";
         };
 
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -2268,7 +2344,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     {
                         content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
                         colSpan: 8,
-                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                        styles: { fillColor: typeof moduleColorArray !== 'undefined' ? moduleColorArray : [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
                     }
                 ]);
 
@@ -2368,7 +2444,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateEquipmentCostRealPDF = async (customFilename = "", customTitle = "", customTC = null, customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
         const titleText = customTitle || "COSTO REAL DE EQUIPOS";
         const tc = n(customTC || tipoCambio);
 
@@ -2384,7 +2470,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             return "$" + val.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MXN";
         };
 
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -2455,7 +2541,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     {
                         content: `MÓDULO ${displayModuleNum}: ${s.titulo}`,
                         colSpan: 7,
-                        styles: { fillColor: [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
+                        styles: { fillColor: typeof moduleColorArray !== 'undefined' ? moduleColorArray : [155, 212, 40], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left', minCellHeight: 12, fontSize: 12 }
                     }
                 ]);
 
@@ -2511,7 +2597,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         drawHeader();
                         doc.setFontSize(7);
                         doc.setTextColor(150, 150, 150);
-                        doc.text(`Página ${doc.internal.getNumberOfPages()} | www.solimaq.site`, 148.5, 204, { align: 'center' });
+                        doc.text(`Página ${doc.internal.getNumberOfPages()} | ${exportWebsite}`, 148.5, 204, { align: 'center' });
                     }
                 });
 
@@ -2535,7 +2621,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             doc.setFontSize(11);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(255, 255, 255);
-            
+
             doc.text("TC UTILIZADO:", 215, finalY - 2, { align: 'right' });
             doc.text(tc.toFixed(2) + " MXN", 280, finalY - 2, { align: 'right' });
 
@@ -2560,7 +2646,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateInternalRadiographyPDF = async (customFilename = "", customTitle = "", customTC = null, customClient = "", customProject = "") => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
         const titleText = customTitle || "RADIOGRAFÍA INTERNA";
         const finalTC = n(customTC || tipoCambio);
 
@@ -2568,7 +2664,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         const activeProject = customProject || projectName;
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
 
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
@@ -2772,10 +2868,20 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const generateModulePDF = async (s, sIdx) => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const { headerBg, headerText } = pdfSettings;
+        let { headerBg, headerText } = pdfSettings;
+        let moduleColorArray = [155, 212, 40];
+        if (exportBrandColor === 'smq') {
+            headerBg = '#007BFF';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'solifood') {
+            headerBg = '#FACC15';
+            headerText = '#000000';
+            moduleColorArray = [250, 204, 21];
+        }
 
         // Always use the physical logo from public folder for exports to ensure it's the latest dark version
-        const finalUrl = "/solimaq_logo.png";
+        const finalUrl = exportLogoUrl || "/solimaq_logo.png";
 
         const logoImg = await new Promise((resolve) => {
             const img = new Image();
@@ -2862,7 +2968,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     drawHeader();
                     doc.setFontSize(7);
                     doc.setTextColor(150, 150, 150);
-                    doc.text(`Módulo ${sIdx + 1} | Página ${data.pageNumber} | www.solimaq.site`, 105, 285, { align: 'center' });
+                    doc.text(`Módulo ${sIdx + 1} | Página ${data.pageNumber} | ${exportWebsite}`, 105, 285, { align: 'center' });
                 }
             });
 
@@ -2892,6 +2998,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
     const triggerExportWithFilename = (type) => {
         setPdfExportType(type);
+
         let defaultName = "";
 
         if (type === 'master') {
@@ -2912,15 +3019,36 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
         setExportFilename(defaultName);
         setExportTitle(
-            type === 'radiography' ? "RADIOGRAFÍA INTERNA" : 
-            type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" : 
-            type === 'equipment-cost-real' ? "COSTO REAL DE EQUIPOS" : 
-            pdfSettings.titleText
+            type === 'radiography' ? "RADIOGRAFÍA INTERNA" :
+                type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" :
+                    type === 'equipment-cost-real' ? "COSTO REAL DE EQUIPOS" :
+                        pdfSettings.titleText
         );
         setExportClient(clientName);
         setExportProject(projectName);
         setExportTC(tipoCambio);
         setIsExportFilenameModalOpen(true);
+    };
+
+    const handleExportLogoChange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        setIsUploadingExportLogo(true);
+        try {
+            const bucketName = await getActiveBucket();
+            const fileName = `logos/export-${Date.now()}-${sanitizeFileName(file.name)}`;
+            const { error: uploadError } = await supabase.storage.from(bucketName).upload(fileName, file, { upsert: true });
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(fileName);
+            setExportLogoUrl(publicUrl);
+            toast({ title: 'Logo de Exportación Listo 🖼️' });
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error al subir logo", variant: "destructive" });
+        } finally {
+            setIsUploadingExportLogo(false);
+            if (event.target) event.target.value = "";
+        }
     };
 
     const handleConfirmExport = () => {
@@ -3030,7 +3158,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         return (
             <AnimatePresence>
                 {isMassCalcModalOpen && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, x: '100%' }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: '100%' }}
@@ -3040,7 +3168,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         {/* Header de la Página */}
                         <header className="h-20 border-b border-white/5 bg-black/50 backdrop-blur-xl px-12 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-6">
-                                <button 
+                                <button
                                     onClick={() => {
                                         setIsMassCalcModalOpen(false);
                                         if (setActiveSection) setActiveSection('master_plan');
@@ -3056,7 +3184,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
 
                             <div className="flex items-center gap-4">
-                                <button 
+                                <button
                                     onClick={handleExportMassPDF}
                                     className="px-4 py-2 bg-[#A3E635] text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-110 active:scale-90 transition-all shadow-[0_0_25px_rgba(163,230,53,0.3)] flex items-center gap-2 group"
                                     title="Generar Reporte Técnico"
@@ -3118,7 +3246,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                             className="transition-all duration-300 cursor-pointer"
                                                             onMouseEnter={() => setHoveredItem(item.id)}
                                                             onMouseLeave={() => setHoveredItem(null)}
-                                                            style={{ 
+                                                            style={{
                                                                 filter: isHovered ? `drop-shadow(0 0 10px ${item.color}88)` : 'none',
                                                                 opacity: hoveredItem && !isHovered ? 0.3 : 1
                                                             }}
@@ -3127,7 +3255,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 });
                                             })()}
                                         </svg>
-                                        
+
                                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
                                             <AnimatePresence mode="wait">
                                                 {(hoveredItem || lockedItem) ? (
@@ -3145,7 +3273,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         </div>
                                     </div>
 
-                                    <button 
+                                    <button
                                         onClick={handleExportMassPDF}
                                         className="w-full py-4 bg-[#A3E635] text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg text-[10px] flex items-center justify-center gap-3">
                                         <Download size={16} className="stroke-[3]" />
@@ -3171,16 +3299,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     {/* GRID DE 3 COLUMNAS */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                         {wasteComposition.map((item) => (
-                                            <motion.div 
+                                            <motion.div
                                                 key={`fraction-node-${item.id}`} // Unique key forced
                                                 onMouseEnter={() => setHoveredItem(item.id)}
                                                 onMouseLeave={() => setHoveredItem(null)}
                                                 onClick={() => setLockedItem(item.id)}
-                                                className={`relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border ${
-                                                    (hoveredItem === item.id || lockedItem === item.id)
-                                                    ? 'bg-white/[0.06] border-[#A3E635] shadow-[0_0_30px_rgba(163,230,53,0.15)] scale-[1.02]' 
+                                                className={`relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border ${(hoveredItem === item.id || lockedItem === item.id)
+                                                    ? 'bg-white/[0.06] border-[#A3E635] shadow-[0_0_30px_rgba(163,230,53,0.15)] scale-[1.02]'
                                                     : 'bg-white/[0.02] border-white/5 hover:border-white/20'
-                                                }`}
+                                                    }`}
                                             >
                                                 {lockedItem === item.id && (
                                                     <div className="absolute top-4 right-4 animate-pulse">
@@ -3191,11 +3318,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 <div className="flex items-center justify-between mb-6">
                                                     <div className="flex items-center gap-4">
                                                         <div className="relative group/color">
-                                                            <div 
-                                                                className="w-2 h-10 rounded-full cursor-pointer transition-transform hover:scale-x-150 active:scale-95 shadow-sm" 
-                                                                style={{ backgroundColor: item.color }} 
+                                                            <div
+                                                                className="w-2 h-10 rounded-full cursor-pointer transition-transform hover:scale-x-150 active:scale-95 shadow-sm"
+                                                                style={{ backgroundColor: item.color }}
                                                             />
-                                                            <input 
+                                                            <input
                                                                 type="color"
                                                                 value={item.color}
                                                                 onChange={(e) => updateItemColor(item.id, e.target.value)}
@@ -3215,12 +3342,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                         <span className="text-[10px] font-black text-zinc-600 ml-2 uppercase tracking-widest">T/D</span>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className={`flex items-center justify-between bg-black/40 p-4 rounded-xl border transition-all ${hoveredItem === item.id ? 'border-[#A3E635]/20' : 'border-white/5'}`}>
                                                     <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Puntaje Fracción</span>
                                                     <div className="flex items-center gap-3">
                                                         <div className="relative group/input">
-                                                            <input 
+                                                            <input
                                                                 type="number"
                                                                 value={item.percent}
                                                                 onChange={(e) => {
@@ -3241,10 +3368,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     <div className="mt-8 bg-black/60 border border-white/10 rounded-3xl p-8 backdrop-blur-2xl relative overflow-hidden group/console shadow-2xl">
                                         {/* Glow decorativo de fondo */}
                                         <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#A3E635]/5 blur-[100px] rounded-full pointer-events-none" />
-                                        
+
                                         <AnimatePresence mode="wait">
                                             {(hoveredItem || lockedItem) ? (
-                                                <motion.div 
+                                                <motion.div
                                                     key="detail"
                                                     initial={{ opacity: 0, y: 20 }}
                                                     animate={{ opacity: 1, y: 0 }}
@@ -3260,7 +3387,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                 {wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.label}
                                                             </h2>
                                                             <div className="flex items-center gap-2">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => setCurrencyMode(prev => prev === 'MXN' ? 'USD' : 'MXN')}
                                                                     className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all border ${currencyMode === 'MXN' ? 'bg-zinc-900 border-zinc-800 text-zinc-500' : 'bg-[#A3E635] border-[#A3E635] text-black shadow-[0_0_10px_rgba(163,230,53,0.3)]'}`}
                                                                 >
@@ -3280,7 +3407,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                 <span className="text-[8px] font-black text-zinc-700 uppercase">T/D</span>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <div className="min-w-fit space-y-0.5">
                                                             <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Caphr</p>
                                                             <div className="flex items-baseline gap-1">
@@ -3288,16 +3415,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                 <span className="text-[8px] font-black text-zinc-700 uppercase">t/h</span>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <div className="flex items-center gap-3 scale-90 origin-left">
                                                             <div className="flex flex-col">
                                                                 <span className="text-[8px] font-black text-zinc-600 uppercase mb-1">In ({currencyMode})</span>
                                                                 <div className="flex items-center bg-zinc-950 px-2 py-1 rounded border border-white/5 w-24">
                                                                     <span className="text-[#A3E635] text-[8px] font-black mr-1">$</span>
-                                                                    <input 
+                                                                    <input
                                                                         type="number"
-                                                                        value={currencyMode === 'MXN' 
-                                                                            ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty 
+                                                                        value={currencyMode === 'MXN'
+                                                                            ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty
                                                                             : (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty / tipoCambio).toFixed(0)}
                                                                         onChange={(e) => {
                                                                             const val = Number(e.target.value);
@@ -3312,10 +3439,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                 <span className="text-[8px] font-black text-[#A3E635] uppercase mb-1">Rec ({currencyMode})</span>
                                                                 <div className="flex items-center bg-[#A3E635]/5 px-2 py-1 rounded border border-[#A3E635]/15 w-24">
                                                                     <span className="text-[#A3E635] text-[8px] font-black mr-1">$</span>
-                                                                    <input 
+                                                                    <input
                                                                         type="number"
-                                                                        value={currencyMode === 'MXN' 
-                                                                            ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled 
+                                                                        value={currencyMode === 'MXN'
+                                                                            ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled
                                                                             : (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled / tipoCambio).toFixed(0)}
                                                                         onChange={(e) => {
                                                                             const val = Number(e.target.value);
@@ -3345,7 +3472,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     </div>
                                                 </motion.div>
                                             ) : (
-                                                <motion.div 
+                                                <motion.div
                                                     key="placeholder"
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
@@ -3384,12 +3511,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 <div className="w-2 h-6 bg-[#A3E635] rounded-full shadow-[0_0_15px_#A3E635]" />
                                                 <h3 className="text-xs font-black text-white uppercase tracking-[0.4em]">Matriz Operativa de Residuos (Balance de Masas)</h3>
                                             </div>
-                                            
+
                                             <div className="flex items-center gap-6">
                                                 {/* CONTROLES DE VISUALIZACIÓN */}
                                                 <div className="flex items-center gap-4 bg-black/40 px-4 py-1.5 rounded-xl border border-white/5">
                                                     {/* LOCK TOGGLE */}
-                                                    <button 
+                                                    <button
                                                         onClick={() => setIsWasteTableLocked(!isWasteTableLocked)}
                                                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${isWasteTableLocked ? 'bg-[#A3E635]/10 border-[#A3E635]/30 text-[#A3E635]' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-white'}`}
                                                     >
@@ -3402,12 +3529,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     <div className="flex items-center gap-2 border-r border-white/10 pr-4">
                                                         <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Texto</span>
                                                         <div className="flex items-center gap-1">
-                                                            <button 
+                                                            <button
                                                                 onClick={() => setTableFontSize(prev => Math.max(8, prev - 1))}
                                                                 className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
                                                             >-</button>
                                                             <span className="text-[10px] font-black text-[#A3E635] w-6 text-center">{tableFontSize}</span>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => setTableFontSize(prev => Math.min(16, prev + 1))}
                                                                 className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
                                                             >+</button>
@@ -3416,12 +3543,12 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Columnas</span>
                                                         <div className="flex items-center gap-1">
-                                                            <button 
+                                                            <button
                                                                 onClick={() => setTableColumnScale(prev => Math.max(0.5, prev - 0.1))}
                                                                 className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
                                                             >-</button>
                                                             <span className="text-[10px] font-black text-[#A3E635] w-8 text-center">{(tableColumnScale * 100).toFixed(0)}%</span>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => setTableColumnScale(prev => Math.min(2.0, prev + 0.1))}
                                                                 className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
                                                             >+</button>
@@ -3430,16 +3557,16 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 </div>
 
                                                 <div className="flex items-center gap-6">
-                                                   <div className="flex flex-col items-end">
-                                                      <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Divisa Actualización</span>
-                                                      <span className="text-xs font-black text-[#A3E635]">{currencyMode}</span>
-                                                   </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Divisa Actualización</span>
+                                                        <span className="text-xs font-black text-[#A3E635]">{currencyMode}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="overflow-x-auto custom-scrollbar">
-                                            <table 
+                                            <table
                                                 className="w-full text-left border-separate border-spacing-0 table-fixed"
                                                 style={{ fontSize: `${tableFontSize}px`, width: 'max-content', minWidth: '100%' }}
                                             >
@@ -3458,7 +3585,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                             ].find(c => c.id === colId);
 
                                                             return (
-                                                                <th 
+                                                                <th
                                                                     key={colId}
                                                                     draggable={!isWasteTableLocked}
                                                                     onDragStart={() => !isWasteTableLocked && setDraggedWasteCol(colId)}
@@ -3483,8 +3610,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 </thead>
                                                 <tbody>
                                                     {wasteComposition.map((item, idx) => (
-                                                        <tr 
-                                                            key={item.id} 
+                                                        <tr
+                                                            key={item.id}
                                                             className={`group/row transition-colors hover:bg-white/[0.02] ${lockedItem === item.id ? 'bg-white/[0.03]' : ''}`}
                                                             onMouseEnter={() => setHoveredItem(item.id)}
                                                             onMouseLeave={() => setHoveredItem(null)}
@@ -3497,8 +3624,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                 const displayUtility = currencyMode === 'MXN' ? utility : utility / tipoCambio;
 
                                                                 return (
-                                                                    <td 
-                                                                        key={`${item.id}-${colId}`} 
+                                                                    <td
+                                                                        key={`${item.id}-${colId}`}
                                                                         className={`px-6 py-4 border-b border-white/[0.02] text-sm font-black transition-all ${colId === 'util' ? 'text-[#A3E635] text-right' : 'text-white'} ${lockedItem === item.id ? 'border-b-[#A3E635]/20' : ''}`}
                                                                     >
                                                                         {colId === 'num' && <span className="text-zinc-700 font-mono text-[10px]">{idx + 1}</span>}
@@ -3510,7 +3637,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                         )}
                                                                         {colId === 'percent' && (
                                                                             <div className="flex items-center gap-2">
-                                                                                <input 
+                                                                                <input
                                                                                     type="number"
                                                                                     value={item.percent}
                                                                                     onChange={(e) => {
@@ -3525,9 +3652,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                         {colId === 'tonsDay' && <span className="tabular-nums">{tonsDay.toLocaleString()}</span>}
                                                                         {colId === 'tonsHr' && <span className="tabular-nums text-zinc-400">{tonsHr.toFixed(1)}</span>}
                                                                         {colId === 'dirty' && (
-                                                                             <div className="flex items-center gap-1">
+                                                                            <div className="flex items-center gap-1">
                                                                                 <span className="text-[10px] text-zinc-600">$</span>
-                                                                                <input 
+                                                                                <input
                                                                                     type="number"
                                                                                     value={currencyMode === 'MXN' ? item.priceDirty : (item.priceDirty / tipoCambio).toFixed(0)}
                                                                                     onChange={(e) => {
@@ -3540,9 +3667,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                             </div>
                                                                         )}
                                                                         {colId === 'recycled' && (
-                                                                             <div className="flex items-center gap-1">
+                                                                            <div className="flex items-center gap-1">
                                                                                 <span className="text-[10px] text-zinc-600">$</span>
-                                                                                <input 
+                                                                                <input
                                                                                     type="number"
                                                                                     value={currencyMode === 'MXN' ? item.priceRecycled : (item.priceRecycled / tipoCambio).toFixed(0)}
                                                                                     onChange={(e) => {
@@ -3876,10 +4003,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         {/* UTILIDAD */}
                                         <div className="flex items-center gap-2 px-3 border-r border-red-500/20" title="Utilidad Global">
                                             <Percent size={12} className="text-red-500" />
-                                            <input 
-                                                type="number" 
-                                                value={globalUtilVal} 
-                                                onChange={(e) => setGlobalUtilVal(n(e.target.value))} 
+                                            <input
+                                                type="number"
+                                                value={globalUtilVal}
+                                                onChange={(e) => setGlobalUtilVal(n(e.target.value))}
                                                 className="w-10 bg-transparent text-white font-black text-[10px] focus:outline-none"
                                             />
                                         </div>
@@ -3887,17 +4014,17 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         {/* TIPO DE CAMBIO */}
                                         <div className="flex items-center gap-2 px-3 border-r border-red-500/20" title="Tipo de Cambio (TC)">
                                             <span className="text-red-500 font-extrabold text-[9px] min-w-[15px]">TC</span>
-                                            <input 
-                                                type="number" 
+                                            <input
+                                                type="number"
                                                 step="0.01"
-                                                value={tipoCambio} 
-                                                onChange={(e) => setTipoCambio(n(e.target.value))} 
+                                                value={tipoCambio}
+                                                onChange={(e) => setTipoCambio(n(e.target.value))}
                                                 className="w-12 bg-transparent text-white font-black text-[10px] focus:outline-none"
                                             />
                                         </div>
 
                                         {/* TOGGLE DESCRIPCIONES */}
-                                        <button 
+                                        <button
                                             onClick={() => setShowDescriptions(!showDescriptions)}
                                             className={`flex items-center gap-2 px-4 py-2 transition-all text-[10px] font-black uppercase tracking-widest border-r border-red-500/20 ${showDescriptions ? 'text-red-400 bg-red-500/10' : 'text-gray-500 hover:text-red-400'}`}
                                             title={showDescriptions ? "Ocultar Descripciones" : "Mostrar Descripciones"}
@@ -3907,7 +4034,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         </button>
 
                                         {/* TOGGLE MEDIA */}
-                                        <button 
+                                        <button
                                             onClick={() => setShowMedia(!showMedia)}
                                             className={`flex items-center gap-2 px-4 py-2 transition-all text-[10px] font-black uppercase tracking-widest border-r border-red-500/20 ${showMedia ? 'text-red-400 bg-red-500/10' : 'text-gray-500 hover:text-red-400'}`}
                                             title={showMedia ? "Ocultar Fotos/Videos" : "Mostrar Fotos/Videos"}
@@ -3916,7 +4043,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             MEDIA
                                         </button>
 
-                                        <button 
+                                        <button
                                             onClick={applyGlobalUtilization}
                                             className="px-4 py-2 hover:bg-red-500 hover:text-black transition-all text-red-500 hover:font-black font-black text-[10px] uppercase tracking-widest"
                                         >
@@ -3924,13 +4051,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         </button>
 
                                         <div className="flex items-center gap-0 border-l border-white/10 ml-2">
-                                            <input 
-                                                type="number" 
-                                                value={globalQtyVal} 
+                                            <input
+                                                type="number"
+                                                value={globalQtyVal}
                                                 onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))}
                                                 className="w-12 bg-black/40 border-none text-white text-[10px] font-black text-center outline-none h-10"
                                             />
-                                            <button 
+                                            <button
                                                 onClick={applyGlobalQty}
                                                 className="px-4 py-2 bg-primary/20 hover:bg-primary hover:text-black transition-all text-primary hover:font-black font-black text-[10px] uppercase tracking-widest border-l border-white/10 h-10"
                                             >
@@ -3938,7 +4065,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             </button>
                                         </div>
                                         {isRestoratable && (
-                                            <button 
+                                            <button
                                                 onClick={restoreOriginalUtilization}
                                                 className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-black transition-all text-[10px] font-black uppercase tracking-widest border-l border-red-500/20"
                                                 title="Restaurar utilidades originales"
@@ -3999,14 +4126,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     <div className="pl-4 pr-2 text-zinc-500 group-focus-within:text-primary transition-colors">
                                         <Search size={18} />
                                     </div>
-                                    <input 
+                                    <input
                                         type="text"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         placeholder="BUSCAR EQUIPO O MÓDULO POR NOMBRE..."
                                         className="w-full bg-transparent border-none outline-none text-white font-black text-xs tracking-widest placeholder:text-zinc-600 h-10"
                                     />
-                                    
+
                                     <div className="flex items-center gap-2 px-4 border-l border-white/5">
                                         <div className="flex flex-col items-end">
                                             <span className="text-[8px] font-black text-zinc-600 uppercase tracking-tighter leading-none mb-1">Ítems Activos</span>
@@ -4051,7 +4178,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             {money(grandTotals.totalVenta)}
                                         </div>
                                     </div>
-                                    
+
                                     <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 group hover:border-primary/20 transition-all">
                                         <div className="text-[10px] text-zinc-600 font-extrabold uppercase tracking-widest mb-2 flex items-center gap-2">
                                             <div className="w-1 h-3 bg-red-500 rounded-full" />
@@ -4143,14 +4270,14 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 {/* RESULTADOS DE BÚSQUEDA */}
                                 <AnimatePresence>
                                     {searchTerm && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ opacity: 0, y: -10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
                                             className="absolute top-full left-4 right-4 mt-2 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[500] max-h-[400px] overflow-y-auto"
                                         >
                                             {(() => {
-                                                const matches = sections.flatMap((s, sIdx) => 
+                                                const matches = sections.flatMap((s, sIdx) =>
                                                     (s.items || []).filter(it => {
                                                         const equipo = (it.equipo || "").toString().toLowerCase();
                                                         const titulo = (s.titulo || "").toString().toLowerCase();
@@ -4166,9 +4293,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 return matches.map(({ it, s, sIdx, iIdx }) => {
                                                     const subtotalMXN = calcItem(it).totalVenta * tipoCambio;
                                                     const isActive = it.activo !== false;
-                                                    
+
                                                     return (
-                                                        <button 
+                                                        <button
                                                             key={it.id}
                                                             onClick={() => scrollToItem(s.id, it.id)}
                                                             className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-white/5 transition-all border-b border-white/5 last:border-none group text-left ${!isActive ? 'bg-black/20 opacity-70' : ''}`}
@@ -4229,13 +4356,13 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                     {isPriceEditMode ? "Fijar Precios" : "Precio Libre"}
                                 </button>
                                 <div className="flex items-center gap-0 border-l border-white/10 ml-2">
-                                    <input 
-                                        type="number" 
-                                        value={globalQtyVal} 
+                                    <input
+                                        type="number"
+                                        value={globalQtyVal}
                                         onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))}
                                         className="w-10 bg-black/40 border-none text-white text-[10px] font-black text-center outline-none h-8 rounded-l-lg"
                                     />
-                                    <button 
+                                    <button
                                         onClick={applyGlobalQty}
                                         className="px-3 py-2 bg-primary/20 hover:bg-primary hover:text-black transition-all text-primary hover:font-black font-black text-[9px] uppercase tracking-widest border-l border-white/10 h-8 rounded-r-lg"
                                     >
@@ -4292,7 +4419,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 50%
                             </button>
                             <button onClick={() => triggerExportWithFilename('master')} className="px-4 py-2 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase text-center flex items-center justify-center hover:scale-105 transition-all">Exportar PDF</button>
-                             <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 gap-1">
+                            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 gap-1">
                                 <button onClick={() => toggleAllSections(false)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all" title="Abrir Todo"><Maximize2 size={12} /></button>
                                 <button onClick={() => toggleAllSections(true)} className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-white font-black text-[9px] uppercase tracking-widest transition-all" title="Cerrar Todo"><Minimize2 size={12} /></button>
                                 {isAdmin && (
@@ -4455,8 +4582,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                         <>
                                                             <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1 mr-2">
                                                                 <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Masivo QTY</span>
-                                                                <input 
-                                                                    type="number" 
+                                                                <input
+                                                                    type="number"
                                                                     placeholder="QTY"
                                                                     className="w-12 bg-transparent text-primary font-black text-xs outline-none text-center"
                                                                     onKeyDown={(e) => {
@@ -4579,7 +4706,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                                                         {it.activo && <Check size={14} strokeWidth={4} />}
                                                                                     </button>
                                                                                     {isAdmin && (
-                                                                                        <button 
+                                                                                        <button
                                                                                             onClick={() => removeItem(s.id, it.id)}
                                                                                             className="w-6 h-6 rounded-md bg-red-500/10 border border-red-500/30 text-red-500 flex items-center justify-center hover:bg-red-500 transition-all hover:text-white"
                                                                                             title="Eliminar Fila"
@@ -4798,7 +4925,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         <input type="number" value={tipoCambio} onChange={e => setTipoCambio(n(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50" />
                                     </div>
                                 </div>
-                                 <div className="space-y-4 pt-4 border-t border-white/5">
+                                <div className="space-y-4 pt-4 border-t border-white/5">
                                     <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Utilidad Global (%)</label><span className="text-primary font-black">{globalUtilVal}%</span></div>
                                     <Slider value={[globalUtilVal]} max={100} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
                                     <button onClick={applyGlobalUtilization} className="w-full py-3 bg-primary/10 border border-primary/30 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all">Aplicar {globalUtilVal}% a Todo</button>
@@ -4806,9 +4933,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                                 <div className="space-y-4 pt-4 border-t border-white/5">
                                     <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Cantidad Global (QTY)</label><span className="text-primary font-black">{globalQtyVal}</span></div>
-                                    <input 
-                                        type="number" 
-                                        value={globalQtyVal} 
+                                    <input
+                                        type="number"
+                                        value={globalQtyVal}
                                         onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-center font-black"
                                     />
@@ -4817,8 +4944,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
                                 <div className="space-y-4 pt-4 border-t border-white/5">
                                     {isRestoratable && (
-                                        <button 
-                                            onClick={restoreOriginalUtilization} 
+                                        <button
+                                            onClick={restoreOriginalUtilization}
                                             className="w-full py-3 bg-zinc-900 border border-orange-500/30 text-orange-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/10 transition-all flex items-center justify-center gap-2"
                                         >
                                             <RotateCcw size={12} />
@@ -4886,69 +5013,111 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             {
                 isExportFilenameModalOpen && (
                     <Dialog open={isExportFilenameModalOpen} onOpenChange={setIsExportFilenameModalOpen}>
-                        <DialogContent className="max-w-md bg-black/60 backdrop-blur-3xl border-white/20 text-white shadow-2xl rounded-[2.5rem] z-[1000]">
-                            <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary">Nombre del Archivo</DialogTitle></DialogHeader>
-                            <div className="py-6 space-y-6">
+                        <DialogContent className="max-w-xl bg-black/80 backdrop-blur-3xl border-white/20 text-white shadow-2xl rounded-[2.5rem] z-[1000] p-6 max-h-[90vh] overflow-y-auto">
+                            <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary mb-2">Nombre del Archivo</DialogTitle></DialogHeader>
+                            <div className="space-y-4">
                                 <p className="text-xs text-gray-400">Personaliza el nombre con el que se guardará tu documento PDF.</p>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Nombre del PDF</label>
-                                    <input
-                                        type="text"
-                                        value={exportFilename}
-                                        onChange={e => setExportFilename(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmExport(); }}
-                                        autoFocus
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-lg font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Título del Documento (Franja Verde)</label>
-                                    <input
-                                        type="text"
-                                        value={exportTitle}
-                                        onChange={e => setExportTitle(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-lg font-bold text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
-                                    />
-                                </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Nombre del PDF</label>
+                                        <input
+                                            type="text"
+                                            value={exportFilename}
+                                            onChange={e => setExportFilename(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmExport(); }}
+                                            autoFocus
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Título del Documento</label>
+                                        <input
+                                            type="text"
+                                            value={exportTitle}
+                                            onChange={e => setExportTitle(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-1">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Cliente</label>
                                         <input
                                             type="text"
                                             value={exportClient}
                                             onChange={e => setExportClient(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
                                         />
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Proyecto</label>
                                         <input
                                             type="text"
                                             value={exportProject}
                                             onChange={e => setExportProject(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
                                         />
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo de Cambio (T.C.)</label>
-                                    <div className="relative">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">T.C. (MXN/USD)</label>
                                         <input
                                             type="number"
                                             step="0.01"
                                             value={exportTC}
                                             onChange={e => setExportTC(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-2xl font-black text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-black text-primary outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
                                         />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-500 tracking-widest">MXN/USD</span>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4 mt-2">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Marca Activa</label>
+                                        <div className="relative">
+                                            <select
+                                                value={exportBrandColor}
+                                                onChange={e => setExportBrandColor(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                                            >
+                                                <option value="solimaq" className="bg-zinc-900 text-white">Solimaq Center</option>
+                                                <option value="solifood" className="bg-zinc-900 text-white">Solifood</option>
+                                                <option value="smq" className="bg-zinc-900 text-white">SMQ Engineering</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Sitio Web (Footer)</label>
+                                        <input
+                                            type="text"
+                                            value={exportWebsite}
+                                            onChange={e => setExportWebsite(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Logo de Exportación</label>
+                                        <div className="flex flex-col gap-2 h-full">
+                                            {exportLogoUrl && (
+                                                <div className="flex-1 rounded shrink-0 bg-white/5 border border-white/10 flex items-center justify-center p-4">
+                                                    <img src={exportLogoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                                </div>
+                                            )}
+                                            <input type="file" ref={exportLogoInputRef} className="hidden" accept="image/*" onChange={handleExportLogoChange} />
+                                            <button
+                                                onClick={() => exportLogoInputRef.current?.click()}
+                                                disabled={isUploadingExportLogo}
+                                                className="w-full py-3 h-[46px] text-xs bg-white/5 hover:bg-white/10 text-white font-bold tracking-wider rounded-xl transition-all border border-white/10 flex items-center justify-center focus:outline-none"
+                                            >
+                                                {isUploadingExportLogo ? "..." : "Subir Logo"}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 {pdfExportType === 'equipment-list-no-amount' && (
                                     <div className="flex items-center gap-3">
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             id="includeAmount"
-                                            checked={exportIncludeAmount} 
+                                            checked={exportIncludeAmount}
                                             onChange={e => setExportIncludeAmount(e.target.checked)}
                                             className="w-5 h-5 accent-primary rounded bg-white/5 border-white/10 cursor-pointer"
                                         />
@@ -5032,655 +5201,654 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                     </DialogContent>
                 </Dialog>
             )}
-                {/* PÁGINA INDEPENDIENTE: CÁLCULO DE MASAS (RADIOGRAFÍA) */}
-                <AnimatePresence>
-                    {isMassCalcModalOpen && (
-                        <motion.div 
-                            initial={{ opacity: 0, x: '100%' }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed inset-0 z-[1000] bg-[#020202] flex flex-col overflow-hidden"
-                        >
-                            {/* Header de la Página */}
-                            <header className="h-20 border-b border-white/5 bg-black/50 backdrop-blur-xl px-12 flex items-center justify-between shrink-0">
-                                <div className="flex items-center gap-6">
-                                    <button 
-                                        onClick={() => {
-                                            setIsMassCalcModalOpen(false);
-                                            if (sectionData?.id === 'balance_masas' && setActiveSection) {
-                                                setActiveSection('master_plan');
-                                            }
-                                        }}
-                                        className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-all group"
-                                    >
-                                        <X size={20} className="text-zinc-400 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
-                                    </button>
-                                    <div>
-                                        <h2 className="text-xl font-black text-white uppercase tracking-tighter">Radiografía de Masas</h2>
-                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em]">{projectName}</p>
-                                    </div>
+            {/* PÁGINA INDEPENDIENTE: CÁLCULO DE MASAS (RADIOGRAFÍA) */}
+            <AnimatePresence>
+                {isMassCalcModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, x: '100%' }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed inset-0 z-[1000] bg-[#020202] flex flex-col overflow-hidden"
+                    >
+                        {/* Header de la Página */}
+                        <header className="h-20 border-b border-white/5 bg-black/50 backdrop-blur-xl px-12 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-6">
+                                <button
+                                    onClick={() => {
+                                        setIsMassCalcModalOpen(false);
+                                        if (sectionData?.id === 'balance_masas' && setActiveSection) {
+                                            setActiveSection('master_plan');
+                                        }
+                                    }}
+                                    className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-all group"
+                                >
+                                    <X size={20} className="text-zinc-400 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
+                                </button>
+                                <div>
+                                    <h2 className="text-xl font-black text-white uppercase tracking-tighter">Radiografía de Masas</h2>
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em]">{projectName}</p>
                                 </div>
+                            </div>
 
-                                <div className="flex items-center gap-4">
-                                    <button 
-                                        onClick={handleExportMassPDF}
-                                        className="px-4 py-2 bg-[#A3E635] text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-110 active:scale-90 transition-all shadow-[0_0_25px_rgba(163,230,53,0.3)] flex items-center gap-2 group"
-                                        title="Generar Reporte Técnico"
-                                    >
-                                        <Download size={14} className="stroke-[3] group-hover:bounce" />
-                                        PDF Técnico
-                                    </button>
-                                    <div className="px-5 py-2 bg-zinc-900 border border-white/5 rounded-full flex items-center gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-[#3EB489] animate-pulse" />
-                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Análisis en Vivo</span>
-                                    </div>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={handleExportMassPDF}
+                                    className="px-4 py-2 bg-[#A3E635] text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-110 active:scale-90 transition-all shadow-[0_0_25px_rgba(163,230,53,0.3)] flex items-center gap-2 group"
+                                    title="Generar Reporte Técnico"
+                                >
+                                    <Download size={14} className="stroke-[3] group-hover:bounce" />
+                                    PDF Técnico
+                                </button>
+                                <div className="px-5 py-2 bg-zinc-900 border border-white/5 rounded-full flex items-center gap-3">
+                                    <div className="w-2 h-2 rounded-full bg-[#3EB489] animate-pulse" />
+                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Análisis en Vivo</span>
                                 </div>
-                            </header>
+                            </div>
+                        </header>
 
-                            {/* Contenido Principal Full Page (Dashboard Mode) */}
-                            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-                                {/* Panel Izquierdo: Visualización Core (Compacta) */}
-                                <div className="w-full md:w-[350px] p-8 bg-zinc-900/10 border-r border-white/5 flex flex-col items-center justify-center relative shrink-0">
-                                    <div className="w-full space-y-8 relative z-10">
-                                        <div className="space-y-2">
-                                            <label className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">Total / Día</label>
-                                            <div className="relative group">
-                                                <input
-                                                    type="number"
-                                                    value={totalDailyTons}
-                                                    onChange={(e) => setTotalDailyTons(Number(e.target.value))}
-                                                    className="w-full bg-zinc-900/80 border border-white/10 rounded-2xl px-6 py-5 text-5xl font-black text-white outline-none focus:border-[#3EB489]/50 transition-all text-center tabular-nums shadow-xl"
-                                                />
-                                                <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-700 uppercase tracking-widest pointer-events-none">t/d</div>
-                                            </div>
+                        {/* Contenido Principal Full Page (Dashboard Mode) */}
+                        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                            {/* Panel Izquierdo: Visualización Core (Compacta) */}
+                            <div className="w-full md:w-[350px] p-8 bg-zinc-900/10 border-r border-white/5 flex flex-col items-center justify-center relative shrink-0">
+                                <div className="w-full space-y-8 relative z-10">
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">Total / Día</label>
+                                        <div className="relative group">
+                                            <input
+                                                type="number"
+                                                value={totalDailyTons}
+                                                onChange={(e) => setTotalDailyTons(Number(e.target.value))}
+                                                className="w-full bg-zinc-900/80 border border-white/10 rounded-2xl px-6 py-5 text-5xl font-black text-white outline-none focus:border-[#3EB489]/50 transition-all text-center tabular-nums shadow-xl"
+                                            />
+                                            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-700 uppercase tracking-widest pointer-events-none">t/d</div>
                                         </div>
-
-                                        {/* Donut Chart Compacto */}
-                                        <div className="relative w-full aspect-square flex items-center justify-center p-4">
-                                            <svg viewBox="0 0 100 100" className="w-[200px] h-[200px] transform -rotate-90">
-                                                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#111" strokeWidth="12" />
-                                                {(() => {
-                                                    let cumulativePercent = 0;
-                                                    const radius = 40;
-                                                    const circumference = 2 * Math.PI * radius;
-
-                                                    return wasteComposition.map((item) => {
-                                                        const segmentLength = (item.percent / 100) * circumference;
-                                                        const strokeDashoffset = -(cumulativePercent / 100) * circumference;
-                                                        cumulativePercent += item.percent;
-                                                        const isHovered = hoveredItem === item.id;
-
-                                                        return (
-                                                            <circle
-                                                                key={item.id}
-                                                                cx="50"
-                                                                cy="50"
-                                                                r={radius}
-                                                                fill="transparent"
-                                                                stroke={item.color}
-                                                                strokeWidth={isHovered ? 16 : 12}
-                                                                strokeDasharray={`${segmentLength} ${circumference}`}
-                                                                strokeDashoffset={strokeDashoffset}
-                                                                className="transition-all duration-300 cursor-pointer"
-                                                                onMouseEnter={() => setHoveredItem(item.id)}
-                                                                onMouseLeave={() => setHoveredItem(null)}
-                                                                style={{ 
-                                                                    filter: isHovered ? `drop-shadow(0 0 10px ${item.color}88)` : 'none',
-                                                                    opacity: hoveredItem && !isHovered ? 0.3 : 1
-                                                                }}
-                                                            />
-                                                        );
-                                                    });
-                                                })()}
-                                            </svg>
-                                            
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
-                                                <AnimatePresence mode="wait">
-                                                    {(hoveredItem || lockedItem) ? (
-                                                        <motion.div key="h" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
-                                                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">{wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.label}</span>
-                                                            <span className="text-3xl font-black text-white">{wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.percent}%</span>
-                                                        </motion.div>
-                                                    ) : (
-                                                        <motion.div key="t" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
-                                                            <span className="text-4xl font-black text-white tabular-nums leading-none">{totalDailyTons}</span>
-                                                            <span className="text-[8px] font-black text-zinc-600 uppercase mt-1">TOTAL</span>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-                                        </div>
-
-                                        <button 
-                                            onClick={handleExportMassPDF}
-                                            className="w-full py-4 bg-[#A3E635] text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg text-[10px] flex items-center justify-center gap-3">
-                                            <Download size={16} className="stroke-[3]" />
-                                            Reporte PDF
-                                        </button>
                                     </div>
-                                </div>
 
-                                {/* Panel Derecho: Gestión Detallada (Dashboard Grid) */}
-                                <div className="flex-1 p-8 bg-[#050505] flex flex-col overflow-y-auto custom-scrollbar relative">
-                                    <div className="w-full mx-auto space-y-6">
-                                        <div className="flex items-end justify-between border-b border-white/5 pb-4">
-                                            <div className="space-y-1">
-                                                <h3 className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.4em]">Análisis Técnico</h3>
-                                                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Radiografía de <span className="text-[#A3E635]">Fracciones</span></h2>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest block mb-1">Proyecto</span>
-                                                <span className="text-xs font-black text-white tracking-widest uppercase">{CLOUD_SLUG || 'MP-GENERA-D'}</span>
-                                            </div>
-                                        </div>
+                                    {/* Donut Chart Compacto */}
+                                    <div className="relative w-full aspect-square flex items-center justify-center p-4">
+                                        <svg viewBox="0 0 100 100" className="w-[200px] h-[200px] transform -rotate-90">
+                                            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#111" strokeWidth="12" />
+                                            {(() => {
+                                                let cumulativePercent = 0;
+                                                const radius = 40;
+                                                const circumference = 2 * Math.PI * radius;
 
-                                        {/* GRID DE 3 COLUMNAS */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {wasteComposition.map((item) => (
-                                                <motion.div 
-                                                    key={`fraction-node-${item.id}`} // Unique key forced
-                                                    onMouseEnter={() => setHoveredItem(item.id)}
-                                                    onMouseLeave={() => setHoveredItem(null)}
-                                                    onClick={() => setLockedItem(item.id)}
-                                                    className={`relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border ${
-                                                        (hoveredItem === item.id || lockedItem === item.id)
-                                                        ? 'bg-white/[0.06] border-[#A3E635] shadow-[0_0_30px_rgba(163,230,53,0.15)] scale-[1.02]' 
-                                                        : 'bg-white/[0.02] border-white/5 hover:border-white/20'
-                                                    }`}
-                                                >
-                                                    {lockedItem === item.id && (
-                                                        <div className="absolute top-4 right-4 animate-pulse">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-[#A3E635] shadow-[0_0_10px_#A3E635]" />
-                                                        </div>
-                                                    )}
+                                                return wasteComposition.map((item) => {
+                                                    const segmentLength = (item.percent / 100) * circumference;
+                                                    const strokeDashoffset = -(cumulativePercent / 100) * circumference;
+                                                    cumulativePercent += item.percent;
+                                                    const isHovered = hoveredItem === item.id;
 
-                                                    <div className="flex items-center justify-between mb-6">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="relative group/color">
-                                                                <div 
-                                                                    className="w-2 h-10 rounded-full cursor-pointer transition-transform hover:scale-x-150 active:scale-95 shadow-sm" 
-                                                                    style={{ backgroundColor: item.color }} 
-                                                                />
-                                                                <input 
-                                                                    type="color"
-                                                                    value={item.color}
-                                                                    onChange={(e) => updateItemColor(item.id, e.target.value)}
-                                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                                    title="Cambiar color"
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Categoría</span>
-                                                                <span className="text-base font-black text-white uppercase tracking-tight truncate max-w-[130px]">{item.label}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <span className="text-3xl font-black text-white tabular-nums leading-none">
-                                                                {((totalDailyTons * item.percent) / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                                            </span>
-                                                            <span className="text-[10px] font-black text-zinc-600 ml-2 uppercase tracking-widest">T/D</span>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div className={`flex items-center justify-between bg-black/40 p-4 rounded-xl border transition-all ${hoveredItem === item.id ? 'border-[#A3E635]/20' : 'border-white/5'}`}>
-                                                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Puntaje Fracción</span>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="relative group/input">
-                                                                <input 
-                                                                    type="number"
-                                                                    value={item.percent}
-                                                                    onChange={(e) => {
-                                                                        const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                                                        setWasteComposition(prev => prev.map(p => p.id === item.id ? { ...p, percent: val } : p));
-                                                                    }}
-                                                                    className="w-20 bg-zinc-900 border-2 border-transparent group-hover/input:border-[#A3E635]/40 rounded-xl py-2 px-3 text-center text-2xl font-black text-[#A3E635] outline-none focus:border-[#A3E635] transition-all shadow-inner"
-                                                                />
-                                                            </div>
-                                                            <span className="text-xs font-black text-zinc-700">%</span>
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
-                                        </div>
+                                                    return (
+                                                        <circle
+                                                            key={item.id}
+                                                            cx="50"
+                                                            cy="50"
+                                                            r={radius}
+                                                            fill="transparent"
+                                                            stroke={item.color}
+                                                            strokeWidth={isHovered ? 16 : 12}
+                                                            strokeDasharray={`${segmentLength} ${circumference}`}
+                                                            strokeDashoffset={strokeDashoffset}
+                                                            className="transition-all duration-300 cursor-pointer"
+                                                            onMouseEnter={() => setHoveredItem(item.id)}
+                                                            onMouseLeave={() => setHoveredItem(null)}
+                                                            style={{
+                                                                filter: isHovered ? `drop-shadow(0 0 10px ${item.color}88)` : 'none',
+                                                                opacity: hoveredItem && !isHovered ? 0.3 : 1
+                                                            }}
+                                                        />
+                                                    );
+                                                });
+                                            })()}
+                                        </svg>
 
-                                        {/* CONSOLA MAESTRA DE INGENIERÍA (DINÁMICA ABAJO) */}
-                                        <div className="mt-8 bg-black/60 border border-white/10 rounded-3xl p-8 backdrop-blur-2xl relative overflow-hidden group/console shadow-2xl">
-                                            {/* Glow decorativo de fondo */}
-                                            <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#A3E635]/5 blur-[100px] rounded-full pointer-events-none" />
-                                            
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
                                             <AnimatePresence mode="wait">
                                                 {(hoveredItem || lockedItem) ? (
-                                                    <motion.div 
-                                                        key="detail"
-                                                        initial={{ opacity: 0, y: 20 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        exit={{ opacity: 0, y: -10 }}
-                                                        className="flex flex-col lg:flex-row items-center gap-12"
-                                                    >
-                                                        {/* Lado A: Identidad */}
-                                                        <div className="flex items-center gap-5 border-r border-white/10 pr-8 min-w-[260px]">
-                                                            <div className="w-2.5 h-16 rounded-full shadow-[0_0_15px_rgba(163,230,53,0.3)]" style={{ backgroundColor: wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.color }} />
-                                                            <div className="overflow-hidden">
-                                                                <h4 className="text-[8px] font-black text-[#A3E635] uppercase tracking-[0.4em] mb-1 leading-none">Control</h4>
-                                                                <h2 className="text-3xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none mb-2 truncate drop-shadow-md">
-                                                                    {wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.label}
-                                                                </h2>
-                                                                <div className="flex items-center gap-2">
-                                                                    <button 
-                                                                        onClick={() => setCurrencyMode(prev => prev === 'MXN' ? 'USD' : 'MXN')}
-                                                                        className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all border ${currencyMode === 'MXN' ? 'bg-zinc-900 border-zinc-800 text-zinc-500' : 'bg-[#A3E635] border-[#A3E635] text-black shadow-[0_0_10px_rgba(163,230,53,0.3)]'}`}
-                                                                    >
-                                                                        {currencyMode}
-                                                                    </button>
-                                                                    <span className="text-[8px] text-zinc-700 font-bold tracking-widest leading-none px-1.5 py-0.5 bg-white/5 rounded border border-white/5">V1.0.2</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Lado B: Métricas */}
-                                                        <div className="flex-1 flex items-center justify-between gap-6 overflow-hidden">
-                                                            <div className="min-w-fit space-y-0.5">
-                                                                <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Masa</p>
-                                                                <div className="flex items-baseline gap-1">
-                                                                    <span className="text-4xl font-black text-white tracking-tighter tabular-nums">{(totalDailyTons * (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.percent || 0) / 100).toLocaleString()}</span>
-                                                                    <span className="text-[8px] font-black text-zinc-700 uppercase">T/D</span>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            <div className="min-w-fit space-y-0.5">
-                                                                <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Caphr</p>
-                                                                <div className="flex items-baseline gap-1">
-                                                                    <span className="text-4xl font-black text-[#A3E635] tracking-tighter">{(totalDailyTons * (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.percent || 0) / 100 / workingHours).toFixed(1)}</span>
-                                                                    <span className="text-[8px] font-black text-zinc-700 uppercase">t/h</span>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            <div className="flex items-center gap-3 scale-90 origin-left">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-[8px] font-black text-zinc-600 uppercase mb-1">In ({currencyMode})</span>
-                                                                    <div className="flex items-center bg-zinc-950 px-2 py-1 rounded border border-white/5 w-24">
-                                                                        <span className="text-[#A3E635] text-[8px] font-black mr-1">$</span>
-                                                                        <input 
-                                                                            type="number"
-                                                                            value={currencyMode === 'MXN' 
-                                                                                ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty 
-                                                                                : (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty / tipoCambio).toFixed(0)}
-                                                                            onChange={(e) => {
-                                                                                const val = Number(e.target.value);
-                                                                                const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
-                                                                                updateItemData((hoveredItem || lockedItem), 'priceDirty', finalVal);
-                                                                            }}
-                                                                            className="w-full bg-transparent text-xs font-black text-white focus:outline-none"
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-[8px] font-black text-[#A3E635] uppercase mb-1">Rec ({currencyMode})</span>
-                                                                    <div className="flex items-center bg-[#A3E635]/5 px-2 py-1 rounded border border-[#A3E635]/15 w-24">
-                                                                        <span className="text-[#A3E635] text-[8px] font-black mr-1">$</span>
-                                                                        <input 
-                                                                            type="number"
-                                                                            value={currencyMode === 'MXN' 
-                                                                                ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled 
-                                                                                : (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled / tipoCambio).toFixed(0)}
-                                                                            onChange={(e) => {
-                                                                                const val = Number(e.target.value);
-                                                                                const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
-                                                                                updateItemData((hoveredItem || lockedItem), 'priceRecycled', finalVal);
-                                                                            }}
-                                                                            className="w-full bg-transparent text-xs font-black text-[#A3E635] focus:outline-none"
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="text-right space-y-0.5 ml-auto border-l border-white/5 pl-6 min-w-fit">
-                                                                <p className="text-[9px] font-black text-[#A3E635] uppercase tracking-widest">Utilidad Estimada</p>
-                                                                <p className="text-4xl lg:text-5xl font-black text-white tracking-tighter tabular-nums drop-shadow-2xl whitespace-nowrap">
-                                                                    <span className="text-[#A3E635] text-xl mr-1 leading-none">$</span>
-                                                                    {(() => {
-                                                                        const item = wasteComposition.find(i => i.id === (hoveredItem || lockedItem));
-                                                                        const tons = (totalDailyTons * (item?.percent || 0) / 100);
-                                                                        const diff = (item?.priceRecycled || 0) - (item?.priceDirty || 0);
-                                                                        const utility = tons * diff;
-                                                                        const displayVal = currencyMode === 'MXN' ? utility : (utility / tipoCambio);
-                                                                        return displayVal.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                                                                    })()}
-                                                                </p>
-                                                            </div>
-                                                        </div>
+                                                    <motion.div key="h" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
+                                                        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">{wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.label}</span>
+                                                        <span className="text-3xl font-black text-white">{wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.percent}%</span>
                                                     </motion.div>
                                                 ) : (
-                                                    <motion.div 
-                                                        key="placeholder"
-                                                        initial={{ opacity: 0 }}
-                                                        animate={{ opacity: 1 }}
-                                                        className="flex items-center justify-between"
-                                                    >
-                                                        <div className="flex items-center gap-12">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] mb-2">Estado Global del Sistema</span>
-                                                                <div className="flex items-center gap-6">
-                                                                    <div className="flex items-center gap-4">
-                                                                        <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">Validación de Datos</span>
-                                                                        <span className="text-4xl font-black text-[#A3E635]">100% OK</span>
-                                                                        <Check size={28} className="text-[#A3E635] stroke-[4]" />
-                                                                    </div>
-                                                                    <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                                                                        <div className="h-full bg-gradient-to-r from-[#A3E635] to-emerald-500 w-full" />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Masa Total Administrada</p>
-                                                            <p className="text-4xl font-black text-white tabular-nums tracking-tighter">
-                                                                {totalDailyTons.toLocaleString()} <span className="text-xs text-zinc-700 ml-1">T/D</span>
-                                                            </p>
-                                                        </div>
+                                                    <motion.div key="t" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
+                                                        <span className="text-4xl font-black text-white tabular-nums leading-none">{totalDailyTons}</span>
+                                                        <span className="text-[8px] font-black text-zinc-600 uppercase mt-1">TOTAL</span>
                                                     </motion.div>
                                                 )}
                                             </AnimatePresence>
                                         </div>
+                                    </div>
 
-                                        {/* TABLA DINÁMICA DE RESIDUOS (MATRIZ OPERATIVA) */}
-                                        <div className="mt-8 bg-black/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-                                            <div className="bg-white/5 px-6 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-2 h-6 bg-[#A3E635] rounded-full shadow-[0_0_15px_#A3E635]" />
-                                                    <h3 className="text-xs font-black text-white uppercase tracking-[0.4em]">Matriz Operativa de Residuos (Balance de Masas)</h3>
-                                                </div>
-                                                
-                                                <div className="flex items-center gap-6">
-                                                    {/* CONTROLES DE VISUALIZACIÓN */}
-                                                    <div className="flex items-center gap-4 bg-black/40 px-4 py-1.5 rounded-xl border border-white/5">
-                                                        {/* LOCK TOGGLE */}
-                                                        <button 
-                                                            onClick={() => setIsWasteTableLocked(!isWasteTableLocked)}
-                                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${isWasteTableLocked ? 'bg-[#A3E635]/10 border-[#A3E635]/30 text-[#A3E635]' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-white'}`}
-                                                        >
-                                                            {isWasteTableLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                                                            <span className="text-[10px] font-black uppercase tracking-widest">{isWasteTableLocked ? 'Bloqueado' : 'Abierto'}</span>
-                                                        </button>
+                                    <button
+                                        onClick={handleExportMassPDF}
+                                        className="w-full py-4 bg-[#A3E635] text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg text-[10px] flex items-center justify-center gap-3">
+                                        <Download size={16} className="stroke-[3]" />
+                                        Reporte PDF
+                                    </button>
+                                </div>
+                            </div>
 
-                                                        <div className="w-px h-6 bg-white/10 mx-1" />
+                            {/* Panel Derecho: Gestión Detallada (Dashboard Grid) */}
+                            <div className="flex-1 p-8 bg-[#050505] flex flex-col overflow-y-auto custom-scrollbar relative">
+                                <div className="w-full mx-auto space-y-6">
+                                    <div className="flex items-end justify-between border-b border-white/5 pb-4">
+                                        <div className="space-y-1">
+                                            <h3 className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.4em]">Análisis Técnico</h3>
+                                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Radiografía de <span className="text-[#A3E635]">Fracciones</span></h2>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest block mb-1">Proyecto</span>
+                                            <span className="text-xs font-black text-white tracking-widest uppercase">{CLOUD_SLUG || 'MP-GENERA-D'}</span>
+                                        </div>
+                                    </div>
 
-                                                        <div className="flex items-center gap-2 border-r border-white/10 pr-4">
-                                                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Texto</span>
-                                                            <div className="flex items-center gap-1">
-                                                                <button 
-                                                                    onClick={() => setTableFontSize(prev => Math.max(8, prev - 1))}
-                                                                    className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
-                                                                >-</button>
-                                                                <span className="text-[10px] font-black text-[#A3E635] w-6 text-center">{tableFontSize}</span>
-                                                                <button 
-                                                                    onClick={() => setTableFontSize(prev => Math.min(16, prev + 1))}
-                                                                    className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
-                                                                >+</button>
-                                                            </div>
+                                    {/* GRID DE 3 COLUMNAS */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {wasteComposition.map((item) => (
+                                            <motion.div
+                                                key={`fraction-node-${item.id}`} // Unique key forced
+                                                onMouseEnter={() => setHoveredItem(item.id)}
+                                                onMouseLeave={() => setHoveredItem(null)}
+                                                onClick={() => setLockedItem(item.id)}
+                                                className={`relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border ${(hoveredItem === item.id || lockedItem === item.id)
+                                                    ? 'bg-white/[0.06] border-[#A3E635] shadow-[0_0_30px_rgba(163,230,53,0.15)] scale-[1.02]'
+                                                    : 'bg-white/[0.02] border-white/5 hover:border-white/20'
+                                                    }`}
+                                            >
+                                                {lockedItem === item.id && (
+                                                    <div className="absolute top-4 right-4 animate-pulse">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-[#A3E635] shadow-[0_0_10px_#A3E635]" />
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative group/color">
+                                                            <div
+                                                                className="w-2 h-10 rounded-full cursor-pointer transition-transform hover:scale-x-150 active:scale-95 shadow-sm"
+                                                                style={{ backgroundColor: item.color }}
+                                                            />
+                                                            <input
+                                                                type="color"
+                                                                value={item.color}
+                                                                onChange={(e) => updateItemColor(item.id, e.target.value)}
+                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                                title="Cambiar color"
+                                                            />
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Columnas</span>
-                                                            <div className="flex items-center gap-1">
-                                                                <button 
-                                                                    onClick={() => setTableColumnScale(prev => Math.max(0.5, prev - 0.1))}
-                                                                    className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
-                                                                >-</button>
-                                                                <span className="text-[10px] font-black text-[#A3E635] w-8 text-center">{(tableColumnScale * 100).toFixed(0)}%</span>
-                                                                <button 
-                                                                    onClick={() => setTableColumnScale(prev => Math.min(2.0, prev + 0.1))}
-                                                                    className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
-                                                                >+</button>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest leading-none mb-1">Categoría</span>
+                                                            <span className="text-base font-black text-white uppercase tracking-tight truncate max-w-[130px]">{item.label}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-3xl font-black text-white tabular-nums leading-none">
+                                                            {((totalDailyTons * item.percent) / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                        </span>
+                                                        <span className="text-[10px] font-black text-zinc-600 ml-2 uppercase tracking-widest">T/D</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className={`flex items-center justify-between bg-black/40 p-4 rounded-xl border transition-all ${hoveredItem === item.id ? 'border-[#A3E635]/20' : 'border-white/5'}`}>
+                                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Puntaje Fracción</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative group/input">
+                                                            <input
+                                                                type="number"
+                                                                value={item.percent}
+                                                                onChange={(e) => {
+                                                                    const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                                                    setWasteComposition(prev => prev.map(p => p.id === item.id ? { ...p, percent: val } : p));
+                                                                }}
+                                                                className="w-20 bg-zinc-900 border-2 border-transparent group-hover/input:border-[#A3E635]/40 rounded-xl py-2 px-3 text-center text-2xl font-black text-[#A3E635] outline-none focus:border-[#A3E635] transition-all shadow-inner"
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-black text-zinc-700">%</span>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+
+                                    {/* CONSOLA MAESTRA DE INGENIERÍA (DINÁMICA ABAJO) */}
+                                    <div className="mt-8 bg-black/60 border border-white/10 rounded-3xl p-8 backdrop-blur-2xl relative overflow-hidden group/console shadow-2xl">
+                                        {/* Glow decorativo de fondo */}
+                                        <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#A3E635]/5 blur-[100px] rounded-full pointer-events-none" />
+
+                                        <AnimatePresence mode="wait">
+                                            {(hoveredItem || lockedItem) ? (
+                                                <motion.div
+                                                    key="detail"
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className="flex flex-col lg:flex-row items-center gap-12"
+                                                >
+                                                    {/* Lado A: Identidad */}
+                                                    <div className="flex items-center gap-5 border-r border-white/10 pr-8 min-w-[260px]">
+                                                        <div className="w-2.5 h-16 rounded-full shadow-[0_0_15px_rgba(163,230,53,0.3)]" style={{ backgroundColor: wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.color }} />
+                                                        <div className="overflow-hidden">
+                                                            <h4 className="text-[8px] font-black text-[#A3E635] uppercase tracking-[0.4em] mb-1 leading-none">Control</h4>
+                                                            <h2 className="text-3xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none mb-2 truncate drop-shadow-md">
+                                                                {wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.label}
+                                                            </h2>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => setCurrencyMode(prev => prev === 'MXN' ? 'USD' : 'MXN')}
+                                                                    className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all border ${currencyMode === 'MXN' ? 'bg-zinc-900 border-zinc-800 text-zinc-500' : 'bg-[#A3E635] border-[#A3E635] text-black shadow-[0_0_10px_rgba(163,230,53,0.3)]'}`}
+                                                                >
+                                                                    {currencyMode}
+                                                                </button>
+                                                                <span className="text-[8px] text-zinc-700 font-bold tracking-widest leading-none px-1.5 py-0.5 bg-white/5 rounded border border-white/5">V1.0.2</span>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Divisa Actualización</span>
-                                                        <span className="text-xs font-black text-[#A3E635]">{currencyMode}</span>
+                                                    {/* Lado B: Métricas */}
+                                                    <div className="flex-1 flex items-center justify-between gap-6 overflow-hidden">
+                                                        <div className="min-w-fit space-y-0.5">
+                                                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Masa</p>
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-4xl font-black text-white tracking-tighter tabular-nums">{(totalDailyTons * (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.percent || 0) / 100).toLocaleString()}</span>
+                                                                <span className="text-[8px] font-black text-zinc-700 uppercase">T/D</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="min-w-fit space-y-0.5">
+                                                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Caphr</p>
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-4xl font-black text-[#A3E635] tracking-tighter">{(totalDailyTons * (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.percent || 0) / 100 / workingHours).toFixed(1)}</span>
+                                                                <span className="text-[8px] font-black text-zinc-700 uppercase">t/h</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 scale-90 origin-left">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[8px] font-black text-zinc-600 uppercase mb-1">In ({currencyMode})</span>
+                                                                <div className="flex items-center bg-zinc-950 px-2 py-1 rounded border border-white/5 w-24">
+                                                                    <span className="text-[#A3E635] text-[8px] font-black mr-1">$</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={currencyMode === 'MXN'
+                                                                            ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty
+                                                                            : (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceDirty / tipoCambio).toFixed(0)}
+                                                                        onChange={(e) => {
+                                                                            const val = Number(e.target.value);
+                                                                            const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
+                                                                            updateItemData((hoveredItem || lockedItem), 'priceDirty', finalVal);
+                                                                        }}
+                                                                        className="w-full bg-transparent text-xs font-black text-white focus:outline-none"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[8px] font-black text-[#A3E635] uppercase mb-1">Rec ({currencyMode})</span>
+                                                                <div className="flex items-center bg-[#A3E635]/5 px-2 py-1 rounded border border-[#A3E635]/15 w-24">
+                                                                    <span className="text-[#A3E635] text-[8px] font-black mr-1">$</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={currencyMode === 'MXN'
+                                                                            ? wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled
+                                                                            : (wasteComposition.find(i => i.id === (hoveredItem || lockedItem))?.priceRecycled / tipoCambio).toFixed(0)}
+                                                                        onChange={(e) => {
+                                                                            const val = Number(e.target.value);
+                                                                            const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
+                                                                            updateItemData((hoveredItem || lockedItem), 'priceRecycled', finalVal);
+                                                                        }}
+                                                                        className="w-full bg-transparent text-xs font-black text-[#A3E635] focus:outline-none"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="text-right space-y-0.5 ml-auto border-l border-white/5 pl-6 min-w-fit">
+                                                            <p className="text-[9px] font-black text-[#A3E635] uppercase tracking-widest">Utilidad Estimada</p>
+                                                            <p className="text-4xl lg:text-5xl font-black text-white tracking-tighter tabular-nums drop-shadow-2xl whitespace-nowrap">
+                                                                <span className="text-[#A3E635] text-xl mr-1 leading-none">$</span>
+                                                                {(() => {
+                                                                    const item = wasteComposition.find(i => i.id === (hoveredItem || lockedItem));
+                                                                    const tons = (totalDailyTons * (item?.percent || 0) / 100);
+                                                                    const diff = (item?.priceRecycled || 0) - (item?.priceDirty || 0);
+                                                                    const utility = tons * diff;
+                                                                    const displayVal = currencyMode === 'MXN' ? utility : (utility / tipoCambio);
+                                                                    return displayVal.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                                                })()}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div
+                                                    key="placeholder"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className="flex items-center justify-between"
+                                                >
+                                                    <div className="flex items-center gap-12">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] mb-2">Estado Global del Sistema</span>
+                                                            <div className="flex items-center gap-6">
+                                                                <div className="flex items-center gap-4">
+                                                                    <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">Validación de Datos</span>
+                                                                    <span className="text-4xl font-black text-[#A3E635]">100% OK</span>
+                                                                    <Check size={28} className="text-[#A3E635] stroke-[4]" />
+                                                                </div>
+                                                                <div className="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-gradient-to-r from-[#A3E635] to-emerald-500 w-full" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Masa Total Administrada</p>
+                                                        <p className="text-4xl font-black text-white tabular-nums tracking-tighter">
+                                                            {totalDailyTons.toLocaleString()} <span className="text-xs text-zinc-700 ml-1">T/D</span>
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+
+                                    {/* TABLA DINÁMICA DE RESIDUOS (MATRIZ OPERATIVA) */}
+                                    <div className="mt-8 bg-black/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+                                        <div className="bg-white/5 px-6 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-2 h-6 bg-[#A3E635] rounded-full shadow-[0_0_15px_#A3E635]" />
+                                                <h3 className="text-xs font-black text-white uppercase tracking-[0.4em]">Matriz Operativa de Residuos (Balance de Masas)</h3>
                                             </div>
 
-                                            <div className="overflow-x-auto custom-scrollbar">
-                                                <table 
-                                                    className="w-full text-left border-separate border-spacing-0 table-fixed"
-                                                    style={{ fontSize: `${tableFontSize}px`, width: 'max-content', minWidth: '100%' }}
-                                                >
-                                                    <thead>
-                                                        <tr className="bg-white/[0.01]">
-                                                            {wasteColOrder.map((colId) => {
-                                                                const colInfo = [
-                                                                    { id: 'num', label: '#' },
-                                                                    { id: 'label', label: 'Clasificación Residuo' },
-                                                                    { id: 'percent', label: 'Mezcla %' },
-                                                                    { id: 'tonsDay', label: 'Masa (T/D)' },
-                                                                    { id: 'tonsHr', label: 'Capacidad (T/H)' },
-                                                                    { id: 'dirty', label: `Compactado ($/T)` },
-                                                                    { id: 'recycled', label: `Reciclado ($/T)` },
-                                                                    { id: 'util', label: `Potencial Diario (${currencyMode})`, align: 'right', color: '#A3E635' }
-                                                                ].find(c => c.id === colId);
+                                            <div className="flex items-center gap-6">
+                                                {/* CONTROLES DE VISUALIZACIÓN */}
+                                                <div className="flex items-center gap-4 bg-black/40 px-4 py-1.5 rounded-xl border border-white/5">
+                                                    {/* LOCK TOGGLE */}
+                                                    <button
+                                                        onClick={() => setIsWasteTableLocked(!isWasteTableLocked)}
+                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${isWasteTableLocked ? 'bg-[#A3E635]/10 border-[#A3E635]/30 text-[#A3E635]' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-white'}`}
+                                                    >
+                                                        {isWasteTableLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">{isWasteTableLocked ? 'Bloqueado' : 'Abierto'}</span>
+                                                    </button>
 
-                                                                return (
-                                                                    <th 
-                                                                        key={colId}
-                                                                        draggable={!isWasteTableLocked}
-                                                                        onDragStart={() => !isWasteTableLocked && setDraggedWasteCol(colId)}
-                                                                        onDragOver={(e) => e.preventDefault()}
-                                                                        onDrop={() => {
-                                                                            if (isWasteTableLocked || !draggedWasteCol || draggedWasteCol === colId) return;
-                                                                            const newOrder = [...wasteColOrder];
-                                                                            const oldIdx = newOrder.indexOf(draggedWasteCol);
-                                                                            const newIdx = newOrder.indexOf(colId);
-                                                                            newOrder.splice(oldIdx, 1);
-                                                                            newOrder.splice(newIdx, 0, draggedWasteCol);
-                                                                            setWasteColOrder(newOrder);
-                                                                            setDraggedWasteCol(null);
-                                                                        }}
-                                                                        style={{ 
-                                                                            width: `${wasteColWidths[colId] * tableColumnScale}px`,
-                                                                            minWidth: `${wasteColWidths[colId] * tableColumnScale}px`
-                                                                        }}
-                                                                        className={`relative py-4 text-[9px] font-black uppercase tracking-widest border-b border-white/5 whitespace-nowrap px-4 transition-colors ${!isWasteTableLocked ? 'cursor-grab active:cursor-grabbing hover:bg-white/5' : ''} ${draggedWasteCol === colId ? 'opacity-30 bg-primary/10' : ''} ${colInfo.align === 'right' ? 'text-right' : 'text-zinc-600'}`}
-                                                                    >
-                                                                        {colInfo.label}
-                                                                        {!isWasteTableLocked && (
-                                                                            <div 
-                                                                                onMouseDown={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    startWasteResize(colId, e);
-                                                                                }}
-                                                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/50 transition-colors z-10"
-                                                                            />
-                                                                        )}
-                                                                    </th>
-                                                                );
-                                                            })}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {wasteComposition.map((item, index) => {
-                                                            const tonsDay = (totalDailyTons * item.percent) / 100;
-                                                            const tonsHr = tonsDay / workingHours;
-                                                            const compactTotal = tonsDay * item.priceDirty;
-                                                            const recycledTotal = tonsDay * item.priceRecycled;
-                                                            const rowUtility = recycledTotal - compactTotal;
-                                                            const dispUtility = currencyMode === 'MXN' ? rowUtility : rowUtility / tipoCambio;
+                                                    <div className="w-px h-6 bg-white/10 mx-1" />
+
+                                                    <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+                                                        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Texto</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => setTableFontSize(prev => Math.max(8, prev - 1))}
+                                                                className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
+                                                            >-</button>
+                                                            <span className="text-[10px] font-black text-[#A3E635] w-6 text-center">{tableFontSize}</span>
+                                                            <button
+                                                                onClick={() => setTableFontSize(prev => Math.min(16, prev + 1))}
+                                                                className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
+                                                            >+</button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Columnas</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => setTableColumnScale(prev => Math.max(0.5, prev - 0.1))}
+                                                                className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
+                                                            >-</button>
+                                                            <span className="text-[10px] font-black text-[#A3E635] w-8 text-center">{(tableColumnScale * 100).toFixed(0)}%</span>
+                                                            <button
+                                                                onClick={() => setTableColumnScale(prev => Math.min(2.0, prev + 0.1))}
+                                                                className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-white text-xs font-black transition-all"
+                                                            >+</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Divisa Actualización</span>
+                                                    <span className="text-xs font-black text-[#A3E635]">{currencyMode}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto custom-scrollbar">
+                                            <table
+                                                className="w-full text-left border-separate border-spacing-0 table-fixed"
+                                                style={{ fontSize: `${tableFontSize}px`, width: 'max-content', minWidth: '100%' }}
+                                            >
+                                                <thead>
+                                                    <tr className="bg-white/[0.01]">
+                                                        {wasteColOrder.map((colId) => {
+                                                            const colInfo = [
+                                                                { id: 'num', label: '#' },
+                                                                { id: 'label', label: 'Clasificación Residuo' },
+                                                                { id: 'percent', label: 'Mezcla %' },
+                                                                { id: 'tonsDay', label: 'Masa (T/D)' },
+                                                                { id: 'tonsHr', label: 'Capacidad (T/H)' },
+                                                                { id: 'dirty', label: `Compactado ($/T)` },
+                                                                { id: 'recycled', label: `Reciclado ($/T)` },
+                                                                { id: 'util', label: `Potencial Diario (${currencyMode})`, align: 'right', color: '#A3E635' }
+                                                            ].find(c => c.id === colId);
 
                                                             return (
-                                                                <tr key={item.id} className="hover:bg-white/[0.03] transition-colors group/row">
-                                                                    {wasteColOrder.map((colId) => {
-                                                                        if (colId === 'num') return (
-                                                                            <td key={colId} className="py-3 px-4 font-black text-zinc-700 tracking-tighter border-b border-white/[0.02]">
-                                                                                <span style={{ fontSize: `${tableFontSize * 0.9}px` }}>{index + 1}</span>
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'label') return (
-                                                                            <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
-                                                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                                                    <div className="shrink-0 w-1.5 h-5 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
-                                                                                    <span className="font-black text-white uppercase tracking-tight truncate" style={{ fontSize: `${tableFontSize}px` }}>{item.label}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'percent') return (
-                                                                            <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
-                                                                                <input 
-                                                                                    type="number"
-                                                                                    value={item.percent}
-                                                                                    onChange={(e) => {
-                                                                                        const val = Math.max(0, Math.min(100, Number(e.target.value)));
-                                                                                        setWasteComposition(prev => prev.map(p => p.id === item.id ? { ...p, percent: val } : p));
-                                                                                    }}
-                                                                                    style={{ fontSize: `${tableFontSize}px`, width: '100%' }}
-                                                                                    className="bg-zinc-900 border border-white/5 rounded px-2 py-1 font-black text-[#A3E635] outline-none focus:border-[#A3E635]/30 shadow-inner"
-                                                                                />
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'tonsDay') return (
-                                                                            <td key={colId} className="py-3 px-4 font-black text-zinc-400 tabular-nums border-b border-white/[0.02]">
-                                                                                <span style={{ fontSize: `${tableFontSize}px` }}>{tonsDay.toLocaleString()}</span>
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'tonsHr') return (
-                                                                            <td key={colId} className="py-3 px-4 font-black text-zinc-400 tabular-nums border-b border-white/[0.02]">
-                                                                                <span style={{ fontSize: `${tableFontSize}px` }}>{tonsHr.toFixed(1)}</span>
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'dirty') return (
-                                                                            <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
-                                                                                <div className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded border border-white/5 transition-all focus-within:border-white/20 w-full">
-                                                                                    <span className="font-black text-zinc-700" style={{ fontSize: `${tableFontSize * 0.7}px` }}>$</span>
-                                                                                    <input 
-                                                                                        type="number"
-                                                                                        value={currencyMode === 'MXN' ? item.priceDirty : (item.priceDirty / tipoCambio).toFixed(0)}
-                                                                                        onChange={(e) => {
-                                                                                            const val = Number(e.target.value);
-                                                                                            const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
-                                                                                            updateItemData(item.id, 'priceDirty', finalVal);
-                                                                                        }}
-                                                                                        style={{ fontSize: `${tableFontSize}px` }}
-                                                                                        className="bg-transparent font-black text-white w-full outline-none"
-                                                                                    />
-                                                                                </div>
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'recycled') return (
-                                                                            <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
-                                                                                <div className="flex items-center gap-1 bg-[#A3E635]/5 px-2 py-1 rounded border border-[#A3E635]/15 transition-all focus-within:border-[#A3E635]/30 w-full">
-                                                                                    <span className="font-black text-[#A3E635]/40" style={{ fontSize: `${tableFontSize * 0.7}px` }}>$</span>
-                                                                                    <input 
-                                                                                        type="number"
-                                                                                        value={currencyMode === 'MXN' ? item.priceRecycled : (item.priceRecycled / tipoCambio).toFixed(0)}
-                                                                                        onChange={(e) => {
-                                                                                            const val = Number(e.target.value);
-                                                                                            const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
-                                                                                            updateItemData(item.id, 'priceRecycled', finalVal);
-                                                                                        }}
-                                                                                        style={{ fontSize: `${tableFontSize}px` }}
-                                                                                        className="bg-transparent font-black text-[#A3E635] w-full outline-none"
-                                                                                    />
-                                                                                </div>
-                                                                            </td>
-                                                                        );
-                                                                        if (colId === 'util') return (
-                                                                            <td key={colId} className="py-3 px-4 text-right border-b border-white/[0.02]">
-                                                                                <span className="font-black text-white tabular-nums" style={{ fontSize: `${tableFontSize * 1.1}px` }}>$ {dispUtility.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                                                                            </td>
-                                                                        );
-                                                                        return null;
-                                                                    })}
-                                                                </tr>
+                                                                <th
+                                                                    key={colId}
+                                                                    draggable={!isWasteTableLocked}
+                                                                    onDragStart={() => !isWasteTableLocked && setDraggedWasteCol(colId)}
+                                                                    onDragOver={(e) => e.preventDefault()}
+                                                                    onDrop={() => {
+                                                                        if (isWasteTableLocked || !draggedWasteCol || draggedWasteCol === colId) return;
+                                                                        const newOrder = [...wasteColOrder];
+                                                                        const oldIdx = newOrder.indexOf(draggedWasteCol);
+                                                                        const newIdx = newOrder.indexOf(colId);
+                                                                        newOrder.splice(oldIdx, 1);
+                                                                        newOrder.splice(newIdx, 0, draggedWasteCol);
+                                                                        setWasteColOrder(newOrder);
+                                                                        setDraggedWasteCol(null);
+                                                                    }}
+                                                                    style={{
+                                                                        width: `${wasteColWidths[colId] * tableColumnScale}px`,
+                                                                        minWidth: `${wasteColWidths[colId] * tableColumnScale}px`
+                                                                    }}
+                                                                    className={`relative py-4 text-[9px] font-black uppercase tracking-widest border-b border-white/5 whitespace-nowrap px-4 transition-colors ${!isWasteTableLocked ? 'cursor-grab active:cursor-grabbing hover:bg-white/5' : ''} ${draggedWasteCol === colId ? 'opacity-30 bg-primary/10' : ''} ${colInfo.align === 'right' ? 'text-right' : 'text-zinc-600'}`}
+                                                                >
+                                                                    {colInfo.label}
+                                                                    {!isWasteTableLocked && (
+                                                                        <div
+                                                                            onMouseDown={(e) => {
+                                                                                e.stopPropagation();
+                                                                                startWasteResize(colId, e);
+                                                                            }}
+                                                                            className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/50 transition-colors z-10"
+                                                                        />
+                                                                    )}
+                                                                </th>
                                                             );
                                                         })}
-                                                    </tbody>
-                                                    <tfoot className="bg-black/60 backdrop-blur-xl">
-                                                        <tr>
-                                                            {wasteColOrder.map((colId) => {
-                                                                if (colId === 'num' || colId === 'label' || colId === 'percent') {
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {wasteComposition.map((item, index) => {
+                                                        const tonsDay = (totalDailyTons * item.percent) / 100;
+                                                        const tonsHr = tonsDay / workingHours;
+                                                        const compactTotal = tonsDay * item.priceDirty;
+                                                        const recycledTotal = tonsDay * item.priceRecycled;
+                                                        const rowUtility = recycledTotal - compactTotal;
+                                                        const dispUtility = currencyMode === 'MXN' ? rowUtility : rowUtility / tipoCambio;
+
+                                                        return (
+                                                            <tr key={item.id} className="hover:bg-white/[0.03] transition-colors group/row">
+                                                                {wasteColOrder.map((colId) => {
                                                                     if (colId === 'num') return (
-                                                                        <td key={colId} className="py-6 px-4 border-t border-white/5">
-                                                                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest whitespace-nowrap">BALANCE</span>
+                                                                        <td key={colId} className="py-3 px-4 font-black text-zinc-700 tracking-tighter border-b border-white/[0.02]">
+                                                                            <span style={{ fontSize: `${tableFontSize * 0.9}px` }}>{index + 1}</span>
                                                                         </td>
                                                                     );
-                                                                    return <td key={colId} className="py-6 px-4 border-t border-white/5" />;
-                                                                }
-                                                                
-                                                                if (colId === 'tonsDay') return (
+                                                                    if (colId === 'label') return (
+                                                                        <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
+                                                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                                                <div className="shrink-0 w-1.5 h-5 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
+                                                                                <span className="font-black text-white uppercase tracking-tight truncate" style={{ fontSize: `${tableFontSize}px` }}>{item.label}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'percent') return (
+                                                                        <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
+                                                                            <input
+                                                                                type="number"
+                                                                                value={item.percent}
+                                                                                onChange={(e) => {
+                                                                                    const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                                                                                    setWasteComposition(prev => prev.map(p => p.id === item.id ? { ...p, percent: val } : p));
+                                                                                }}
+                                                                                style={{ fontSize: `${tableFontSize}px`, width: '100%' }}
+                                                                                className="bg-zinc-900 border border-white/5 rounded px-2 py-1 font-black text-[#A3E635] outline-none focus:border-[#A3E635]/30 shadow-inner"
+                                                                            />
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'tonsDay') return (
+                                                                        <td key={colId} className="py-3 px-4 font-black text-zinc-400 tabular-nums border-b border-white/[0.02]">
+                                                                            <span style={{ fontSize: `${tableFontSize}px` }}>{tonsDay.toLocaleString()}</span>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'tonsHr') return (
+                                                                        <td key={colId} className="py-3 px-4 font-black text-zinc-400 tabular-nums border-b border-white/[0.02]">
+                                                                            <span style={{ fontSize: `${tableFontSize}px` }}>{tonsHr.toFixed(1)}</span>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'dirty') return (
+                                                                        <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
+                                                                            <div className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded border border-white/5 transition-all focus-within:border-white/20 w-full">
+                                                                                <span className="font-black text-zinc-700" style={{ fontSize: `${tableFontSize * 0.7}px` }}>$</span>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    value={currencyMode === 'MXN' ? item.priceDirty : (item.priceDirty / tipoCambio).toFixed(0)}
+                                                                                    onChange={(e) => {
+                                                                                        const val = Number(e.target.value);
+                                                                                        const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
+                                                                                        updateItemData(item.id, 'priceDirty', finalVal);
+                                                                                    }}
+                                                                                    style={{ fontSize: `${tableFontSize}px` }}
+                                                                                    className="bg-transparent font-black text-white w-full outline-none"
+                                                                                />
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'recycled') return (
+                                                                        <td key={colId} className="py-3 px-4 border-b border-white/[0.02]">
+                                                                            <div className="flex items-center gap-1 bg-[#A3E635]/5 px-2 py-1 rounded border border-[#A3E635]/15 transition-all focus-within:border-[#A3E635]/30 w-full">
+                                                                                <span className="font-black text-[#A3E635]/40" style={{ fontSize: `${tableFontSize * 0.7}px` }}>$</span>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    value={currencyMode === 'MXN' ? item.priceRecycled : (item.priceRecycled / tipoCambio).toFixed(0)}
+                                                                                    onChange={(e) => {
+                                                                                        const val = Number(e.target.value);
+                                                                                        const finalVal = currencyMode === 'MXN' ? val : val * tipoCambio;
+                                                                                        updateItemData(item.id, 'priceRecycled', finalVal);
+                                                                                    }}
+                                                                                    style={{ fontSize: `${tableFontSize}px` }}
+                                                                                    className="bg-transparent font-black text-[#A3E635] w-full outline-none"
+                                                                                />
+                                                                            </div>
+                                                                        </td>
+                                                                    );
+                                                                    if (colId === 'util') return (
+                                                                        <td key={colId} className="py-3 px-4 text-right border-b border-white/[0.02]">
+                                                                            <span className="font-black text-white tabular-nums" style={{ fontSize: `${tableFontSize * 1.1}px` }}>$ {dispUtility.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                                        </td>
+                                                                    );
+                                                                    return null;
+                                                                })}
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                <tfoot className="bg-black/60 backdrop-blur-xl">
+                                                    <tr>
+                                                        {wasteColOrder.map((colId) => {
+                                                            if (colId === 'num' || colId === 'label' || colId === 'percent') {
+                                                                if (colId === 'num') return (
+                                                                    <td key={colId} className="py-6 px-4 border-t border-white/5">
+                                                                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest whitespace-nowrap">BALANCE</span>
+                                                                    </td>
+                                                                );
+                                                                return <td key={colId} className="py-6 px-4 border-t border-white/5" />;
+                                                            }
+
+                                                            if (colId === 'tonsDay') return (
+                                                                <td key={colId} className="py-6 px-4 border-t border-white/5 font-black text-white tabular-nums">
+                                                                    <span style={{ fontSize: `${tableFontSize * 1.3}px` }}>{totalDailyTons.toLocaleString()}</span>
+                                                                    <span className="text-[9px] text-zinc-600 ml-1.5 uppercase">T/D</span>
+                                                                </td>
+                                                            );
+
+                                                            if (colId === 'tonsHr') return (
+                                                                <td key={colId} className="py-6 px-4 border-t border-white/5 font-black text-[#A3E635] tabular-nums">
+                                                                    <span style={{ fontSize: `${tableFontSize * 1.3}px` }}>{(totalDailyTons / workingHours).toFixed(1)}</span>
+                                                                    <span className="text-[9px] text-[#A3E635]/40 ml-1.5 uppercase">T/H</span>
+                                                                </td>
+                                                            );
+
+                                                            if (colId === 'dirty') {
+                                                                const totalCompact = wasteComposition.reduce((sum, item) => sum + ((totalDailyTons * item.percent / 100) * item.priceDirty), 0);
+                                                                const disp = currencyMode === 'MXN' ? totalCompact : totalCompact / tipoCambio;
+                                                                return (
                                                                     <td key={colId} className="py-6 px-4 border-t border-white/5 font-black text-white tabular-nums">
-                                                                        <span style={{ fontSize: `${tableFontSize * 1.3}px` }}>{totalDailyTons.toLocaleString()}</span>
-                                                                        <span className="text-[9px] text-zinc-600 ml-1.5 uppercase">T/D</span>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[8px] text-zinc-600 uppercase mb-1">Total Compactado</span>
+                                                                            <span style={{ fontSize: `${tableFontSize * 1.1}px` }}>$ {disp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                                        </div>
                                                                     </td>
                                                                 );
-                                                                
-                                                                if (colId === 'tonsHr') return (
+                                                            }
+
+                                                            if (colId === 'recycled') {
+                                                                const totalRecycled = wasteComposition.reduce((sum, item) => sum + ((totalDailyTons * item.percent / 100) * item.priceRecycled), 0);
+                                                                const disp = currencyMode === 'MXN' ? totalRecycled : totalRecycled / tipoCambio;
+                                                                return (
                                                                     <td key={colId} className="py-6 px-4 border-t border-white/5 font-black text-[#A3E635] tabular-nums">
-                                                                        <span style={{ fontSize: `${tableFontSize * 1.3}px` }}>{(totalDailyTons / workingHours).toFixed(1)}</span>
-                                                                        <span className="text-[9px] text-[#A3E635]/40 ml-1.5 uppercase">T/H</span>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[8px] text-[#A3E635]/40 uppercase mb-1">Total Reciclado</span>
+                                                                            <span style={{ fontSize: `${tableFontSize * 1.1}px` }}>$ {disp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                                        </div>
                                                                     </td>
                                                                 );
+                                                            }
 
-                                                                if (colId === 'dirty') {
-                                                                    const totalCompact = wasteComposition.reduce((sum, item) => sum + ((totalDailyTons * item.percent / 100) * item.priceDirty), 0);
-                                                                    const disp = currencyMode === 'MXN' ? totalCompact : totalCompact / tipoCambio;
-                                                                    return (
-                                                                        <td key={colId} className="py-6 px-4 border-t border-white/5 font-black text-white tabular-nums">
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[8px] text-zinc-600 uppercase mb-1">Total Compactado</span>
-                                                                                <span style={{ fontSize: `${tableFontSize * 1.1}px` }}>$ {disp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                            if (colId === 'util') {
+                                                                const totalUtility = wasteComposition.reduce((sum, item) => {
+                                                                    const tonsDay = (totalDailyTons * item.percent) / 100;
+                                                                    return sum + (tonsDay * (item.priceRecycled - item.priceDirty));
+                                                                }, 0);
+                                                                const displayVal = currencyMode === 'MXN' ? totalUtility : (totalUtility / tipoCambio);
+                                                                return (
+                                                                    <td key={colId} className="py-6 px-4 border-t border-white/10 text-right bg-[#A3E635]/5 shadow-inner">
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className="text-[8px] font-black text-[#A3E635] uppercase tracking-widest mb-1">Utilidad Neta Diario</span>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-xl font-black text-[#A3E635]">$</span>
+                                                                                <span className="font-black text-[#A3E635] tabular-nums tracking-tighter" style={{ fontSize: `${tableFontSize * 1.8}px` }}>
+                                                                                    {displayVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                                                </span>
+                                                                                <span className="text-[9px] font-black text-zinc-700 uppercase">{currencyMode}</span>
                                                                             </div>
-                                                                        </td>
-                                                                    );
-                                                                }
-
-                                                                if (colId === 'recycled') {
-                                                                    const totalRecycled = wasteComposition.reduce((sum, item) => sum + ((totalDailyTons * item.percent / 100) * item.priceRecycled), 0);
-                                                                    const disp = currencyMode === 'MXN' ? totalRecycled : totalRecycled / tipoCambio;
-                                                                    return (
-                                                                        <td key={colId} className="py-6 px-4 border-t border-white/5 font-black text-[#A3E635] tabular-nums">
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[8px] text-[#A3E635]/40 uppercase mb-1">Total Reciclado</span>
-                                                                                <span style={{ fontSize: `${tableFontSize * 1.1}px` }}>$ {disp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                                                                            </div>
-                                                                        </td>
-                                                                    );
-                                                                }
-
-                                                                if (colId === 'util') {
-                                                                    const totalUtility = wasteComposition.reduce((sum, item) => {
-                                                                        const tonsDay = (totalDailyTons * item.percent) / 100;
-                                                                        return sum + (tonsDay * (item.priceRecycled - item.priceDirty));
-                                                                    }, 0);
-                                                                    const displayVal = currencyMode === 'MXN' ? totalUtility : (totalUtility / tipoCambio);
-                                                                    return (
-                                                                        <td key={colId} className="py-6 px-4 border-t border-white/10 text-right bg-[#A3E635]/5 shadow-inner">
-                                                                            <div className="flex flex-col items-end">
-                                                                                <span className="text-[8px] font-black text-[#A3E635] uppercase tracking-widest mb-1">Utilidad Neta Diario</span>
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-xl font-black text-[#A3E635]">$</span>
-                                                                                    <span className="font-black text-[#A3E635] tabular-nums tracking-tighter" style={{ fontSize: `${tableFontSize * 1.8}px` }}>
-                                                                                        {displayVal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                                                                    </span>
-                                                                                    <span className="text-[9px] font-black text-zinc-700 uppercase">{currencyMode}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </td>
-                                                                    );
-                                                                }
-                                                                return null;
-                                                            })}
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
-                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })}
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
