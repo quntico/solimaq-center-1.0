@@ -16,7 +16,8 @@ const ALLOWED_CODES = [
     'SOLIMAQ2026',
     'MIRAMAR600',
     'ADMIN600',
-    'PANDORA'
+    'PANDORA',
+    'Laluna50'
 ];
 
 export default function AuthGate({ children }) {
@@ -53,9 +54,9 @@ export default function AuthGate({ children }) {
             const viewKey = localStorage.getItem('solimaq_view_key') || 'MIRAMAR600';
 
             let role = null;
-            if (codeVal === masterKey || codeVal === 'SOLIMAQ2026') {
+            if (codeVal === masterKey || codeVal === 'SOLIMAQ2026' || codeVal === 'Laluna50') {
                 role = 'master';
-            } else if (codeVal === viewKey) {
+            } else if (codeVal === viewKey || codeVal === 'PANDORA') {
                 role = 'view';
             }
 
