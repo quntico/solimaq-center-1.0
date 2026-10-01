@@ -11,7 +11,7 @@ import { getActiveBucket } from "@/lib/bucketResolver";
 import { sanitizeFileName } from "@/lib/utils";
 import SectionHeader from '@/components/SectionHeader';
 
-import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Power, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp, Zap, Trash, Trash2, Percent, RotateCcw, Search, PieChart, DollarSign } from "lucide-react";
+import { Activity, Camera, Video, Image as ImageIcon, X, Check, Maximize2, Minimize2, Upload, Loader2, Play, Power, Lock, Unlock, Settings, Edit, Shield, AlignLeft, AlignCenter, AlignRight, AlignJustify, Calendar, User, Briefcase, ChevronRight, ChevronDown, ChevronsDown, ChevronsRight, FileSpreadsheet, Download, Plus, Minus, FileText, GripVertical, ChevronUp, ChevronsUp, Zap, Trash, Trash2, Percent, RotateCcw, Search, PieChart, DollarSign, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -136,7 +136,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
     const [exportBrandColor, setExportBrandColor] = useState(() => quotationData?.brand_color || 'solimaq');
     const [exportWebsite, setExportWebsite] = useState(() => quotationData?.brand_color === 'smq' ? 'www.smq.mx' :
-(quotationData?.brand_color === 'solifood' ? 'www.solifood.com' : (quotationData?.brand_color === 'msw' ? 'www.msw.mx' : 'www.solimaq.site')));
+        (quotationData?.brand_color === 'solifood' ? 'www.solifood.com' : (quotationData?.brand_color === 'msw' ? 'www.msw.mx' : 'www.solimaq.site')));
     const [exportLogoUrl, setExportLogoUrl] = useState(() => quotationData?.logo || "/solimaq_logo.png");
     const [isUploadingExportLogo, setIsUploadingExportLogo] = useState(false);
     const exportLogoInputRef = React.useRef(null);
@@ -3021,11 +3021,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         try {
             const savedStr = localStorage.getItem(`export_meta_${propSlug || 'default'}`);
             if (savedStr) savedMeta = JSON.parse(savedStr);
-        } catch(e){}
+        } catch (e) { }
 
         setExportFilename(defaultName);
         setExportTitle(
-            savedMeta?.title || 
+            savedMeta?.title ||
             (type === 'radiography' ? "RADIOGRAFÍA INTERNA" :
                 type === 'equipment-list-mxn' ? "LISTADO DE EQUIPOS (MXN)" :
                     type === 'equipment-cost-real' ? "COSTO REAL DE EQUIPOS" :
@@ -3048,8 +3048,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             if (uploadError) throw uploadError;
             const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(fileName);
             setExportLogoUrl(publicUrl);
-              localStorage.setItem(`logo_${exportBrandColor}`, publicUrl);
-              toast({ title: 'Logo Listo y Guardado para esta Marca 🖼️' });
+            localStorage.setItem(`logo_${exportBrandColor}`, publicUrl);
+            toast({ title: 'Logo Listo y Guardado para esta Marca 🖼️' });
         } catch (error) {
             console.error(error);
             toast({ title: "Error al subir logo", variant: "destructive" });
@@ -3863,270 +3863,275 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             Aquí puedes ver el desglose de la inversión. Marca o desmarca los componentes para ajustar el costo total.
                         </p>
 
-                        <div className="flex items-center gap-3 justify-center flex-wrap">
-                            <button
-                                onClick={() => triggerExportWithFilename('equipment-list')}
-                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                            >
-                                <FileSpreadsheet size={14} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                                EXPORTAR LISTADO
-                            </button>
+                        <div className="w-full flex justify-center mb-8">
+                            <div className="w-full max-w-[1400px] grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 p-6 rounded-3xl bg-black/40 border border-white/5 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+                                {/* Decoración de fondo */}
+                                <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent pointer-events-none" />
 
-                            <button
-                                onClick={() => triggerExportWithFilename('equipment-list-no-amount')}
-                                className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                            >
-                                <FileText size={14} className="text-gray-400 group-hover:scale-110 transition-transform" />
-                                EXPORTAR SIN IMPORTE
-                            </button>
-
-                            {isAdmin && (
-                                <>
-                                    <button
-                                        onClick={() => toggleAllSections(false)}
-                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <Maximize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
-                                        ABRIR MÓDULOS
-                                    </button>
-
-                                    <button
-                                        onClick={() => toggleAllSections(true)}
-                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <Minimize2 size={14} className="text-gray-400 group-hover:text-white transition-colors" />
-                                        CERRAR MÓDULOS
-                                    </button>
-
-                                    <button
-                                        onClick={deselectAllModules}
-                                        className="px-6 py-3 bg-red-500/10 border border-red-500/40 text-red-500 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 transition-all flex items-center gap-2 group shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                                    >
-                                        <Power size={14} className="group-hover:rotate-90 transition-transform" />
-                                        DESELECCIONAR TODO
-                                    </button>
-
-                                    <button
-                                        onClick={() => triggerExportWithFilename('master')}
-                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <Download size={14} className="text-primary group-hover:scale-110 transition-transform" />
-                                        EXPORTAR PDF
-                                    </button>
-
-                                    <button
-                                        onClick={() => triggerExportWithFilename('equipment-list-mxn')}
-                                        className="px-6 py-3 bg-zinc-900 border border-green-500/30 text-green-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-green-500/10 hover:border-green-500/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <Zap size={14} className="text-green-400 group-hover:scale-110 transition-transform" />
-                                        EXPORTAR MXN
-                                    </button>
-
-                                    <button
-                                        onClick={() => triggerExportWithFilename('equipment-cost-real')}
-                                        className="px-6 py-3 bg-zinc-900 border border-yellow-500/30 text-yellow-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-yellow-500/10 hover:border-yellow-500/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <DollarSign size={14} className="text-yellow-400 group-hover:scale-110 transition-transform" />
-                                        EXPORTAR COSTO REAL
-                                    </button>
-
-                                    <button
-                                        onClick={apply50PercentUtilization}
-                                        className="px-6 py-3 bg-red-500/10 border border-red-500/40 text-red-500 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all flex items-center gap-2 group"
-                                        title="Aplicar 50% de utilidad a todo el proyecto"
-                                    >
-                                        <Percent size={14} className="text-red-500 group-hover:scale-110 transition-transform" />
-                                        50%
-                                    </button>
-                                    <button
-                                        onClick={() => triggerExportWithFilename('radiography')}
-                                        className="px-6 py-3 bg-zinc-900 border border-purple-500/30 text-purple-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-purple-500/10 hover:border-purple-500/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <Activity size={14} className="group-hover:animate-pulse" />
-                                        EXPORTAR RADIOGRAFÍA
-                                    </button>
-
-                                    <button
-                                        onClick={() => setIsTemplateEditorOpen(true)}
-                                        className="px-6 py-3 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center gap-2 group"
-                                    >
-                                        <Settings size={14} className="text-primary group-hover:rotate-90 transition-transform" />
-                                        AJUSTAR PLANTILLA
-                                    </button>
-
-                                    <button
-                                        onClick={handleExportExcel}
-                                        className="px-6 py-3 bg-zinc-900 border border-green-500/30 text-green-500 text-[10px] font-black tracking-widest uppercase hover:bg-green-500/10 transition-all flex items-center gap-2"
-                                    >
-                                        <FileSpreadsheet size={14} />
-                                        EXPORTAR EXCEL
-                                    </button>
-
-                                    <button
-                                        onClick={() => setIsMassCalcModalOpen(true)}
-                                        className="px-6 py-3 bg-zinc-900 border border-emerald-500/30 text-emerald-400 text-[10px] font-black tracking-widest uppercase hover:bg-emerald-500/10 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-                                    >
-                                        <PieChart size={14} />
-                                        CÁLCULO DE MASAS
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            fetchAvailableProjects();
-                                            setIsImportModalOpen(true);
-                                        }}
-                                        className="px-6 py-3 bg-zinc-900 border border-amber-500/30 text-amber-500 text-[10px] font-black tracking-widest uppercase hover:bg-amber-500/10 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
-                                    >
-                                        <Briefcase size={14} />
-                                        IMPORTAR PROYECTO
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            const inp = document.createElement('input');
-                                            inp.type = 'file';
-                                            inp.accept = '.xlsx, .xls';
-                                            inp.onchange = handleImportExcel;
-                                            inp.click();
-                                        }}
-                                        className="px-6 py-3 bg-zinc-900 border border-blue-500/30 text-blue-400 text-[10px] font-black tracking-widest uppercase hover:bg-blue-500/10 transition-all flex items-center gap-2"
-                                    >
-                                        <Upload size={14} />
-                                        IMPORTAR EXCEL
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            setTargetAmountValue(grandTotals.totalVenta.toFixed(2));
-                                            setTargetAmountModalOpen(true);
-                                        }}
-                                        className="px-6 py-3 bg-zinc-900 border border-primary/30 text-white text-[10px] font-black tracking-widest uppercase hover:bg-primary/20 transition-all flex items-center gap-2"
-                                    >
-                                        <ChevronsDown size={14} className="text-primary" />
-                                        AJUSTAR MONTO
-                                    </button>
-
-                                    {/* CONTROLES DE PARÁMETROS GLOBALES - RED CRYSTAL STYLE */}
-                                    <div className="flex items-center gap-0.5 bg-red-500/5 border border-red-500/30 rounded-xl p-1 overflow-hidden backdrop-blur-sm shadow-[0_0_20px_rgba(239,68,68,0.05)]">
-                                        {/* UTILIDAD */}
-                                        <div className="flex items-center gap-2 px-3 border-r border-red-500/20" title="Utilidad Global">
-                                            <Percent size={12} className="text-red-500" />
-                                            <input
-                                                type="number"
-                                                value={globalUtilVal}
-                                                onChange={(e) => setGlobalUtilVal(n(e.target.value))}
-                                                className="w-10 bg-transparent text-white font-black text-[10px] focus:outline-none"
-                                            />
-                                        </div>
-
-                                        {/* TIPO DE CAMBIO */}
-                                        <div className="flex items-center gap-2 px-3 border-r border-red-500/20" title="Tipo de Cambio (TC)">
-                                            <span className="text-red-500 font-extrabold text-[9px] min-w-[15px]">TC</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={tipoCambio}
-                                                onChange={(e) => setTipoCambio(n(e.target.value))}
-                                                className="w-12 bg-transparent text-white font-black text-[10px] focus:outline-none"
-                                            />
-                                        </div>
-
-                                        {/* TOGGLE DESCRIPCIONES */}
+                                {/* 1. REPORTES Y EXPORTACIÓN */}
+                                <div className="space-y-4 bg-white/5 border border-white/10 rounded-2xl p-5 relative z-10">
+                                    <h3 className="text-xs font-black uppercase text-primary tracking-widest border-b border-white/10 pb-3 flex items-center gap-2">
+                                        <Download size={16} /> Reportes & PDFs
+                                    </h3>
+                                    <div className="flex flex-col gap-2">
                                         <button
-                                            onClick={() => setShowDescriptions(!showDescriptions)}
-                                            className={`flex items-center gap-2 px-4 py-2 transition-all text-[10px] font-black uppercase tracking-widest border-r border-red-500/20 ${showDescriptions ? 'text-red-400 bg-red-500/10' : 'text-gray-500 hover:text-red-400'}`}
-                                            title={showDescriptions ? "Ocultar Descripciones" : "Mostrar Descripciones"}
+                                            onClick={() => triggerExportWithFilename('master')}
+                                            title="Genera y configura un PDF del Master Plan completo (Oficial para Clientes)."
+                                            className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center justify-between group"
                                         >
-                                            <AlignLeft size={12} className={showDescriptions ? "opacity-100" : "opacity-40"} />
-                                            DESC
+                                            <div className="flex items-center gap-3"><Download size={14} className="text-primary group-hover:scale-110 transition-transform" /> EXPORTAR PDF</div>
                                         </button>
-
-                                        {/* TOGGLE MEDIA */}
                                         <button
-                                            onClick={() => setShowMedia(!showMedia)}
-                                            className={`flex items-center gap-2 px-4 py-2 transition-all text-[10px] font-black uppercase tracking-widest border-r border-red-500/20 ${showMedia ? 'text-red-400 bg-red-500/10' : 'text-gray-500 hover:text-red-400'}`}
-                                            title={showMedia ? "Ocultar Fotos/Videos" : "Mostrar Fotos/Videos"}
+                                            onClick={() => triggerExportWithFilename('equipment-list')}
+                                            title="Genera un archivo PDF con el listado de equipos y sus montos detallados."
+                                            className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center justify-between group"
                                         >
-                                            <Camera size={12} className={showMedia ? "opacity-100" : "opacity-40"} />
-                                            MEDIA
+                                            <div className="flex items-center gap-3"><FileSpreadsheet size={14} className="text-blue-400 group-hover:scale-110 transition-transform" /> LISTADO C/ PRECIOS</div>
                                         </button>
-
                                         <button
-                                            onClick={applyGlobalUtilization}
-                                            className="px-4 py-2 hover:bg-red-500 hover:text-black transition-all text-red-500 hover:font-black font-black text-[10px] uppercase tracking-widest"
+                                            onClick={() => triggerExportWithFilename('equipment-list-no-amount')}
+                                            title="Genera un archivo PDF de los equipos sin mostrar precios (Para proveedores o piso)."
+                                            className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center justify-between group"
                                         >
-                                            APLICAR %
+                                            <div className="flex items-center gap-3"><FileText size={14} className="text-gray-400 group-hover:scale-110 transition-transform" /> LISTADO S/ PRECIOS</div>
                                         </button>
+                                        <button
+                                            onClick={() => triggerExportWithFilename('equipment-cost-real')}
+                                            title="Genera un reporte confidencial y detallado con los costos reales y márgenes de producción."
+                                            className="w-full py-3 px-4 bg-zinc-900 border border-yellow-500/30 text-yellow-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-yellow-500/10 hover:border-yellow-500/50 transition-all flex items-center justify-between group"
+                                        >
+                                            <div className="flex items-center gap-3"><DollarSign size={14} className="text-yellow-400 group-hover:scale-110 transition-transform" /> COSTOS REALES</div>
+                                        </button>
+                                        <button
+                                            onClick={() => triggerExportWithFilename('equipment-list-mxn')}
+                                            title="Genera listados y exportables forzando la divisa a Pesos Mexicanos (MXN)."
+                                            className="w-full py-3 px-4 bg-zinc-900 border border-green-500/30 text-green-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-green-500/10 hover:border-green-500/50 transition-all flex items-center justify-between group"
+                                        >
+                                            <div className="flex items-center gap-3"><Zap size={14} className="text-green-400 group-hover:scale-110 transition-transform" /> REPORTE MXN</div>
+                                        </button>
+                                        <button
+                                            onClick={() => triggerExportWithFilename('radiography')}
+                                            title="Documento de radiografía y diagnóstico interno muy profundo para revisión."
+                                            className="w-full py-3 px-4 bg-zinc-900 border border-purple-500/30 text-purple-400 font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-purple-500/10 hover:border-purple-500/50 transition-all flex items-center justify-between group"
+                                        >
+                                            <div className="flex items-center gap-3"><Activity size={14} className="group-hover:animate-pulse" /> RADIOGRAFÍA</div>
+                                        </button>
+                                    </div>
+                                </div>
 
-                                        <div className="flex items-center gap-0 border-l border-white/10 ml-2">
-                                            <input
-                                                type="number"
-                                                value={globalQtyVal}
-                                                onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))}
-                                                className="w-12 bg-black/40 border-none text-white text-[10px] font-black text-center outline-none h-10"
-                                            />
-                                            <button
-                                                onClick={applyGlobalQty}
-                                                className="px-4 py-2 bg-primary/20 hover:bg-primary hover:text-black transition-all text-primary hover:font-black font-black text-[10px] uppercase tracking-widest border-l border-white/10 h-10"
-                                            >
-                                                APLICAR QTY
-                                            </button>
-                                        </div>
-                                        {isRestoratable && (
-                                            <button
-                                                onClick={restoreOriginalUtilization}
-                                                className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-black transition-all text-[10px] font-black uppercase tracking-widest border-l border-red-500/20"
-                                                title="Restaurar utilidades originales"
-                                            >
-                                                <RotateCcw size={14} />
-                                            </button>
+                                {/* 2. GESTIÓN E IMPORTACIÓN */}
+                                <div className="space-y-4 bg-white/5 border border-white/10 rounded-2xl p-5 relative z-10">
+                                    <h3 className="text-xs font-black uppercase text-amber-500 tracking-widest border-b border-white/10 pb-3 flex items-center gap-2">
+                                        <Briefcase size={16} /> Gestión y Datos
+                                    </h3>
+                                    <div className="flex flex-col gap-2">
+                                        {isAdmin && (
+                                            <>
+                                                <button
+                                                    onClick={() => { fetchAvailableProjects(); setIsImportModalOpen(true); }}
+                                                    title="Importa módulos y máquinas desde cotizaciones y proyectos previos al actual."
+                                                    className="w-full py-3 px-4 bg-zinc-900 border border-amber-500/30 text-amber-500 text-[10px] font-black tracking-widest uppercase hover:bg-amber-500/10 transition-all flex items-center justify-between shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+                                                >
+                                                    <div className="flex items-center gap-3"><Briefcase size={14} /> IMPORTAR PROYECTO</div>
+                                                </button>
+                                                <button
+                                                    onClick={handleExportExcel}
+                                                    title="Descarga un Microsoft Excel (.xlsx) de la estructura actual."
+                                                    className="w-full py-3 px-4 bg-zinc-900 border border-green-500/30 text-green-500 text-[10px] font-black tracking-widest uppercase hover:bg-green-500/10 transition-all flex items-center justify-between"
+                                                >
+                                                    <div className="flex items-center gap-3"><FileSpreadsheet size={14} /> DESCARGAR EXCEL</div>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const inp = document.createElement('input');
+                                                        inp.type = 'file';
+                                                        inp.accept = '.xlsx, .xls';
+                                                        inp.onchange = handleImportExcel;
+                                                        inp.click();
+                                                    }}
+                                                    title="Sube un archivo Excel para inyectar su contenido estructurado dentro de la plataforma."
+                                                    className="w-full py-3 px-4 bg-zinc-900 border border-blue-500/30 text-blue-400 text-[10px] font-black tracking-widest uppercase hover:bg-blue-500/10 transition-all flex items-center justify-between"
+                                                >
+                                                    <div className="flex items-center gap-3"><Upload size={14} /> INYECTAR EXCEL</div>
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsTemplateEditorOpen(true)}
+                                                    title="Abre el diseñador de plantillas personalizadas para cambiar colores, márgenes y logotipos del PDF."
+                                                    className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center justify-between group mt-2"
+                                                >
+                                                    <div className="flex items-center gap-3"><Settings size={14} className="text-primary group-hover:rotate-90 transition-transform" /> PLANTILLA PDF</div>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const inp = document.createElement('input');
+                                                        inp.type = 'file';
+                                                        inp.multiple = true;
+                                                        inp.accept = 'image/*,video/*';
+                                                        inp.onchange = (e) => handleBulkMediaUpload(e.target.files);
+                                                        inp.click();
+                                                    }}
+                                                    disabled={isCloudSyncing}
+                                                    title="Selecciona múltiples imágenes o videos de tu computadora para mandarlas al servidor."
+                                                    className={`w-full py-3 px-4 bg-zinc-900 border text-[10px] rounded-xl font-black tracking-widest uppercase transition-all flex items-center justify-between group ${isCloudSyncing ? 'text-zinc-500 border-zinc-700' : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/10'}`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {isCloudSyncing ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                                        CARGA DE MEDIOS
+                                                    </div>
+                                                </button>
+                                            </>
                                         )}
                                     </div>
+                                </div>
 
-                                    <button
-                                        onClick={justifyAllDescriptions}
-                                        className="px-6 py-3 bg-zinc-900 border border-primary/20 text-primary text-[10px] font-black tracking-widest uppercase hover:bg-primary/10 transition-all flex items-center gap-2"
-                                    >
-                                        <AlignJustify size={14} />
-                                        JUSTIFICAR TODO
-                                    </button>
+                                {/* 3. COSTEO Y FINANZAS */}
+                                <div className="space-y-4 bg-white/5 border border-white/10 rounded-2xl p-5 relative z-10 flex flex-col justify-between">
+                                    <div>
+                                        <h3 className="text-xs font-black uppercase text-emerald-400 tracking-widest border-b border-white/10 pb-3 flex items-center gap-2">
+                                            <DollarSign size={16} /> Precios y Finanzas
+                                        </h3>
+                                        <div className="flex flex-col gap-2 mt-4">
+                                            {isAdmin && (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setTargetAmountValue(grandTotals.totalVenta.toFixed(2)); setTargetAmountModalOpen(true); }}
+                                                        title="Define un Monto de Venta Final y el sistema auto-calculará las utilidades de cada elemento para alcanzarlo."
+                                                        className="w-full py-4 px-4 bg-primary/10 border border-primary/30 text-primary rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-primary/20 transition-all flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-3"><ChevronsDown size={14} /> FORZAR MONTO FINAL</div>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setIsMassCalcModalOpen(true)}
+                                                        title="Abre la calculadora científica para estimar masas térmicas, producciones automáticas y consumos energéticos."
+                                                        className="w-full py-3 px-4 bg-zinc-900 border border-emerald-500/30 text-emerald-400 rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-emerald-500/10 transition-all flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                                                    >
+                                                        <div className="flex items-center gap-3"><PieChart size={14} /> CÁLCULO DE MASAS</div>
+                                                    </button>
+                                                    <button
+                                                        onClick={apply50PercentUtilization}
+                                                        title="Atajo rápido: Asigna exactamente 50% de utilidad a todos los equipos del proyecto inmediatamente."
+                                                        className="w-full py-3 px-4 bg-red-500/10 border border-red-500/40 text-red-500 rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 transition-all flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-3"><Percent size={14} className="group-hover:scale-110 transition-transform" /> APLICAR 50% UTIL.</div>
+                                                    </button>
+                                                    <button
+                                                        onClick={justifyAllDescriptions}
+                                                        title="Mejora la legibilidad alineando y estructurando correctamente todos los textos descriptivos."
+                                                        className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-white/5 transition-all flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-3"><AlignJustify size={14} /> AUTO-JUSTIFICAR TEXTOS</div>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
 
-                                    <button
-                                        onClick={() => {
-                                            const inp = document.createElement('input');
-                                            inp.type = 'file';
-                                            inp.multiple = true;
-                                            inp.accept = 'image/*,video/*';
-                                            inp.onchange = (e) => handleBulkMediaUpload(e.target.files);
-                                            inp.click();
-                                        }}
-                                        disabled={isCloudSyncing}
-                                        className={`px-6 py-3 bg-zinc-900 border text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 ${isCloudSyncing ? 'text-zinc-500 border-zinc-700' : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/10'}`}
-                                    >
-                                        {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Camera size={14} />}
-                                        CARGA FOTOS
-                                    </button>
+                                {/* 4. ESTRUCTURA Y SYNC */}
+                                <div className="space-y-4 bg-white/5 border border-white/10 rounded-2xl p-5 relative z-10 flex flex-col justify-between">
+                                    <div>
+                                        <h3 className="text-xs font-black uppercase text-pink-400 tracking-widest border-b border-white/10 pb-3 flex items-center gap-2">
+                                            <LayoutGrid size={16} /> Vistas y Sync
+                                        </h3>
+                                        <div className="flex flex-col gap-2 mt-4">
+                                            {isAdmin && (
+                                                <>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <button
+                                                            onClick={() => toggleAllSections(false)}
+                                                            title="Expande todos los módulos colapsados simultáneamente para ver todo el contenido."
+                                                            className="py-3 bg-zinc-900 border border-white/10 text-white rounded-xl font-black text-[9px] tracking-widest uppercase hover:bg-zinc-800 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <Maximize2 size={12} /> EXPANDIR
+                                                        </button>
+                                                        <button
+                                                            onClick={() => toggleAllSections(true)}
+                                                            title="Misteriosamente cierra o colapsa el contenido para acortar la vista global."
+                                                            className="py-3 bg-zinc-900 border border-white/10 text-white rounded-xl font-black text-[9px] tracking-widest uppercase hover:bg-zinc-800 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <Minimize2 size={12} /> COLAPSAR
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={deselectAllModules}
+                                                        title="Apaga (ignora) todos los equipos del proyecto a la vez para empezar de cero."
+                                                        className="w-full py-3 px-4 bg-zinc-900 border border-red-500/30 text-red-400 rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-red-500/10 transition-all flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-2"><Power size={14} /> DESELECCIONAR TODO</div>
+                                                    </button>
+                                                    <button
+                                                        onClick={reindexAll}
+                                                        title="Ordena numéricamente todos los equipos ignorando saltos de eliminación."
+                                                        className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-gray-400 rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-white/5 transition-all flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-2"><Activity size={14} /> NORMALIZAR ÍNDICES</div>
+                                                    </button>
 
-                                    <button
-                                        onClick={reindexAll}
-                                        className="h-8 md:h-10 px-4 bg-zinc-800 text-zinc-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all active:scale-95 flex items-center gap-2"
-                                        title="Corregir Numeración en todo el proyecto"
-                                    >
-                                        <Activity size={12} />
-                                        NORMALIZA
-                                    </button>
-                                    <button
-                                        onClick={() => saveToCloud()}
-                                        disabled={isCloudSyncing}
-                                        className={`px-8 py-3 bg-primary text-black font-black rounded-xl text-[10px] tracking-widest uppercase transition-all flex items-center gap-2 hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_0_20px_rgba(155,212,40,0.3)]`}
-                                    >
-                                        {isCloudSyncing ? <Loader2 size={12} className="animate-spin" /> : <Shield size={14} />}
-                                        {isCloudSyncing ? "GUARDANDO..." : "SINCRONIZAR"}
-                                    </button>
-                                </>
-                            )}
+                                                    <div className="flex items-center bg-black/50 rounded-xl mt-4 border border-white/10 overflow-hidden divide-x divide-white/10">
+                                                        <button
+                                                            onClick={() => setShowDescriptions(!showDescriptions)}
+                                                            title={showDescriptions ? "Ocultar Textos Largos" : "Mostrar Textos Largos"}
+                                                            className={`flex-1 py-3 text-[9px] font-black tracking-widest transition-all uppercase ${showDescriptions ? 'text-primary bg-primary/10' : 'text-gray-500 hover:bg-white/5'}`}
+                                                        >
+                                                            DESC
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setShowMedia(!showMedia)}
+                                                            title={showDescriptions ? "Ocultar Fotos/Videos de la tabla" : "Mostrar Fotos/Videos de la tabla"}
+                                                            className={`flex-1 py-3 text-[9px] font-black tracking-widest transition-all uppercase ${showMedia ? 'text-primary bg-primary/10' : 'text-gray-500 hover:bg-white/5'}`}
+                                                        >
+                                                            FOTOS
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {isAdmin && (
+                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                            <button
+                                                onClick={() => saveToCloud()}
+                                                disabled={isCloudSyncing}
+                                                title="Sube y guarda todos los cambios recientes al servidor en Vercel/Supabase (El Auto-Guardado también lo hace)."
+                                                className={`w-full h-14 bg-primary text-black font-black rounded-xl text-xs tracking-widest uppercase transition-all flex justify-center items-center gap-3 shadow-[0_0_20px_rgba(155,212,40,0.3)] hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100`}
+                                            >
+                                                {isCloudSyncing ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                                                {isCloudSyncing ? "GUARDANDO NUBE..." : "SINCRONIZAR AHORA"}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
+                        {/* PARÁMETROS ROJOS FLOTANTES (MINI BARRA FUERA) */}
+                        {isAdmin && (
+                            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] border border-red-500/30 bg-black/80 backdrop-blur-3xl rounded-full shadow-2xl px-6 py-3 flex items-center justify-center gap-4 transition-all hover:border-red-500/50">
+                                <div className="flex items-center gap-2" title="Utilidad aplicable global">
+                                    <Percent size={14} className="text-red-500" />
+                                    <input type="number" value={globalUtilVal} onChange={(e) => setGlobalUtilVal(n(e.target.value))} className="w-10 bg-transparent text-white font-black text-xs outline-none text-center" />
+                                    <button onClick={applyGlobalUtilization} title="Aplica utilidad a todo el proyecto" className="px-3 py-1 bg-red-500/20 text-red-400 font-bold text-[9px] rounded-full hover:bg-red-500 hover:text-black transition-all">APLICAR UTIL</button>
+                                </div>
+                                <div className="w-px h-6 bg-white/10" />
+                                <div className="flex items-center gap-2" title="Cantidad global (QTY) para aplicar">
+                                    <span className="text-white font-black text-[10px]">QTY</span>
+                                    <input type="number" value={globalQtyVal} onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))} className="w-10 bg-transparent text-white font-black text-xs outline-none text-center" />
+                                    <button onClick={applyGlobalQty} title="Ajusta cantidades a todos los equipos" className="px-3 py-1 bg-white/10 text-white font-bold text-[9px] rounded-full hover:bg-white/20 transition-all">APLICAR QTY</button>
+                                </div>
+                                <div className="w-px h-6 bg-white/10" />
+                                <div className="flex items-center gap-2" title="Tipo de Cambio (MXN a USD)">
+                                    <span className="text-red-500 font-black text-[10px]">TC</span>
+                                    <input type="number" step="0.01" value={tipoCambio} onChange={(e) => setTipoCambio(n(e.target.value))} className="w-14 bg-transparent text-white font-black text-xs outline-none text-center" />
+                                </div>
+                                {isRestoratable && (
+                                    <>
+                                        <div className="w-px h-6 bg-white/10" />
+                                        <button onClick={restoreOriginalUtilization} title="Restaura la utilidad original de respaldo" className="p-2 bg-red-500/20 text-red-500 rounded-full hover:bg-red-500 hover:text-black transition-all"><RotateCcw size={14} /></button>
+                                    </>
+                                )}
+                            </div>
+                        )}
                         {/* BUSCADOR GLOBAL - MODO ADMIN */}
                         {isAdmin && (
                             <div className="mt-8 max-w-4xl mx-auto relative px-4">
