@@ -587,6 +587,7 @@ const QuotationViewer = ({
         isEditorMode={isEditorMode && isAdminView}
         setIsEditorMode={setIsEditorMode}
         activeTheme={activeTheme}
+        isAdminView={isAdminView}
         isAdminAuthenticated={isAdminAuthenticated && isAdminView}
         onSectionContentUpdate={setSectionsConfig}
         onAtomicContentUpdate={handleAtomicUpdate} // New Atomic Prop
