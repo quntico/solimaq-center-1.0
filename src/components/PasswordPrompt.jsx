@@ -13,7 +13,7 @@ const PasswordPrompt = ({ onCorrectPassword, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const editorPasswords = ['2020', '2021'];
+    const editorPasswords = ['Laluna50', '2020', '2021'];
     const adminPasswords = ['1917', ...editorPasswords];
 
     if (adminPasswords.includes(password)) {
