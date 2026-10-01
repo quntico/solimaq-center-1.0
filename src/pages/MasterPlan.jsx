@@ -5081,6 +5081,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                 <option value="solimaq" className="bg-zinc-900 text-white">Solimaq Center</option>
                                                 <option value="solifood" className="bg-zinc-900 text-white">Solifood</option>
                                                 <option value="smq" className="bg-zinc-900 text-white">SMQ Engineering</option>
+                                                <option value="msw" className="bg-zinc-900 text-white">MSW Industrial</option>
                                             </select>
                                         </div>
                                     </div>
