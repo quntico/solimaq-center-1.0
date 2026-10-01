@@ -3993,6 +3993,22 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         <div className="flex flex-col gap-2 mt-4">
                                             {isAdmin && (
                                                 <>
+                                                    <div className="w-full py-3 px-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-between group transition-all hover:border-red-500/50" title="Tipo de Cambio del Dólar (USD > MXN)">
+                                                        <div className="flex items-center gap-3">
+                                                            <DollarSign size={14} className="text-red-500 group-hover:scale-110 transition-transform" />
+                                                            <span className="text-red-500 font-black text-[10px] tracking-widest uppercase">EXCHANGE (TC)</span>
+                                                        </div>
+                                                        <div className="flex items-center bg-black/40 rounded-md px-2 py-1 border border-white/5">
+                                                            <span className="text-white/40 text-[10px] mr-1">$</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={tipoCambio}
+                                                                onChange={(e) => setTipoCambio(n(e.target.value))}
+                                                                className="w-12 bg-transparent text-white font-black text-[11px] outline-none text-right"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                     <button
                                                         onClick={() => { setTargetAmountValue(grandTotals.totalVenta.toFixed(2)); setTargetAmountModalOpen(true); }}
                                                         title="Define un Monto de Venta Final y el sistema auto-calculará las utilidades de cada elemento para alcanzarlo."
