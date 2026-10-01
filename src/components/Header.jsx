@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Menu, Loader2, FileDown } from 'lucide-react';
+import { Search, Menu, Loader2, FileDown, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -126,6 +126,17 @@ const Header = ({
 
           {/* Right section: Language selector and Search button */}
           <div className="flex-1 flex items-center justify-end gap-1 sm:gap-2">
+            {isAdminView && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSectionSelect('master_plan')}
+                className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-all flex"
+                title="Ir a Master Plan"
+              >
+                <Briefcase className="h-5 w-5" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
