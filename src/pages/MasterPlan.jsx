@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+﻿import React, { useEffect, useMemo, useState, useRef } from "react";
 // V1.0.2-TECH-CONSOLE-FIX
 import { useNavigate, useParams } from "react-router-dom";
 import * as XLSX from 'xlsx';
@@ -3041,7 +3041,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             if (uploadError) throw uploadError;
             const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(fileName);
             setExportLogoUrl(publicUrl);
-            toast({ title: 'Logo de Exportación Listo 🖼️' });
+              localStorage.setItem(`logo_${exportBrandColor}`, publicUrl);
+              toast({ title: 'Logo Listo y Guardado para esta Marca 🖼️' });
         } catch (error) {
             console.error(error);
             toast({ title: "Error al subir logo", variant: "destructive" });
@@ -5094,11 +5095,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all"
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Logo de Exportación</label>
-                                        <div className="flex flex-col gap-2 h-full">
+                                    <div className="space-y-2 col-span-2 mt-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Logo de Exportación (Autoguardado por Marca)</label>
+                                        <div className="flex flex-row items-center gap-4">
                                             {exportLogoUrl && (
-                                                <div className="flex-1 rounded shrink-0 bg-white/5 border border-white/10 flex items-center justify-center p-4">
+                                                <div className="h-[46px] w-[90px] rounded shrink-0 bg-white/5 border border-white/10 flex items-center justify-center p-1">
                                                     <img src={exportLogoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
                                                 </div>
                                             )}
@@ -5106,7 +5107,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             <button
                                                 onClick={() => exportLogoInputRef.current?.click()}
                                                 disabled={isUploadingExportLogo}
-                                                className="w-full py-3 h-[46px] text-xs bg-white/5 hover:bg-white/10 text-white font-bold tracking-wider rounded-xl transition-all border border-white/10 flex items-center justify-center focus:outline-none"
+                                                className="flex-1 py-3 h-[46px] text-xs bg-white/5 hover:bg-white/10 text-white font-bold tracking-wider rounded-xl transition-all border border-white/10 flex items-center justify-center focus:outline-none"
                                             >
                                                 {isUploadingExportLogo ? "..." : "Subir Logo"}
                                             </button>
