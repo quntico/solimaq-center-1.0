@@ -4023,17 +4023,32 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                                     >
                                                         <div className="flex items-center gap-3"><PieChart size={14} /> CÁLCULO DE MASAS</div>
                                                     </button>
-                                                    <button
-                                                        onClick={apply50PercentUtilization}
-                                                        title="Atajo rápido: Asigna exactamente 50% de utilidad a todos los equipos del proyecto inmediatamente."
-                                                        className="w-full py-3 px-4 bg-red-500/10 border border-red-500/40 text-red-500 rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-red-500/20 hover:border-red-500/60 transition-all flex items-center justify-between"
-                                                    >
-                                                        <div className="flex items-center gap-3"><Percent size={14} className="group-hover:scale-110 transition-transform" /> APLICAR 50% UTIL.</div>
-                                                    </button>
+                                                    <div className="w-full bg-red-500/10 border border-red-500/30 rounded-xl flex flex-col overflow-hidden mt-2">
+                                                        <div className="flex items-center justify-between px-3 py-2 border-b border-red-500/20" title="Utilidad aplicable global">
+                                                            <div className="flex items-center gap-2">
+                                                                <Percent size={12} className="text-red-500" />
+                                                                <input type="number" value={globalUtilVal} onChange={(e) => setGlobalUtilVal(n(e.target.value))} className="w-8 bg-transparent text-white font-black text-[11px] outline-none" />
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button onClick={applyGlobalUtilization} className="px-2 py-1 bg-red-500/20 text-red-400 font-bold text-[9px] rounded-md hover:bg-red-500 hover:text-black transition-all">APLICAR UTIL.</button>
+                                                                <button onClick={apply50PercentUtilization} title="Atajo rápido: Asigna exactamente 50% a todo" className="px-2 py-1 bg-red-500/40 text-white font-bold text-[9px] rounded-md hover:bg-red-500 hover:text-black transition-all">50%</button>
+                                                                {isRestoratable && (
+                                                                    <button onClick={restoreOriginalUtilization} title="Restaurar utilidad default" className="p-1 px-2 border border-red-500/30 text-red-400 rounded-md hover:bg-red-500 hover:text-black transition-all"><RotateCcw size={10} /></button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between px-3 py-2" title="Cantidad global (QTY) para aplicar">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-white font-black text-[10px]">QTY</span>
+                                                                <input type="number" value={globalQtyVal} onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))} className="w-8 bg-transparent text-white font-black text-[11px] outline-none" />
+                                                            </div>
+                                                            <button onClick={applyGlobalQty} className="px-2 py-1 bg-white/10 text-white font-bold text-[9px] rounded-md hover:bg-white/20 transition-all uppercase">Aplicar Global</button>
+                                                        </div>
+                                                    </div>
                                                     <button
                                                         onClick={justifyAllDescriptions}
                                                         title="Mejora la legibilidad alineando y estructurando correctamente todos los textos descriptivos."
-                                                        className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-white/5 transition-all flex items-center justify-between"
+                                                        className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-white/5 transition-all flex items-center justify-between mt-2"
                                                     >
                                                         <div className="flex items-center gap-3"><AlignJustify size={14} /> AUTO-JUSTIFICAR TEXTOS</div>
                                                     </button>
@@ -4121,33 +4136,6 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             </div>
                         </div>
 
-                        {/* PARÁMETROS ROJOS FLOTANTES (MINI BARRA FUERA) */}
-                        {isAdmin && (
-                            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] border border-red-500/30 bg-black/80 backdrop-blur-3xl rounded-full shadow-2xl px-6 py-3 flex items-center justify-center gap-4 transition-all hover:border-red-500/50">
-                                <div className="flex items-center gap-2" title="Utilidad aplicable global">
-                                    <Percent size={14} className="text-red-500" />
-                                    <input type="number" value={globalUtilVal} onChange={(e) => setGlobalUtilVal(n(e.target.value))} className="w-10 bg-transparent text-white font-black text-xs outline-none text-center" />
-                                    <button onClick={applyGlobalUtilization} title="Aplica utilidad a todo el proyecto" className="px-3 py-1 bg-red-500/20 text-red-400 font-bold text-[9px] rounded-full hover:bg-red-500 hover:text-black transition-all">APLICAR UTIL</button>
-                                </div>
-                                <div className="w-px h-6 bg-white/10" />
-                                <div className="flex items-center gap-2" title="Cantidad global (QTY) para aplicar">
-                                    <span className="text-white font-black text-[10px]">QTY</span>
-                                    <input type="number" value={globalQtyVal} onChange={(e) => setGlobalQtyVal(Math.max(1, parseInt(e.target.value) || 1))} className="w-10 bg-transparent text-white font-black text-xs outline-none text-center" />
-                                    <button onClick={applyGlobalQty} title="Ajusta cantidades a todos los equipos" className="px-3 py-1 bg-white/10 text-white font-bold text-[9px] rounded-full hover:bg-white/20 transition-all">APLICAR QTY</button>
-                                </div>
-                                <div className="w-px h-6 bg-white/10" />
-                                <div className="flex items-center gap-2" title="Tipo de Cambio (MXN a USD)">
-                                    <span className="text-red-500 font-black text-[10px]">TC</span>
-                                    <input type="number" step="0.01" value={tipoCambio} onChange={(e) => setTipoCambio(n(e.target.value))} className="w-14 bg-transparent text-white font-black text-xs outline-none text-center" />
-                                </div>
-                                {isRestoratable && (
-                                    <>
-                                        <div className="w-px h-6 bg-white/10" />
-                                        <button onClick={restoreOriginalUtilization} title="Restaura la utilidad original de respaldo" className="p-2 bg-red-500/20 text-red-500 rounded-full hover:bg-red-500 hover:text-black transition-all"><RotateCcw size={14} /></button>
-                                    </>
-                                )}
-                            </div>
-                        )}
                         {/* BUSCADOR GLOBAL - MODO ADMIN */}
                         {isAdmin && (
                             <div className="mt-8 max-w-4xl mx-auto relative px-4">
