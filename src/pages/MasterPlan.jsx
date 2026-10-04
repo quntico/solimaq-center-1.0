@@ -136,7 +136,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
     const [pdfExportType, setPdfExportType] = useState(null); // 'master' or 'equipment-list'
     const [exportBrandColor, setExportBrandColor] = useState(() => quotationData?.brand_color || 'solimaq');
     const [exportWebsite, setExportWebsite] = useState(() => quotationData?.brand_color === 'smq' ? 'www.smq.mx' :
-        (quotationData?.brand_color === 'solifood' ? 'www.solifood.com' : (quotationData?.brand_color === 'msw' ? 'www.msw.mx' : 'www.solimaq.site')));
+        (quotationData?.brand_color === 'solifood' ? 'www.solifood.com' : (quotationData?.brand_color === 'msw' ? 'www.mswsorting.com' : 'www.solimaq.site')));
     const [exportLogoUrl, setExportLogoUrl] = useState(() => quotationData?.logo || "/solimaq_logo.png");
     const [isUploadingExportLogo, setIsUploadingExportLogo] = useState(false);
     const exportLogoInputRef = React.useRef(null);
@@ -204,6 +204,8 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
 
         if (exportBrandColor === 'smq') {
             primaryColor = '#007BFF'; // Azul SMQ
+        } else if (exportBrandColor === 'msw') {
+            primaryColor = '#0054A6'; // Azul oscuro MSW
         } else if (exportBrandColor === 'solifood') {
             primaryColor = '#FACC15'; // Amarillo Solifood
         }
@@ -493,7 +495,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 setExportBrandColor(quotationData.brand_color);
                 if (quotationData.brand_color === 'smq') setExportWebsite('www.smq.mx');
                 else if (quotationData.brand_color === 'solifood') setExportWebsite('www.solifood.com');
-                else if (quotationData.brand_color === 'msw') setExportWebsite('www.msw.mx');
+                else if (quotationData.brand_color === 'msw') setExportWebsite('www.mswsorting.com');
                 else setExportWebsite('www.solimaq.site');
             }
         }
@@ -1518,6 +1520,9 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         if (exportBrandColor === 'smq') {
             headerBg = '#007BFF'; // Azul SMQ
             headerText = '#FFFFFF';
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6'; // Azul oscuro MSW
+            headerText = '#FFFFFF';
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15'; // Amarillo Solifood
             headerText = '#000000';
@@ -1536,6 +1541,32 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             img.onload = () => resolve(img);
             img.onerror = () => resolve(null);
             img.src = finalUrl + "?v=" + Date.now();
+        });
+
+        const preloadedImages = {};
+        const fetchImage = (url) => new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve({ url, img });
+            img.onerror = () => resolve({ url, img: null });
+            img.src = url + "?v=" + Date.now();
+        });
+
+        const urlsToFetch = new Set();
+        for (const s of sections) {
+            if (s.activo === false) continue;
+            for (const it of s.items || []) {
+                if (it.activo && it.media_url && it.media_type !== 'video') {
+                    urlsToFetch.add(it.media_url);
+                }
+            }
+        }
+
+        toast({ title: "Generando PDF...", description: `Procesando ${urlsToFetch.size} imágenes y equipos. Un momento por favor...`, duration: 5000 });
+
+        const results = await Promise.all(Array.from(urlsToFetch).map(url => fetchImage(url)));
+        results.forEach(res => {
+            if (res.img) preloadedImages[res.url] = res.img;
         });
 
         const start = () => {
@@ -1599,7 +1630,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                         { content: `${displayModuleNum}.${idx + 1}`, styles: { textColor: pdfSettings.primaryColor, fontStyle: 'bold' } },
                         String(it.equipo || "N/A").toUpperCase(),
                         String(it.descripcion || ""),
-                        { content: "", image: it.media_url && it.media_type !== 'video' ? it.media_url : null },
+                        { content: "", image: it.media_url && it.media_type !== 'video' ? preloadedImages[it.media_url] : null },
                         it.qty,
                         money(r.ventaUnitFinal),
                         money(r.totalVenta)
@@ -1683,6 +1714,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -1866,7 +1901,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         start();
     };
 
-    const generateEquipmentListPDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "") => {
+    const generateEquipmentListPDF = async (customFilename = "", customTitle = "", customClient = "", customProject = "", customTC = 18.5) => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         let { headerBg, headerText } = pdfSettings;
         let moduleColorArray = [155, 212, 40];
@@ -1874,6 +1909,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -2035,27 +2074,95 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                 finalY = 65;
             }
 
-            // RECUADRO DE TOTALES AJUSTADO (FUENTES 14PT Y TAMAÑO COMPACTO)
-            const boxH = 25;
-            doc.setFillColor(85, 85, 85);
-            // El cuadro ahora empieza en x:130 (más a la derecha) y tiene x:152 de ancho
-            doc.rect(130, finalY - 10, 152, boxH, 'F');
+            // --- PREMIUM SUMMARY (SPLIT CARDS) ---
+            const boxY = finalY;
+            const cardW = 92;
+            const cardH = 26;
+            const headH = 10;
 
-            doc.setFontSize(14);
+            const mxnX = 282 - cardW;
+            const usdX = mxnX - cardW - 4;
+
+            doc.setFontSize(11);
             doc.setFont("helvetica", "bold");
+            doc.setTextColor(100, 100, 100);
+            doc.text(`POTENCIA TOTAL INSTALADA: ${grandTotalKw.toFixed(2)} KW`, mxnX + cardW, boxY - 3, { align: 'right' });
+
+            const usdSinIva = grandTotals.totalVenta;
+            const mxnSinIva = usdSinIva * customTC;
+            const usdConIva = usdSinIva * 1.16;
+            const mxnConIva = usdConIva * customTC;
+
+            // CARD 1: DÓLARES (IZQUIERDA)
+            doc.setFillColor(50, 50, 50);
+            doc.rect(usdX, boxY, cardW, headH, 'F');
             doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.text("INVERSIÓN TOTAL (USD)", usdX + (cardW / 2), boxY + 7, { align: 'center' });
 
-            // Etiquetas cerca de los totales (alineado a x:215)
-            doc.text("POTENCIA TOTAL INSTALADA:", 215, finalY, { align: 'right' });
-            doc.text(grandTotalKw.toFixed(2) + " KW", 280, finalY, { align: 'right' });
+            doc.setFillColor(245, 245, 245);
+            doc.rect(usdX, boxY + headH, cardW, cardH, 'F');
 
-            doc.text("TOTAL GENERAL:", 215, finalY + 9, { align: 'right' });
-            doc.text(money(grandTotals.totalVenta) + " USD", 280, finalY + 9, { align: 'right' });
-
-            // Leyenda IVA
+            doc.setTextColor(100, 100, 100);
             doc.setFontSize(8);
             doc.setFont("helvetica", "normal");
-            doc.text("MÁS 16% DE I.V.A.", 280, finalY + 14, { align: 'right' });
+            doc.text("SUBTOTAL (S/ IVA):", usdX + 4, boxY + headH + 8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(40, 40, 40);
+            doc.text(money(usdSinIva), usdX + cardW - 4, boxY + headH + 8, { align: 'right' });
+
+            doc.setTextColor(100, 100, 100);
+            doc.setFont("helvetica", "normal");
+            doc.text("I.V.A (16%):", usdX + 4, boxY + headH + 15);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(40, 40, 40);
+            doc.text(money(usdSinIva * 0.16), usdX + cardW - 4, boxY + headH + 15, { align: 'right' });
+
+            doc.setDrawColor(200, 200, 200);
+            doc.line(usdX + 4, boxY + headH + 18, usdX + cardW - 4, boxY + headH + 18);
+
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            doc.text("TOTAL C/ IVA:", usdX + 4, boxY + headH + 24);
+            doc.text(money(usdConIva), usdX + cardW - 4, boxY + headH + 24, { align: 'right' });
+
+            // CARD 2: PESOS (DERECHA)
+            doc.setFillColor(moduleColorArray[0], moduleColorArray[1], moduleColorArray[2]);
+            doc.rect(mxnX, boxY, cardW, headH, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.text("INVERSIÓN TOTAL (MXN)", mxnX + (cardW / 2), boxY + 7, { align: 'center' });
+
+            doc.setFillColor(245, 245, 245);
+            doc.rect(mxnX, boxY + headH, cardW, cardH, 'F');
+
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.text("SUBTOTAL (S/ IVA):", mxnX + 4, boxY + headH + 8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(40, 40, 40);
+            doc.text(money(mxnSinIva), mxnX + cardW - 4, boxY + headH + 8, { align: 'right' });
+
+            doc.setTextColor(100, 100, 100);
+            doc.setFont("helvetica", "normal");
+            doc.text("I.V.A (16%):", mxnX + 4, boxY + headH + 15);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(40, 40, 40);
+            doc.text(money(mxnSinIva * 0.16), mxnX + cardW - 4, boxY + headH + 15, { align: 'right' });
+
+            doc.line(mxnX + 4, boxY + headH + 18, mxnX + cardW - 4, boxY + headH + 18);
+
+            doc.setFontSize(11);
+            doc.setTextColor(moduleColorArray[0], moduleColorArray[1], moduleColorArray[2]);
+            doc.text("TOTAL C/ IVA:", mxnX + 4, boxY + headH + 24);
+            doc.text(money(mxnConIva), mxnX + cardW - 4, boxY + headH + 24, { align: 'right' });
+
+            // TC NOTE
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Tipo de Cambio Base: $${customTC} MXN/USD`, mxnX + cardW, boxY + headH + cardH + 5, { align: 'right' });
 
             const cleanName = String(customFilename || `LISTADO_EQUIPOS_${String(projectName || "Proyecto").replace(/\s+/g, '_')}`).replace(/[/\\?%*:|"<>]/g, '-');
             const finalFilename = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
@@ -2074,6 +2181,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -2261,6 +2372,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -2450,6 +2565,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -2652,6 +2771,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -2874,6 +2997,10 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
             headerBg = '#007BFF';
             headerText = '#FFFFFF';
             moduleColorArray = [0, 123, 255];
+        } else if (exportBrandColor === 'msw') {
+            headerBg = '#0054A6';
+            headerText = '#FFFFFF';
+            moduleColorArray = [0, 84, 166];
         } else if (exportBrandColor === 'solifood') {
             headerBg = '#FACC15';
             headerText = '#000000';
@@ -3034,6 +3161,11 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         setExportClient(savedMeta?.client || clientName);
         setExportProject(savedMeta?.project || projectName);
         setExportTC(savedMeta?.tc || tipoCambio);
+
+        if (savedMeta?.brandColor) setExportBrandColor(savedMeta.brandColor);
+        if (savedMeta?.website) setExportWebsite(savedMeta.website);
+        if (savedMeta?.logoUrl) setExportLogoUrl(savedMeta.logoUrl);
+
         setIsExportFilenameModalOpen(true);
     };
 
@@ -3080,7 +3212,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
         if (pdfExportType === 'master') {
             generateDirectPDF(exportFilename, exportClient, exportProject);
         } else if (pdfExportType === 'equipment-list') {
-            generateEquipmentListPDF(exportFilename, exportTitle, exportClient, exportProject);
+            generateEquipmentListPDF(exportFilename, exportTitle, exportClient, exportProject, n(exportTC));
         } else if (pdfExportType === 'equipment-list-no-amount') {
             generateEquipmentListNoAmountPDF(exportFilename, exportTitle, exportClient, exportProject, exportIncludeAmount);
         } else if (pdfExportType === 'equipment-list-mxn') {
@@ -3886,7 +4018,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                             title="Genera un archivo PDF con el listado de equipos y sus montos detallados."
                                             className="w-full py-3 px-4 bg-zinc-900 border border-white/10 text-white font-black rounded-xl text-[10px] tracking-widest uppercase hover:bg-zinc-800 hover:border-primary/50 transition-all flex items-center justify-between group"
                                         >
-                                            <div className="flex items-center gap-3"><FileSpreadsheet size={14} className="text-blue-400 group-hover:scale-110 transition-transform" /> LISTADO C/ PRECIOS</div>
+                                            <div className="flex items-center gap-3"><FileSpreadsheet size={14} className="text-blue-400 group-hover:scale-110 transition-transform" /> PRECIO DE VENTA</div>
                                         </button>
                                         <button
                                             onClick={() => triggerExportWithFilename('equipment-list-no-amount')}
@@ -4944,7 +5076,7 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 </div>
                                 <div className="space-y-4 pt-4 border-t border-white/5">
                                     <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Utilidad Global (%)</label><span className="text-primary font-black">{globalUtilVal}%</span></div>
-                                    <Slider value={[globalUtilVal]} max={100} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
+                                    <Slider value={[globalUtilVal]} max={200} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
                                     <button onClick={applyGlobalUtilization} className="w-full py-3 bg-primary/10 border border-primary/30 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all">Aplicar {globalUtilVal}% a Todo</button>
                                 </div>
 
@@ -5034,6 +5166,49 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                             <DialogHeader><DialogTitle className="text-xl font-black uppercase tracking-widest text-primary mb-2">Nombre del Archivo</DialogTitle></DialogHeader>
                             <div className="space-y-4">
                                 <p className="text-xs text-gray-400">Personaliza el nombre con el que se guardará tu documento PDF.</p>
+
+                                <div className="p-5 bg-primary/5 border border-primary/20 rounded-2xl space-y-4">
+                                    <div className="flex justify-between items-center border-b border-primary/10 pb-3">
+                                        <h3 className="text-xs font-black text-primary uppercase tracking-widest">Resumen Financiero (Sin IVA)</h3>
+                                        <div className="text-right">
+                                            <div className="text-xl font-black text-white">{money(grandTotals.totalVenta)} USD</div>
+                                            <div className="text-[10px] font-mono text-gray-400">{(grandTotals.mxnSinIvaVenta).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} MXN</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Margen USD</div>
+                                            <div className="text-sm font-black text-green-400">{money(grandTotals.utilidadUSD)}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Margen MXN</div>
+                                            <div className="text-sm font-black text-green-400">{(grandTotals.utilidadMXN).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</div>
+                                        </div>
+                                    </div>
+                                    <div className="pt-4 border-t border-primary/10 space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Ajustar Utilidad Global (%)</label>
+                                            <span className="text-primary font-black bg-primary/10 px-2 py-0.5 rounded text-[10px]">{grandTotals.utilidadPromedioPct.toFixed(1)}% Real</span>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-1">
+                                                <Slider value={[globalUtilVal]} max={200} step={1} onValueChange={(vals) => setGlobalUtilVal(vals[0])} />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    value={globalUtilVal}
+                                                    onChange={e => setGlobalUtilVal(Math.max(0, Math.min(200, Number(e.target.value))))}
+                                                    className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-bold text-white outline-none focus:border-primary/50 text-center"
+                                                />
+                                            </div>
+                                            <button onClick={applyGlobalUtilization} className="px-4 py-2 bg-primary/20 hover:bg-primary text-primary hover:text-black font-black text-[10px] uppercase tracking-widest rounded-lg transition-all whitespace-nowrap">
+                                                Aplicar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Nombre del PDF</label>
@@ -5092,7 +5267,18 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                         <div className="relative">
                                             <select
                                                 value={exportBrandColor}
-                                                onChange={e => setExportBrandColor(e.target.value)}
+                                                onChange={e => {
+                                                    const newBrand = e.target.value;
+                                                    setExportBrandColor(newBrand);
+
+                                                    if (newBrand === 'smq') setExportWebsite('www.smq.mx');
+                                                    else if (newBrand === 'solifood') setExportWebsite('www.solifood.com');
+                                                    else if (newBrand === 'msw') setExportWebsite('www.mswsorting.com');
+                                                    else setExportWebsite('www.solimaq.site');
+
+                                                    const savedLogo = localStorage.getItem(`logo_${newBrand}`);
+                                                    setExportLogoUrl(savedLogo || "/solimaq_logo.png");
+                                                }}
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-primary/50 transition-all appearance-none cursor-pointer"
                                             >
                                                 <option value="solimaq" className="bg-zinc-900 text-white">Solimaq Center</option>
@@ -5147,7 +5333,15 @@ export default function MasterPlan({ slug: propSlug, parentSlug, legacySlug, isS
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => {
-                                            const metadata = { client: exportClient, project: exportProject, tc: exportTC, title: exportTitle };
+                                            const metadata = {
+                                                client: exportClient,
+                                                project: exportProject,
+                                                tc: exportTC,
+                                                title: exportTitle,
+                                                brandColor: exportBrandColor,
+                                                website: exportWebsite,
+                                                logoUrl: exportLogoUrl
+                                            };
                                             localStorage.setItem(`export_meta_${propSlug || 'default'}`, JSON.stringify(metadata));
                                             toast({ title: 'Datos guardados como inicio 💾' });
                                         }}
